@@ -6,8 +6,8 @@
 ## Stack
 
 React + Tailwind CSS, bundler **Vite**. Router: React Router. Estado de servidor: TanStack Query
-(o `fetch` + hooks propios). Testing: Jest + React Testing Library. Probador virtual: MediaPipe
-Face Mesh + Canvas API (2D sobre foto estática).
+(o `fetch` + hooks propios). Probador virtual: MediaPipe Face Mesh + Canvas API (2D sobre foto
+estática).
 
 **Idioma: código 100% en inglés** (componentes, hooks, variables, types, nombres de dominio —
 mismo vocabulario que el backend: `Applicant`, `Frame`, `Appointment`, `Donor`). **La UI en
@@ -74,8 +74,10 @@ no inline en cada componente.
 
 ## Testing
 
-- Jest + React Testing Library. Testear componentes con lógica y hooks; **mockear el cliente de `api/`**,
-  no `fetch` directamente. Naming claro por comportamiento.
+- **Decisión (2026-07-26): sin tests automatizados en el frontend** — la app es chica y el equipo
+  prioriza el backend. La verificación es `npm run build` + prueba manual.
+- Si en el futuro se agregan, usar **Vitest** + React Testing Library (Jest no integra bien con
+  Vite/ESM), mockeando el cliente de `api/`, nunca `fetch` directo.
 
 ## Reglas generales
 
