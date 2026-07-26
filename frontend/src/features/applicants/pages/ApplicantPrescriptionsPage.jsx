@@ -4,6 +4,7 @@ import { applicantsApi } from '../../../api/applicantsApi'
 import { Alert } from '../../../components/Alert'
 import { Layout } from '../../../components/Layout'
 import { formatDateTime } from '../../../lib/dates'
+import { PrescriptionFileCell } from '../components/PrescriptionFileCell'
 import { PrescriptionForm } from '../components/PrescriptionForm'
 
 // Las dioptrías se leen siempre con signo y dos decimales (+1.00 / -0.75).
@@ -34,9 +35,22 @@ export function ApplicantPrescriptionsPage() {
     queryFn: () => applicantsApi.listPrescriptions(applicantId),
   })
 
+  // La graduación se guarda primero y el archivo va aparte: si falla la subida, la receta
+  // igual quedó registrada y el operador puede reintentar el adjunto.
   const createMutation = useMutation({
-    mutationFn: (data) => applicantsApi.createPrescription(applicantId, data),
-    onSuccess: () => {
+    mutationFn: async ({ data, file }) => {
+      const prescription = await applicantsApi.createPrescription(applicantId, data)
+      if (!file) return { fileError: null }
+      try {
+        await applicantsApi.uploadPrescriptionFile(applicantId, prescription.id, file)
+        return { fileError: null }
+      } catch (error) {
+        // No se propaga: la receta ya existe y reintentar el alta la duplicaría. El operador
+        // adjunta el archivo desde el historial.
+        return { fileError: error.message }
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['applicants', applicantId, 'prescriptions'] })
     },
   })
@@ -87,6 +101,7 @@ export function ApplicantPrescriptionsPage() {
                     <th className="px-4 py-3">Fecha de carga</th>
                     <th className="px-4 py-3">Ojo derecho (OD)</th>
                     <th className="px-4 py-3">Ojo izquierdo (OI)</th>
+                    <th className="px-4 py-3">Receta del médico</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -109,6 +124,12 @@ export function ApplicantPrescriptionsPage() {
                           prescription.leftAxis,
                         )}
                       </td>
+                      <td className="px-4 py-3">
+                        <PrescriptionFileCell
+                          applicantId={applicantId}
+                          prescription={prescription}
+                        />
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -122,9 +143,17 @@ export function ApplicantPrescriptionsPage() {
         <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
           Nueva receta
         </h3>
+        {createMutation.data?.fileError && (
+          <div className="mt-3">
+            <Alert>
+              La receta se guardó, pero no se pudo subir el archivo ({createMutation.data.fileError}).
+              Adjuntalo desde el historial.
+            </Alert>
+          </div>
+        )}
         <div className="mt-3 rounded-lg border border-slate-200 bg-white p-6">
           <PrescriptionForm
-            onSubmit={(data) => createMutation.mutateAsync(data)}
+            onSubmit={(data, file) => createMutation.mutateAsync({ data, file })}
             isPending={createMutation.isPending}
             submitError={createMutation.error?.message}
           />

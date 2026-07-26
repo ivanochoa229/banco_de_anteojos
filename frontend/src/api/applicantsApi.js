@@ -8,4 +8,15 @@ export const applicantsApi = {
   listPrescriptions: (applicantId) => apiFetch(`/v1/applicants/${applicantId}/prescriptions`),
   createPrescription: (applicantId, data) =>
     apiFetch(`/v1/applicants/${applicantId}/prescriptions`, { method: 'POST', body: data }),
+  uploadPrescriptionFile: (applicantId, prescriptionId, file) => {
+    const body = new FormData()
+    body.append('file', file)
+    return apiFetch(`/v1/applicants/${applicantId}/prescriptions/${prescriptionId}/file`, {
+      method: 'PUT',
+      body,
+    })
+  },
+  // Devuelve una URL firmada que vence: se pide en el momento de abrirla, no se guarda.
+  getPrescriptionFile: (applicantId, prescriptionId) =>
+    apiFetch(`/v1/applicants/${applicantId}/prescriptions/${prescriptionId}/file`),
 }
