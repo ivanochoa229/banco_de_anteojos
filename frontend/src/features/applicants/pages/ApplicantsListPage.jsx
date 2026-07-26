@@ -67,12 +67,20 @@ export function ApplicantsListPage() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <Link
-                        to={`/applicants/${applicant.id}/edit`}
-                        className="font-medium text-sky-700 hover:underline"
-                      >
-                        Editar
-                      </Link>
+                      <div className="flex justify-end gap-4">
+                        <Link
+                          to={`/applicants/${applicant.id}/prescriptions`}
+                          className="font-medium text-sky-700 hover:underline"
+                        >
+                          Recetas
+                        </Link>
+                        <Link
+                          to={`/applicants/${applicant.id}/edit`}
+                          className="font-medium text-sky-700 hover:underline"
+                        >
+                          Editar
+                        </Link>
+                      </div>
                     </td>
                   </tr>
                 ))}

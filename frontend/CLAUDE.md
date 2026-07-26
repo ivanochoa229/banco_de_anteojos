@@ -9,6 +9,9 @@ React + Tailwind CSS, bundler **Vite**. Router: React Router. Estado de servidor
 (o `fetch` + hooks propios). Probador virtual: MediaPipe Face Mesh + Canvas API (2D sobre foto
 estática).
 
+**Node ≥ 22.12** (fijado en `.nvmrc` y en `engines` de `package.json`; también lo usa Render). Vite 8
+no arranca con Node 18: falla al importar `styleText` de `node:util`.
+
 **Idioma: código 100% en inglés** (componentes, hooks, variables, types, nombres de dominio —
 mismo vocabulario que el backend: `Applicant`, `Frame`, `Appointment`, `Donor`). **La UI en
 español**: todos los textos visibles al usuario (labels, botones, mensajes, validaciones).
