@@ -1,0 +1,22 @@
+spring:
+  application:
+    name: banco-anteojos-backend
+  # Carga el .env local (no versionado) como propiedades; en Render las variables
+  # llegan por entorno y el import se ignora por ser optional.
+  config:
+    import: optional:file:.env[.properties]
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/banco_anteojos}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+  jpa:
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+jwt:
+  secret: ${JWT_SECRET:}
+  expiration-ms: ${JWT_EXPIRATION_MS:86400000}
