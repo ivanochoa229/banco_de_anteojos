@@ -13,6 +13,9 @@ gestiona Flyway) · JWT stateless · JUnit 5 + Mockito + AssertJ + MockMvc.
 Variables sensibles (JWT secret, credenciales R2, API key de 17TRACK) desde `.env` como system
 properties. **Nunca** hardcodeadas ni versionadas.
 
+**Idioma: código 100% en inglés** (entidades, DTOs, endpoints, variables, métodos, schema de DB).
+En español solo: mensajes al usuario final (errores de API incluidos), comentarios, commits y docs.
+
 ## Arquitectura en 4 capas (+ terceros)
 
 ```
@@ -23,8 +26,8 @@ persistence/                   → repositorios JPA
 thirdPartyServiceComunication/ → clientes de APIs externas (RENAPER, 17TRACK, R2, notificaciones)
 ```
 
-Dominios de este proyecto: `seguridad`, `solicitantes`, `donantes`, `marcos`, `asignacion`, `turnos`,
-`envios`, `catalogo`, `indicadores`.
+Dominios de este proyecto: `security`, `applicants`, `donors`, `frames`, `assignments`,
+`appointments`, `shipments`, `catalog`, `indicators`.
 
 ### Reglas críticas (no romper)
 
@@ -40,7 +43,7 @@ Dominios de este proyecto: `seguridad`, `solicitantes`, `donantes`, `marcos`, `a
   **Nunca** el repositorio/servicio de otro dominio, ni otro `*ServiceHandler`. La coordinación
   cross-domain vive en el orchestrator, que pasa los datos ya resueltos como parámetro.
 - **Entidades sin setters:** mutación por métodos con intención de negocio
-  (`marco.marcarComoEntregado()`, no `setEstado("ENTREGADO")`), o query JPQL de update directa.
+  (`frame.markAsDelivered()`, no `setStatus("DELIVERED")`), o query JPQL de update directa.
 - **Operaciones no críticas** (notificaciones, logging) envueltas en try-catch: que un fallo ahí no
   tumbe el flujo principal.
 - Naming de servicios: `*ServiceHandler` (no `*ServiceImpl`). Repositorios:
@@ -55,13 +58,13 @@ Un cliente por integración, aislado. El resto del código nunca llama directo a
 - (Notificaciones si aplica.)
 
 > La verificación ANSES **no** es un cliente de terceros: es lectura local del código de barras del PDF.
-> Va en `business/solicitantes` (o un `business/validacion` dedicado), no en la capa de terceros.
+> Va en `business/applicants` (o un `business/validation` dedicado), no en la capa de terceros.
 
 ## REST
 
 - Recursos en **plural**, sin verbos en el path. La acción la da el método HTTP.
-  `DELETE /v1/marcos/{id}`, no `POST /borrarMarco/{id}`.
-- Rutas jerárquicas para relaciones: `GET /v1/solicitantes/{id}/turnos`.
+  `DELETE /v1/frames/{id}`, no `POST /deleteFrame/{id}`.
+- Rutas jerárquicas para relaciones: `GET /v1/applicants/{id}/appointments`.
 - Versionado en la URL (`/v1/`). JSON en `camelCase`. Auth por `Authorization: Bearer <token>`.
 - Errores estructurados y consistentes (timestamp, status, error, message, path). **Sin filtrar detalles
   internos** (nada de stacktraces ni nombres de tablas/columnas en la respuesta).
@@ -87,8 +90,8 @@ en Java es unit-testeable sin levantar la DB.
 Pirámide: ~70–80% unit, 15–20% integración, 5–10% E2E. Tags `@Tag("unit")` / `@Tag("integration")`.
 - Test de controller → mockear orchestrator. Orchestrator → mockear services. Service → mockear helper
   y repository.
-- Naming: clase `{Entidad}{Capa}Test`; método `[Método]_[Condición]` (`CrearTurno_Exitoso`,
-  `AsignarMarco_CuandoNoHayStock`).
+- Naming: clase `{Entidad}{Capa}Test`; método `[Método]_[Condición]` (`CreateAppointment_Successful`,
+  `AssignFrame_WhenNoStock`).
 - E2E mínimo por feature: `@SpringBootTest` + `@AutoConfigureMockMvc` + `@Transactional`, pegándole al
   endpoint real y asertando respuesta HTTP **y** estado en DB. Mockear solo clientes de terceros.
 

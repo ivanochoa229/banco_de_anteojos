@@ -12,9 +12,10 @@ ni inventario digital. El sistema digitaliza recepción de donaciones, validaci�
 beneficiarios, inventario con match receta↔marco, trazabilidad end-to-end, turnos, logística de
 envíos, probador virtual y catálogo de anteojos de sol.
 
-**Idioma del dominio: español.** Nombres de entidades, DTOs, endpoints y mensajes en español
-(`Solicitante`, `Marco`, `Turno`, `Donante`). El código (keywords, patrones) en inglés como es
-habitual, pero el vocabulario de negocio va en español.
+**Idioma del código: inglés.** Todo el código en inglés: entidades, DTOs, endpoints, variables,
+métodos, tablas y columnas (`Applicant`, `Frame`, `Appointment`, `Donor`). En español quedan
+únicamente: los mensajes al usuario final (incluidos los errores de la API), los comentarios,
+los commits y la documentación.
 
 ## Estructura del repositorio (monorepo)
 
@@ -59,9 +60,10 @@ Deploy en Render: backend y frontend se despliegan desde este mismo repo apuntan
 
 ## Dominios del sistema (backend)
 
-seguridad · solicitantes (beneficiarios) · donantes · marcos (inventario) · asignacion (match
-receta↔marco + trazabilidad) · turnos · envios (logística/17TRACK) · catalogo (venta anteojos de sol)
-· indicadores (panel de impacto). Clientes de terceros: RENAPER, 17TRACK, Cloudflare R2, notificaciones.
+security (seguridad) · applicants (solicitantes/beneficiarios) · donors (donantes) · frames
+(inventario de marcos) · assignments (match receta↔marco + trazabilidad) · appointments (turnos) ·
+shipments (logística/17TRACK) · catalog (venta anteojos de sol) · indicators (panel de impacto).
+Clientes de terceros: RENAPER, 17TRACK, Cloudflare R2, notificaciones.
 
 ## Flujo de trabajo del equipo
 
