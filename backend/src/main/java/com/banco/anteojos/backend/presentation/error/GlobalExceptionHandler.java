@@ -9,6 +9,8 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import com.banco.anteojos.backend.business.applicants.exception.ApplicantNotFoundException;
+import com.banco.anteojos.backend.business.applicants.exception.DniAlreadyExistsException;
 import com.banco.anteojos.backend.business.security.exception.InvalidCredentialsException;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -22,6 +24,18 @@ public class GlobalExceptionHandler {
 	@ResponseStatus(HttpStatus.UNAUTHORIZED)
 	public ErrorResponseDto invalidCredentials(InvalidCredentialsException e, HttpServletRequest request) {
 		return ErrorResponseDto.of(HttpStatus.UNAUTHORIZED, e.getMessage(), request.getRequestURI());
+	}
+
+	@ExceptionHandler(ApplicantNotFoundException.class)
+	@ResponseStatus(HttpStatus.NOT_FOUND)
+	public ErrorResponseDto applicantNotFound(ApplicantNotFoundException e, HttpServletRequest request) {
+		return ErrorResponseDto.of(HttpStatus.NOT_FOUND, e.getMessage(), request.getRequestURI());
+	}
+
+	@ExceptionHandler(DniAlreadyExistsException.class)
+	@ResponseStatus(HttpStatus.CONFLICT)
+	public ErrorResponseDto dniAlreadyExists(DniAlreadyExistsException e, HttpServletRequest request) {
+		return ErrorResponseDto.of(HttpStatus.CONFLICT, e.getMessage(), request.getRequestURI());
 	}
 
 	@ExceptionHandler(MethodArgumentNotValidException.class)
