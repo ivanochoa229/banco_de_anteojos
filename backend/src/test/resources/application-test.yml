@@ -1,0 +1,24 @@
+# Perfil de tests. Se activa solo desde surefire (ver pom.xml), nunca en runtime.
+#
+# Base separada de la de desarrollo a propósito: los E2E afirman cantidades exactas
+# ("la lista tiene 1 donante"), así que cualquier dato de demo cargado a mano en la base
+# de dev los hacía fallar. Flyway migra esta base sola en la primera corrida.
+#
+# Crearla una vez:
+#   docker exec banco-anteojos-db psql -U banco -d postgres -c "CREATE DATABASE banco_anteojos_test OWNER banco;"
+spring:
+  datasource:
+    url: ${TEST_DB_URL:jdbc:postgresql://localhost:5433/banco_anteojos_test}
+    username: ${TEST_DB_USERNAME:banco}
+    password: ${TEST_DB_PASSWORD:banco}
+
+# Secreto fijo y sin valor real: los tests no deben depender de que exista un .env local.
+jwt:
+  secret: test-secret-para-tests-de-integracion-no-usar-en-produccion
+  expiration-ms: 86400000
+
+# En blanco a propósito: AdminBootstrap se saltea y no ensucia la tabla users.
+bootstrap:
+  admin:
+    email: ""
+    password: ""
