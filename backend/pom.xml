@@ -16,7 +16,7 @@
 	<properties>
 		<java.version>17</java.version>
 		<!-- Por defecto ./mvnw test corre solo tests unitarios; los de integración
-		     necesitan Postgres local: ./mvnw test -Dtest.excluded.groups= -->
+		     necesitan la base banco_anteojos_test: ./mvnw test -Dtest.excluded.groups= -->
 		<test.excluded.groups>integration</test.excluded.groups>
 		<jjwt.version>0.12.6</jjwt.version>
 	</properties>
@@ -116,6 +116,11 @@
 				<artifactId>maven-surefire-plugin</artifactId>
 				<configuration>
 					<excludedGroups>${test.excluded.groups}</excludedGroups>
+					<systemPropertyVariables>
+						<!-- Los tests corren siempre contra banco_anteojos_test, nunca contra la
+						     base de desarrollo (ver src/test/resources/application-test.yml). -->
+						<spring.profiles.active>test</spring.profiles.active>
+					</systemPropertyVariables>
 				</configuration>
 			</plugin>
 			<plugin>

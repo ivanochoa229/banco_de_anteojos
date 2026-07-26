@@ -40,6 +40,8 @@ public class SecurityConfig {
 				.authorizeHttpRequests(auth -> auth
 						.requestMatchers(HttpMethod.POST, "/v1/auth/login").permitAll()
 						.requestMatchers("/v1/applicants/**").hasAnyRole("ADMIN", "OPERATOR")
+						.requestMatchers("/v1/donors/**").hasAnyRole("ADMIN", "OPERATOR")
+						.requestMatchers("/v1/frames/**").hasAnyRole("ADMIN", "OPERATOR")
 						.anyRequest().authenticated())
 				.exceptionHandling(exceptions -> exceptions
 						.authenticationEntryPoint((request, response, e) ->

@@ -42,7 +42,7 @@
 | ID | Requisito |
 |---|---|
 | RF-13 | El sistema mantiene el control de inventario en tiempo real de los marcos disponibles. |
-| RF-14 | El sistema ejecuta un algoritmo de match entre la receta médica del beneficiario y los atributos de los marcos disponibles. |
+| RF-14 | El sistema registra el envío del marco y la receta a la óptica que coloca los cristales, y el retorno del lente terminado (marco + cristal) para su entrega. |
 | RF-15 | El sistema permite asignar un marco a un beneficiario y descuenta la unidad del inventario. |
 | RF-16 | El sistema mantiene la trazabilidad end-to-end de cada par de anteojos, desde la donación hasta la entrega. |
 
@@ -106,6 +106,13 @@
 ---
 
 ## Notas de trazabilidad
+
+- **RF-14 fue reescrito (2026-07-26).** Antes decía que el sistema ejecutaba "un algoritmo de match
+  entre la receta médica y los atributos de los marcos disponibles". Eso no describe el circuito real:
+  la fundación recibe **marcos sin cristales**, así que el marco no tiene graduación contra la cual
+  matchear. La receta se carga (PDF/imagen + graduación) y se envía junto con el marco a la óptica,
+  que coloca los cristales y devuelve el lente terminado. **Pendiente:** replicar este cambio en la
+  Matriz de Trazabilidad v3 y en la Declaración de Alcance v4, que son la fuente textual.
 
 - Los criterios de aceptación asociados (CA1–CA13, con CA3 dividido en **CA3a/CA3b/CA3c** para la
   validación ANSES y CA9 ampliado para stock del catálogo) están enunciados en la Declaración de

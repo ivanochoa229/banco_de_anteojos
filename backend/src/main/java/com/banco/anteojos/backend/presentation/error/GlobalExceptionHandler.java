@@ -11,6 +11,9 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import com.banco.anteojos.backend.business.applicants.exception.ApplicantNotFoundException;
 import com.banco.anteojos.backend.business.applicants.exception.DniAlreadyExistsException;
+import com.banco.anteojos.backend.business.donors.exception.DonorNotFoundException;
+import com.banco.anteojos.backend.business.frames.exception.FrameNotFoundException;
+import com.banco.anteojos.backend.business.frames.exception.SealCodeAlreadyExistsException;
 import com.banco.anteojos.backend.business.security.exception.InvalidCredentialsException;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -35,6 +38,24 @@ public class GlobalExceptionHandler {
 	@ExceptionHandler(DniAlreadyExistsException.class)
 	@ResponseStatus(HttpStatus.CONFLICT)
 	public ErrorResponseDto dniAlreadyExists(DniAlreadyExistsException e, HttpServletRequest request) {
+		return ErrorResponseDto.of(HttpStatus.CONFLICT, e.getMessage(), request.getRequestURI());
+	}
+
+	@ExceptionHandler(DonorNotFoundException.class)
+	@ResponseStatus(HttpStatus.NOT_FOUND)
+	public ErrorResponseDto donorNotFound(DonorNotFoundException e, HttpServletRequest request) {
+		return ErrorResponseDto.of(HttpStatus.NOT_FOUND, e.getMessage(), request.getRequestURI());
+	}
+
+	@ExceptionHandler(FrameNotFoundException.class)
+	@ResponseStatus(HttpStatus.NOT_FOUND)
+	public ErrorResponseDto frameNotFound(FrameNotFoundException e, HttpServletRequest request) {
+		return ErrorResponseDto.of(HttpStatus.NOT_FOUND, e.getMessage(), request.getRequestURI());
+	}
+
+	@ExceptionHandler(SealCodeAlreadyExistsException.class)
+	@ResponseStatus(HttpStatus.CONFLICT)
+	public ErrorResponseDto sealCodeAlreadyExists(SealCodeAlreadyExistsException e, HttpServletRequest request) {
 		return ErrorResponseDto.of(HttpStatus.CONFLICT, e.getMessage(), request.getRequestURI());
 	}
 
