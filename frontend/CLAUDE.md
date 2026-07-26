@@ -9,16 +9,18 @@ React + Tailwind CSS, bundler **Vite**. Router: React Router. Estado de servidor
 (o `fetch` + hooks propios). Testing: Jest + React Testing Library. Probador virtual: MediaPipe
 Face Mesh + Canvas API (2D sobre foto estática).
 
-**Idioma del dominio y la UI: español** (mismo vocabulario que el backend: Solicitante, Marco, Turno,
-Donante). Código en inglés como es habitual.
+**Idioma: código 100% en inglés** (componentes, hooks, variables, types, nombres de dominio —
+mismo vocabulario que el backend: `Applicant`, `Frame`, `Appointment`, `Donor`). **La UI en
+español**: todos los textos visibles al usuario (labels, botones, mensajes, validaciones).
+Comentarios, commits y docs también en español.
 
 ## Estructura (feature-based, espeja los dominios del backend)
 
 ```
 src/
-├── api/                 # un cliente HTTP por dominio (solicitantesApi, marcosApi, turnosApi...)
-├── features/{dominio}/  # solicitantes, donantes, marcos, asignacion, turnos, envios, catalogo,
-│   ├── components/      #   indicadores, probador  — cada uno con sus componentes, hooks y páginas
+├── api/                 # un cliente HTTP por dominio (applicantsApi, framesApi, appointmentsApi...)
+├── features/{domain}/   # applicants, donors, frames, assignments, appointments, shipments,
+│   ├── components/      #   catalog, indicators, tryOn — cada uno con sus componentes, hooks y páginas
 │   ├── hooks/
 │   ├── pages/
 │   └── types.ts
@@ -41,7 +43,7 @@ src/
 
 ## Autenticación y roles
 
-- Roles `ADMIN` / `OPERADOR` (coinciden con el backend). Guardar el JWT y el rol en `AuthContext`.
+- Roles `ADMIN` / `OPERATOR` (coinciden con el backend). Guardar el JWT y el rol en `AuthContext`.
 - **Guards de ruta por rol**: rutas de administración/configuración solo para `ADMIN`.
 - Redirigir a login ante 401; limpiar el token al cerrar sesión.
 
@@ -77,6 +79,7 @@ no inline en cada componente.
 
 ## Reglas generales
 
-- Componentes chicos y con una responsabilidad. Nombres de dominio en español, autoexplicativos.
+- Componentes chicos y con una responsabilidad. Nombres en inglés, autoexplicativos; textos de UI
+  en español.
 - Validar en los bordes (input del usuario, respuesta de la API), no para escenarios imposibles.
 - Sin código "por si acaso": si no se usa, se borra.
