@@ -12,5 +12,7 @@ public record PrescriptionResponseDto(
 		BigDecimal leftSphere,
 		BigDecimal leftCylinder,
 		Integer leftAxis,
+		// null si la receta no tiene archivo adjunto; el front lo usa para mostrar el link.
+		String fileOriginalName,
 		LocalDateTime createdAt) {
 }
