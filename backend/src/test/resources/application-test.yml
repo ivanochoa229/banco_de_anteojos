@@ -22,3 +22,13 @@ bootstrap:
   admin:
     email: ""
     password: ""
+
+# Credenciales de juguete, por el mismo motivo que el secreto JWT: ningún test depende del .env.
+# Los tests que usan R2 mockean el cliente, pero el bean real igual se construye en el resto
+# de los contextos. Construirlo no abre conexiones: el SDK de S3 no valida credenciales al armarse.
+r2:
+  account-id: test-account
+  access-key-id: test-access-key-id
+  secret-access-key: test-secret-access-key
+  bucket: banco-anteojos-test
+  presigned-url-ttl-minutes: 15

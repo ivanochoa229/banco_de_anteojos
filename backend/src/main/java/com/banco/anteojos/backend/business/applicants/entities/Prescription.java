@@ -10,7 +10,9 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.Getter;
 
-// Inmutable tras la creación: una corrección de graduación es una receta nueva.
+// La graduación es inmutable tras la creación: una corrección es una receta nueva.
+// El archivo adjunto sí se puede reemplazar (un escaneo ilegible se vuelve a sacar) y no
+// altera la graduación, así que no justifica una receta nueva.
 @Entity
 @Table(name = "prescriptions")
 @Getter
@@ -34,6 +36,13 @@ public class Prescription {
 
 	private Integer leftAxis;
 
+	// Key del objeto en R2, no una URL: el bucket es privado y las presigned URLs vencen.
+	private String fileKey;
+
+	private String fileContentType;
+
+	private String fileOriginalName;
+
 	private LocalDateTime createdAt;
 
 	protected Prescription() {
@@ -49,5 +58,18 @@ public class Prescription {
 		this.leftCylinder = leftCylinder;
 		this.leftAxis = leftAxis;
 		this.createdAt = LocalDateTime.now();
+	}
+
+	/** Devuelve la key anterior (null si no había) para que el service borre el objeto huérfano. */
+	public String attachFile(String fileKey, String fileContentType, String fileOriginalName) {
+		String previousKey = this.fileKey;
+		this.fileKey = fileKey;
+		this.fileContentType = fileContentType;
+		this.fileOriginalName = fileOriginalName;
+		return previousKey;
+	}
+
+	public boolean hasFile() {
+		return fileKey != null;
 	}
 }

@@ -16,6 +16,10 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
 
 jwt:
   secret: ${JWT_SECRET:}
@@ -25,3 +29,12 @@ bootstrap:
   admin:
     email: ${ADMIN_EMAIL:}
     password: ${ADMIN_PASSWORD:}
+
+# Cloudflare R2. Un solo bucket PRIVADO: todo se sirve con presigned URLs, nunca por URL pública.
+# Las recetas son datos de salud (RNF-02, Ley 25.326) y no pueden quedar accesibles sin firma.
+r2:
+  account-id: ${R2_ACCOUNT_ID:}
+  access-key-id: ${R2_ACCESS_KEY_ID:}
+  secret-access-key: ${R2_SECRET_ACCESS_KEY:}
+  bucket: ${R2_BUCKET:}
+  presigned-url-ttl-minutes: ${R2_PRESIGNED_URL_TTL_MINUTES:15}

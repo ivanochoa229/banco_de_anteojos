@@ -8,13 +8,18 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import com.banco.anteojos.backend.business.applicants.exception.ApplicantNotFoundException;
 import com.banco.anteojos.backend.business.applicants.exception.DniAlreadyExistsException;
+import com.banco.anteojos.backend.business.applicants.exception.InvalidPrescriptionFileException;
+import com.banco.anteojos.backend.business.applicants.exception.PrescriptionFileNotFoundException;
+import com.banco.anteojos.backend.business.applicants.exception.PrescriptionNotFoundException;
 import com.banco.anteojos.backend.business.donors.exception.DonorNotFoundException;
 import com.banco.anteojos.backend.business.frames.exception.FrameNotFoundException;
 import com.banco.anteojos.backend.business.frames.exception.SealCodeAlreadyExistsException;
 import com.banco.anteojos.backend.business.security.exception.InvalidCredentialsException;
+import com.banco.anteojos.backend.thirdPartyServiceComunication.storage.StorageException;
 
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
@@ -57,6 +62,41 @@ public class GlobalExceptionHandler {
 	@ResponseStatus(HttpStatus.CONFLICT)
 	public ErrorResponseDto sealCodeAlreadyExists(SealCodeAlreadyExistsException e, HttpServletRequest request) {
 		return ErrorResponseDto.of(HttpStatus.CONFLICT, e.getMessage(), request.getRequestURI());
+	}
+
+	@ExceptionHandler(PrescriptionNotFoundException.class)
+	@ResponseStatus(HttpStatus.NOT_FOUND)
+	public ErrorResponseDto prescriptionNotFound(PrescriptionNotFoundException e, HttpServletRequest request) {
+		return ErrorResponseDto.of(HttpStatus.NOT_FOUND, e.getMessage(), request.getRequestURI());
+	}
+
+	@ExceptionHandler(PrescriptionFileNotFoundException.class)
+	@ResponseStatus(HttpStatus.NOT_FOUND)
+	public ErrorResponseDto prescriptionFileNotFound(PrescriptionFileNotFoundException e,
+			HttpServletRequest request) {
+		return ErrorResponseDto.of(HttpStatus.NOT_FOUND, e.getMessage(), request.getRequestURI());
+	}
+
+	@ExceptionHandler(InvalidPrescriptionFileException.class)
+	@ResponseStatus(HttpStatus.BAD_REQUEST)
+	public ErrorResponseDto invalidPrescriptionFile(InvalidPrescriptionFileException e,
+			HttpServletRequest request) {
+		return ErrorResponseDto.of(HttpStatus.BAD_REQUEST, e.getMessage(), request.getRequestURI());
+	}
+
+	@ExceptionHandler(MaxUploadSizeExceededException.class)
+	@ResponseStatus(HttpStatus.CONTENT_TOO_LARGE)
+	public ErrorResponseDto fileTooLarge(HttpServletRequest request) {
+		return ErrorResponseDto.of(HttpStatus.CONTENT_TOO_LARGE, "El archivo supera los 10 MB",
+				request.getRequestURI());
+	}
+
+	// El detalle del fallo de R2 va al log; al operador solo le sirve saber que reintente.
+	@ExceptionHandler(StorageException.class)
+	@ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
+	public ErrorResponseDto storageUnavailable(StorageException e, HttpServletRequest request) {
+		log.error("Fallo de almacenamiento en {}", request.getRequestURI(), e);
+		return ErrorResponseDto.of(HttpStatus.SERVICE_UNAVAILABLE, e.getMessage(), request.getRequestURI());
 	}
 
 	@ExceptionHandler(MethodArgumentNotValidException.class)

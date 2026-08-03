@@ -29,17 +29,20 @@ export function clearStoredToken() {
 
 export async function apiFetch(path, { method = 'GET', body } = {}) {
   const token = getStoredToken()
+  const isFormData = body instanceof FormData
   const headers = {}
-  if (body !== undefined) headers['Content-Type'] = 'application/json'
+  // Con FormData el Content-Type lo pone el navegador: necesita agregarle el boundary.
+  if (body !== undefined && !isFormData) headers['Content-Type'] = 'application/json'
   if (token) headers.Authorization = `Bearer ${token}`
+
+  let requestBody
+  if (body === undefined) requestBody = undefined
+  else if (isFormData) requestBody = body
+  else requestBody = JSON.stringify(body)
 
   let response
   try {
-    response = await fetch(`${BASE_URL}${path}`, {
-      method,
-      headers,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-    })
+    response = await fetch(`${BASE_URL}${path}`, { method, headers, body: requestBody })
   } catch {
     throw new ApiError('No se pudo conectar con el servidor', 0)
   }

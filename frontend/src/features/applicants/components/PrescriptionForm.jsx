@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Alert } from '../../../components/Alert'
 import { Button } from '../../../components/Button'
 import { Input } from '../../../components/Input'
@@ -6,6 +6,10 @@ import { Input } from '../../../components/Input'
 // Espejan las restricciones del backend: @Digits(integer = 2, fraction = 2) y eje entre 0 y 180.
 const DECIMAL_REGEX = /^[+-]?\d{1,2}(\.\d{1,2})?$/
 const AXIS_REGEX = /^\d{1,3}$/
+
+// Mismos límites que el backend: evita subir 10 MB para que los rechace del otro lado.
+const ALLOWED_FILE_TYPES = ['application/pdf', 'image/jpeg', 'image/png']
+const MAX_FILE_BYTES = 10 * 1024 * 1024
 
 const EMPTY_VALUES = {
   rightSphere: '',
@@ -30,6 +34,13 @@ function validateAxis(raw) {
   if (!raw.trim()) return null
   const isValid = AXIS_REGEX.test(raw.trim()) && Number(raw) <= 180
   return isValid ? null : 'El eje va de 0 a 180, sin decimales'
+}
+
+function validateFile(file) {
+  if (!file) return null
+  if (!ALLOWED_FILE_TYPES.includes(file.type)) return 'El archivo debe ser PDF, JPG o PNG'
+  if (file.size > MAX_FILE_BYTES) return 'El archivo supera los 10 MB'
+  return null
 }
 
 function EyeFields({ eyeKey, label, values, fieldErrors, setField }) {
@@ -76,18 +87,31 @@ function EyeFields({ eyeKey, label, values, fieldErrors, setField }) {
 
 export function PrescriptionForm({ onSubmit, isPending, submitError }) {
   const [values, setValues] = useState(EMPTY_VALUES)
+  const [file, setFile] = useState(null)
   const [fieldErrors, setFieldErrors] = useState({})
   const [formError, setFormError] = useState(null)
+  // El input de archivo es no controlado: hay que limpiarlo a mano tras guardar.
+  const fileInputRef = useRef(null)
 
   function setField(name) {
     return (event) => setValues((current) => ({ ...current, [name]: event.target.value }))
+  }
+
+  function handleFileChange(event) {
+    setFile(event.target.files[0] ?? null)
+    setFieldErrors((current) => ({ ...current, file: null }))
+  }
+
+  function clearFile() {
+    setFile(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   async function handleSubmit(event) {
     event.preventDefault()
     setFormError(null)
 
-    const errors = {}
+    const errors = { file: validateFile(file) }
     for (const { key } of EYES) {
       errors[`${key}Sphere`] = validateDecimal(values[`${key}Sphere`])
       errors[`${key}Cylinder`] = validateDecimal(values[`${key}Cylinder`])
@@ -111,8 +135,9 @@ export function PrescriptionForm({ onSubmit, isPending, submitError }) {
     )
 
     try {
-      await onSubmit(payload)
+      await onSubmit(payload, file)
       setValues(EMPTY_VALUES)
+      clearFile()
     } catch {
       // El mensaje del backend se muestra vía submitError; los valores quedan para reintentar.
     }
@@ -132,6 +157,33 @@ export function PrescriptionForm({ onSubmit, isPending, submitError }) {
           />
         ))}
       </div>
+
+      <fieldset className="rounded-lg border border-slate-200 p-4">
+        <legend className="px-1 text-sm font-semibold text-slate-700">
+          Receta del médico (opcional)
+        </legend>
+        <p className="mb-2 text-sm text-slate-500">
+          Adjuntá el PDF o una foto de la receta. Se envía a la óptica junto con el marco.
+        </p>
+        <input
+          ref={fileInputRef}
+          id="prescriptionFile"
+          type="file"
+          accept="application/pdf,image/jpeg,image/png"
+          onChange={handleFileChange}
+          className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-sky-50 file:px-4 file:py-2 file:text-sm file:font-medium file:text-sky-700 hover:file:bg-sky-100"
+        />
+        {file && (
+          <button
+            type="button"
+            onClick={clearFile}
+            className="mt-2 text-sm font-medium text-slate-500 hover:text-slate-700 hover:underline"
+          >
+            Quitar «{file.name}»
+          </button>
+        )}
+        {fieldErrors.file && <p className="mt-1 text-sm text-red-600">{fieldErrors.file}</p>}
+      </fieldset>
 
       {formError && <Alert>{formError}</Alert>}
       {submitError && <Alert>{submitError}</Alert>}

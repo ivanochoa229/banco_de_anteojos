@@ -8,7 +8,9 @@ import com.banco.anteojos.backend.business.applicants.ApplicantService;
 import com.banco.anteojos.backend.business.applicants.dto.request.ApplicantCreationRequestDto;
 import com.banco.anteojos.backend.business.applicants.dto.request.ApplicantUpdateRequestDto;
 import com.banco.anteojos.backend.business.applicants.dto.request.PrescriptionCreationRequestDto;
+import com.banco.anteojos.backend.business.applicants.dto.request.PrescriptionFileUploadRequestDto;
 import com.banco.anteojos.backend.business.applicants.dto.response.ApplicantResponseDto;
+import com.banco.anteojos.backend.business.applicants.dto.response.PrescriptionFileResponseDto;
 import com.banco.anteojos.backend.business.applicants.dto.response.PrescriptionResponseDto;
 
 import lombok.RequiredArgsConstructor;
@@ -48,5 +50,16 @@ public class ApplicantUseCaseHandler implements ApplicantUseCaseOrchestrator {
 	@Override
 	public List<PrescriptionResponseDto> listPrescriptions(Long applicantId) {
 		return applicantService.listPrescriptions(applicantId);
+	}
+
+	@Override
+	public PrescriptionResponseDto uploadPrescriptionFile(Long applicantId, Long prescriptionId,
+			PrescriptionFileUploadRequestDto request) {
+		return applicantService.uploadPrescriptionFile(applicantId, prescriptionId, request);
+	}
+
+	@Override
+	public PrescriptionFileResponseDto getPrescriptionFile(Long applicantId, Long prescriptionId) {
+		return applicantService.getPrescriptionFile(applicantId, prescriptionId);
 	}
 }

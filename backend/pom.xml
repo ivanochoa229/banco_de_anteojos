@@ -19,7 +19,20 @@
 		     necesitan la base banco_anteojos_test: ./mvnw test -Dtest.excluded.groups= -->
 		<test.excluded.groups>integration</test.excluded.groups>
 		<jjwt.version>0.12.6</jjwt.version>
+		<awssdk.version>2.31.78</awssdk.version>
 	</properties>
+	<dependencyManagement>
+		<dependencies>
+			<!-- Cloudflare R2 se habla por la API S3: alcanza con el SDK de AWS. -->
+			<dependency>
+				<groupId>software.amazon.awssdk</groupId>
+				<artifactId>bom</artifactId>
+				<version>${awssdk.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
 	<dependencies>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -70,6 +83,11 @@
 			<version>${jjwt.version}</version>
 			<scope>runtime</scope>
 		</dependency>
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>s3</artifactId>
+		</dependency>
+
 		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
