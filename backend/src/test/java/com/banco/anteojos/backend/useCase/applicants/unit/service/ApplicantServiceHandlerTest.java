@@ -23,21 +23,29 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.banco.anteojos.backend.business.applicants.AnsesCertificateHelper;
 import com.banco.anteojos.backend.business.applicants.ApplicantServiceHandler;
+import com.banco.anteojos.backend.business.applicants.ParsedAnsesCertificate;
+import com.banco.anteojos.backend.business.applicants.dto.request.AnsesCertificateUploadRequestDto;
 import com.banco.anteojos.backend.business.applicants.dto.request.ApplicantCreationRequestDto;
 import com.banco.anteojos.backend.business.applicants.dto.request.ApplicantUpdateRequestDto;
 import com.banco.anteojos.backend.business.applicants.dto.request.PrescriptionCreationRequestDto;
 import com.banco.anteojos.backend.business.applicants.dto.request.PrescriptionFileUploadRequestDto;
+import com.banco.anteojos.backend.business.applicants.dto.response.AnsesCertificateResponseDto;
 import com.banco.anteojos.backend.business.applicants.dto.response.ApplicantResponseDto;
 import com.banco.anteojos.backend.business.applicants.dto.response.PrescriptionFileResponseDto;
 import com.banco.anteojos.backend.business.applicants.dto.response.PrescriptionResponseDto;
+import com.banco.anteojos.backend.business.applicants.entities.AnsesCertificate;
 import com.banco.anteojos.backend.business.applicants.entities.Applicant;
 import com.banco.anteojos.backend.business.applicants.entities.Prescription;
+import com.banco.anteojos.backend.business.applicants.exception.AnsesCertificateNotFoundException;
 import com.banco.anteojos.backend.business.applicants.exception.ApplicantNotFoundException;
 import com.banco.anteojos.backend.business.applicants.exception.DniAlreadyExistsException;
+import com.banco.anteojos.backend.business.applicants.exception.InvalidAnsesCertificateException;
 import com.banco.anteojos.backend.business.applicants.exception.InvalidPrescriptionFileException;
 import com.banco.anteojos.backend.business.applicants.exception.PrescriptionFileNotFoundException;
 import com.banco.anteojos.backend.business.applicants.exception.PrescriptionNotFoundException;
+import com.banco.anteojos.backend.persistence.applicants.AnsesCertificatePostgresSqlRepository;
 import com.banco.anteojos.backend.persistence.applicants.ApplicantPostgresSqlRepository;
 import com.banco.anteojos.backend.persistence.applicants.PrescriptionPostgresSqlRepository;
 import com.banco.anteojos.backend.thirdPartyServiceComunication.storage.PresignedUrl;
@@ -52,6 +60,12 @@ class ApplicantServiceHandlerTest {
 
 	@Mock
 	private PrescriptionPostgresSqlRepository prescriptionRepository;
+
+	@Mock
+	private AnsesCertificatePostgresSqlRepository ansesCertificateRepository;
+
+	@Mock
+	private AnsesCertificateHelper ansesCertificateHelper;
 
 	@Mock
 	private R2StorageClient r2StorageClient;
@@ -277,5 +291,157 @@ class ApplicantServiceHandlerTest {
 
 		assertThatThrownBy(() -> applicantServiceHandler.getPrescriptionFile(1L, 7L))
 				.isInstanceOf(PrescriptionFileNotFoundException.class);
+	}
+
+	// El CUIL del DNI de test 30123456 con prefijo 20 y verificador módulo 11 correcto.
+	private static final String MATCHING_CUIL = "20301234563";
+
+	private AnsesCertificateUploadRequestDto ansesUpload() {
+		return new AnsesCertificateUploadRequestDto("%PDF-1.4".getBytes(), "application/pdf", "negativa.pdf");
+	}
+
+	private void mockParsedCertificate(String cuil, LocalDate issueDate) {
+		when(ansesCertificateHelper.parse(any()))
+				.thenReturn(new ParsedAnsesCertificate(cuil, "221145098", issueDate));
+	}
+
+	@Test
+	void UploadAnsesCertificate_Successful() {
+		Applicant applicant = applicant();
+		when(applicantRepository.findById(1L)).thenReturn(Optional.of(applicant));
+		mockParsedCertificate(MATCHING_CUIL, LocalDate.now());
+		when(ansesCertificateRepository.findByApplicantId(1L)).thenReturn(Optional.empty());
+		when(ansesCertificateRepository.save(any(AnsesCertificate.class))).thenAnswer(inv -> inv.getArgument(0));
+		when(r2StorageClient.presignedGetUrl(any()))
+				.thenReturn(new PresignedUrl("https://r2.example/firmada", LocalDateTime.now().plusMinutes(15)));
+
+		AnsesCertificateResponseDto response = applicantServiceHandler.uploadAnsesCertificate(1L, ansesUpload());
+
+		ArgumentCaptor<String> key = ArgumentCaptor.forClass(String.class);
+		verify(r2StorageClient).upload(key.capture(), any(), eq("application/pdf"));
+		assertThat(key.getValue()).startsWith("anses/1/").endsWith(".pdf");
+		assertThat(response.cuil()).isEqualTo(MATCHING_CUIL);
+		assertThat(response.transactionNumber()).isEqualTo("221145098");
+		assertThat(response.fileUrl()).isEqualTo("https://r2.example/firmada");
+		// La negativa validada confirma el CUIL del solicitante.
+		assertThat(applicant.getCuil()).isEqualTo(MATCHING_CUIL);
+		verify(applicantRepository).save(applicant);
+	}
+
+	@Test
+	void UploadAnsesCertificate_ReplacesPreviousCertificate() {
+		AnsesCertificate previous = new AnsesCertificate(1L, MATCHING_CUIL, "111", LocalDate.now(),
+				"anses/1/viejo.pdf", "application/pdf", "viejo.pdf");
+		when(applicantRepository.findById(1L)).thenReturn(Optional.of(applicant()));
+		mockParsedCertificate(MATCHING_CUIL, LocalDate.now());
+		when(ansesCertificateRepository.findByApplicantId(1L)).thenReturn(Optional.of(previous));
+		when(ansesCertificateRepository.save(any(AnsesCertificate.class))).thenAnswer(inv -> inv.getArgument(0));
+		when(r2StorageClient.presignedGetUrl(any()))
+				.thenReturn(new PresignedUrl("https://r2.example/firmada", LocalDateTime.now().plusMinutes(15)));
+
+		AnsesCertificateResponseDto response = applicantServiceHandler.uploadAnsesCertificate(1L, ansesUpload());
+
+		verify(r2StorageClient).delete("anses/1/viejo.pdf");
+		assertThat(response.transactionNumber()).isEqualTo("221145098");
+	}
+
+	@Test
+	void UploadAnsesCertificate_WhenCuilBelongsToAnotherPerson() {
+		when(applicantRepository.findById(1L)).thenReturn(Optional.of(applicant()));
+		// CUIL válido (verificador correcto) pero de otro DNI.
+		mockParsedCertificate("20999999981", LocalDate.now());
+
+		assertThatThrownBy(() -> applicantServiceHandler.uploadAnsesCertificate(1L, ansesUpload()))
+				.isInstanceOf(InvalidAnsesCertificateException.class)
+				.hasMessageContaining("otra persona");
+		verify(r2StorageClient, never()).upload(any(), any(), any());
+		verify(ansesCertificateRepository, never()).save(any());
+	}
+
+	@Test
+	void UploadAnsesCertificate_WhenCheckDigitIsInvalid() {
+		when(applicantRepository.findById(1L)).thenReturn(Optional.of(applicant()));
+		// DNI correcto pero verificador adulterado (el real es 3).
+		mockParsedCertificate("20301234560", LocalDate.now());
+
+		assertThatThrownBy(() -> applicantServiceHandler.uploadAnsesCertificate(1L, ansesUpload()))
+				.isInstanceOf(InvalidAnsesCertificateException.class)
+				.hasMessageContaining("CUIL válido");
+		verify(r2StorageClient, never()).upload(any(), any(), any());
+	}
+
+	@Test
+	void UploadAnsesCertificate_WhenCertificateIsExpired() {
+		when(applicantRepository.findById(1L)).thenReturn(Optional.of(applicant()));
+		mockParsedCertificate(MATCHING_CUIL, LocalDate.now().minusDays(31));
+
+		assertThatThrownBy(() -> applicantServiceHandler.uploadAnsesCertificate(1L, ansesUpload()))
+				.isInstanceOf(InvalidAnsesCertificateException.class)
+				.hasMessageContaining("vencida");
+		verify(r2StorageClient, never()).upload(any(), any(), any());
+	}
+
+	@Test
+	void UploadAnsesCertificate_WhenIssueDateIsExactlyThirtyDaysOld() {
+		when(applicantRepository.findById(1L)).thenReturn(Optional.of(applicant()));
+		mockParsedCertificate(MATCHING_CUIL, LocalDate.now().minusDays(30));
+		when(ansesCertificateRepository.findByApplicantId(1L)).thenReturn(Optional.empty());
+		when(ansesCertificateRepository.save(any(AnsesCertificate.class))).thenAnswer(inv -> inv.getArgument(0));
+		when(r2StorageClient.presignedGetUrl(any()))
+				.thenReturn(new PresignedUrl("https://r2.example/firmada", LocalDateTime.now().plusMinutes(15)));
+
+		// El día 30 todavía vale: el propio PDF dice "válidos por 30 días a partir de la emisión".
+		AnsesCertificateResponseDto response = applicantServiceHandler.uploadAnsesCertificate(1L, ansesUpload());
+
+		assertThat(response.issueDate()).isEqualTo(LocalDate.now().minusDays(30));
+	}
+
+	@Test
+	void UploadAnsesCertificate_WhenIssueDateIsInTheFuture() {
+		when(applicantRepository.findById(1L)).thenReturn(Optional.of(applicant()));
+		mockParsedCertificate(MATCHING_CUIL, LocalDate.now().plusDays(1));
+
+		assertThatThrownBy(() -> applicantServiceHandler.uploadAnsesCertificate(1L, ansesUpload()))
+				.isInstanceOf(InvalidAnsesCertificateException.class)
+				.hasMessageContaining("futura");
+		verify(r2StorageClient, never()).upload(any(), any(), any());
+	}
+
+	@Test
+	void UploadAnsesCertificate_WhenFileIsNotAPdf() {
+		when(applicantRepository.findById(1L)).thenReturn(Optional.of(applicant()));
+
+		assertThatThrownBy(() -> applicantServiceHandler.uploadAnsesCertificate(1L,
+				new AnsesCertificateUploadRequestDto(new byte[] { 1 }, "image/jpeg", "foto.jpg")))
+				.isInstanceOf(InvalidAnsesCertificateException.class)
+				.hasMessageContaining("PDF");
+		verify(ansesCertificateHelper, never()).parse(any());
+	}
+
+	@Test
+	void GetAnsesCertificate_Successful() {
+		AnsesCertificate certificate = new AnsesCertificate(1L, MATCHING_CUIL, "221145098",
+				LocalDate.of(2026, 8, 3), "anses/1/abc.pdf", "application/pdf", "negativa.pdf");
+		LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(15);
+		when(applicantRepository.findById(1L)).thenReturn(Optional.of(applicant()));
+		when(ansesCertificateRepository.findByApplicantId(1L)).thenReturn(Optional.of(certificate));
+		when(r2StorageClient.presignedGetUrl("anses/1/abc.pdf"))
+				.thenReturn(new PresignedUrl("https://r2.example/firmada", expiresAt));
+
+		AnsesCertificateResponseDto response = applicantServiceHandler.getAnsesCertificate(1L);
+
+		assertThat(response.cuil()).isEqualTo(MATCHING_CUIL);
+		assertThat(response.issueDate()).isEqualTo(LocalDate.of(2026, 8, 3));
+		assertThat(response.fileUrl()).isEqualTo("https://r2.example/firmada");
+		assertThat(response.fileUrlExpiresAt()).isEqualTo(expiresAt);
+	}
+
+	@Test
+	void GetAnsesCertificate_WhenApplicantHasNoCertificate() {
+		when(applicantRepository.findById(1L)).thenReturn(Optional.of(applicant()));
+		when(ansesCertificateRepository.findByApplicantId(1L)).thenReturn(Optional.empty());
+
+		assertThatThrownBy(() -> applicantServiceHandler.getAnsesCertificate(1L))
+				.isInstanceOf(AnsesCertificateNotFoundException.class);
 	}
 }

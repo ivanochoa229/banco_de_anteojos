@@ -10,8 +10,10 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
+import com.banco.anteojos.backend.business.applicants.exception.AnsesCertificateNotFoundException;
 import com.banco.anteojos.backend.business.applicants.exception.ApplicantNotFoundException;
 import com.banco.anteojos.backend.business.applicants.exception.DniAlreadyExistsException;
+import com.banco.anteojos.backend.business.applicants.exception.InvalidAnsesCertificateException;
 import com.banco.anteojos.backend.business.applicants.exception.InvalidPrescriptionFileException;
 import com.banco.anteojos.backend.business.applicants.exception.PrescriptionFileNotFoundException;
 import com.banco.anteojos.backend.business.applicants.exception.PrescriptionNotFoundException;
@@ -82,6 +84,22 @@ public class GlobalExceptionHandler {
 	public ErrorResponseDto invalidPrescriptionFile(InvalidPrescriptionFileException e,
 			HttpServletRequest request) {
 		return ErrorResponseDto.of(HttpStatus.BAD_REQUEST, e.getMessage(), request.getRequestURI());
+	}
+
+	@ExceptionHandler(AnsesCertificateNotFoundException.class)
+	@ResponseStatus(HttpStatus.NOT_FOUND)
+	public ErrorResponseDto ansesCertificateNotFound(AnsesCertificateNotFoundException e,
+			HttpServletRequest request) {
+		return ErrorResponseDto.of(HttpStatus.NOT_FOUND, e.getMessage(), request.getRequestURI());
+	}
+
+	// 422 y no 400: el archivo llegó bien pero el documento no pasa la validación de negocio
+	// (ilegible, de otra persona o vencido). No se persiste nada.
+	@ExceptionHandler(InvalidAnsesCertificateException.class)
+	@ResponseStatus(HttpStatus.UNPROCESSABLE_CONTENT)
+	public ErrorResponseDto invalidAnsesCertificate(InvalidAnsesCertificateException e,
+			HttpServletRequest request) {
+		return ErrorResponseDto.of(HttpStatus.UNPROCESSABLE_CONTENT, e.getMessage(), request.getRequestURI());
 	}
 
 	@ExceptionHandler(MaxUploadSizeExceededException.class)

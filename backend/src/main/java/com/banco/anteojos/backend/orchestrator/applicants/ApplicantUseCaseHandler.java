@@ -5,10 +5,12 @@ import java.util.List;
 import org.springframework.stereotype.Component;
 
 import com.banco.anteojos.backend.business.applicants.ApplicantService;
+import com.banco.anteojos.backend.business.applicants.dto.request.AnsesCertificateUploadRequestDto;
 import com.banco.anteojos.backend.business.applicants.dto.request.ApplicantCreationRequestDto;
 import com.banco.anteojos.backend.business.applicants.dto.request.ApplicantUpdateRequestDto;
 import com.banco.anteojos.backend.business.applicants.dto.request.PrescriptionCreationRequestDto;
 import com.banco.anteojos.backend.business.applicants.dto.request.PrescriptionFileUploadRequestDto;
+import com.banco.anteojos.backend.business.applicants.dto.response.AnsesCertificateResponseDto;
 import com.banco.anteojos.backend.business.applicants.dto.response.ApplicantResponseDto;
 import com.banco.anteojos.backend.business.applicants.dto.response.PrescriptionFileResponseDto;
 import com.banco.anteojos.backend.business.applicants.dto.response.PrescriptionResponseDto;
@@ -61,5 +63,16 @@ public class ApplicantUseCaseHandler implements ApplicantUseCaseOrchestrator {
 	@Override
 	public PrescriptionFileResponseDto getPrescriptionFile(Long applicantId, Long prescriptionId) {
 		return applicantService.getPrescriptionFile(applicantId, prescriptionId);
+	}
+
+	@Override
+	public AnsesCertificateResponseDto uploadAnsesCertificate(Long applicantId,
+			AnsesCertificateUploadRequestDto request) {
+		return applicantService.uploadAnsesCertificate(applicantId, request);
+	}
+
+	@Override
+	public AnsesCertificateResponseDto getAnsesCertificate(Long applicantId) {
+		return applicantService.getAnsesCertificate(applicantId);
 	}
 }

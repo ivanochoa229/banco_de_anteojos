@@ -53,6 +53,12 @@ public class Applicant {
 		this.createdAt = LocalDateTime.now();
 	}
 
+	// El CUIL no lo carga el operador: queda registrado cuando una negativa de ANSES
+	// validada lo confirma (RF-04).
+	public void registerCuil(String cuil) {
+		this.cuil = cuil;
+	}
+
 	public void updatePersonalData(String firstName, String lastName, LocalDate birthDate,
 			String phone, String email) {
 		this.firstName = firstName.trim();
