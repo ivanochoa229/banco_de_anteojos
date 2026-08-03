@@ -20,6 +20,8 @@
 		<test.excluded.groups>integration</test.excluded.groups>
 		<jjwt.version>0.12.6</jjwt.version>
 		<awssdk.version>2.31.78</awssdk.version>
+		<pdfbox.version>3.0.5</pdfbox.version>
+		<zxing.version>3.5.3</zxing.version>
 	</properties>
 	<dependencyManagement>
 		<dependencies>
@@ -86,6 +88,24 @@
 		<dependency>
 			<groupId>software.amazon.awssdk</groupId>
 			<artifactId>s3</artifactId>
+		</dependency>
+
+		<!-- Lectura local de la negativa de ANSES (RF-04/05): PDFBox renderiza el PDF y extrae
+		     el texto; ZXing decodifica el código de barras. No es un cliente de terceros. -->
+		<dependency>
+			<groupId>org.apache.pdfbox</groupId>
+			<artifactId>pdfbox</artifactId>
+			<version>${pdfbox.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.google.zxing</groupId>
+			<artifactId>core</artifactId>
+			<version>${zxing.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.google.zxing</groupId>
+			<artifactId>javase</artifactId>
+			<version>${zxing.version}</version>
 		</dependency>
 
 		<dependency>
