@@ -93,6 +93,10 @@ public class Frame {
 	/**
 	 * Vuelve al inventario cuando se cancela la asignación. Un marco ya entregado no vuelve:
 	 * está puesto en la cara de alguien.
+	 *
+	 * <p>Cancelar con el marco en la óptica también lo deja disponible, a propósito: la
+	 * fundación puede pedirlo de vuelta, y el inventario refleja a qué marco se le puede dar
+	 * otro destino, no dónde está parado físicamente en este momento.
 	 */
 	public void returnToInventory() {
 		if (status == FrameStatus.DELIVERED || status == FrameStatus.DISCARDED) {
