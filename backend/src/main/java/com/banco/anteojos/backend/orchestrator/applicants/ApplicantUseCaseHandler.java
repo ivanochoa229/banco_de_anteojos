@@ -12,6 +12,7 @@ import com.banco.anteojos.backend.business.applicants.dto.request.PrescriptionCr
 import com.banco.anteojos.backend.business.applicants.dto.request.PrescriptionFileUploadRequestDto;
 import com.banco.anteojos.backend.business.applicants.dto.response.AnsesCertificateResponseDto;
 import com.banco.anteojos.backend.business.applicants.dto.response.ApplicantResponseDto;
+import com.banco.anteojos.backend.business.applicants.dto.response.EligibilityResponseDto;
 import com.banco.anteojos.backend.business.applicants.dto.response.PrescriptionFileResponseDto;
 import com.banco.anteojos.backend.business.applicants.dto.response.PrescriptionResponseDto;
 
@@ -74,5 +75,10 @@ public class ApplicantUseCaseHandler implements ApplicantUseCaseOrchestrator {
 	@Override
 	public AnsesCertificateResponseDto getAnsesCertificate(Long applicantId) {
 		return applicantService.getAnsesCertificate(applicantId);
+	}
+
+	@Override
+	public EligibilityResponseDto checkEligibility(Long applicantId) {
+		return applicantService.checkEligibility(applicantId);
 	}
 }

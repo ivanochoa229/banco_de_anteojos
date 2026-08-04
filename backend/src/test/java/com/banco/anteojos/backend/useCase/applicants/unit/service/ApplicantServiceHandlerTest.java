@@ -33,6 +33,7 @@ import com.banco.anteojos.backend.business.applicants.dto.request.PrescriptionCr
 import com.banco.anteojos.backend.business.applicants.dto.request.PrescriptionFileUploadRequestDto;
 import com.banco.anteojos.backend.business.applicants.dto.response.AnsesCertificateResponseDto;
 import com.banco.anteojos.backend.business.applicants.dto.response.ApplicantResponseDto;
+import com.banco.anteojos.backend.business.applicants.dto.response.EligibilityResponseDto;
 import com.banco.anteojos.backend.business.applicants.dto.response.PrescriptionFileResponseDto;
 import com.banco.anteojos.backend.business.applicants.dto.response.PrescriptionResponseDto;
 import com.banco.anteojos.backend.business.applicants.entities.AnsesCertificate;
@@ -443,5 +444,55 @@ class ApplicantServiceHandlerTest {
 
 		assertThatThrownBy(() -> applicantServiceHandler.getAnsesCertificate(1L))
 				.isInstanceOf(AnsesCertificateNotFoundException.class);
+	}
+
+	private AnsesCertificate certificateIssuedOn(LocalDate issueDate) {
+		return new AnsesCertificate(1L, MATCHING_CUIL, "221145098", issueDate, "anses/1/abc.pdf",
+				"application/pdf", "negativa.pdf");
+	}
+
+	@Test
+	void CheckEligibility_WhenCertificateIsInForce() {
+		when(applicantRepository.findById(1L)).thenReturn(Optional.of(applicant()));
+		when(ansesCertificateRepository.findByApplicantId(1L))
+				.thenReturn(Optional.of(certificateIssuedOn(LocalDate.now().minusDays(5))));
+
+		EligibilityResponseDto response = applicantServiceHandler.checkEligibility(1L);
+
+		assertThat(response.eligible()).isTrue();
+		assertThat(response.warning()).isNull();
+	}
+
+	@Test
+	void CheckEligibility_WhenApplicantHasNoCertificate() {
+		when(applicantRepository.findById(1L)).thenReturn(Optional.of(applicant()));
+		when(ansesCertificateRepository.findByApplicantId(1L)).thenReturn(Optional.empty());
+
+		// No tener negativa no es un error: es una advertencia para el operador.
+		EligibilityResponseDto response = applicantServiceHandler.checkEligibility(1L);
+
+		assertThat(response.eligible()).isFalse();
+		assertThat(response.warning()).contains("no tiene una certificación negativa");
+	}
+
+	@Test
+	void CheckEligibility_WhenCertificateIsExpired() {
+		when(applicantRepository.findById(1L)).thenReturn(Optional.of(applicant()));
+		when(ansesCertificateRepository.findByApplicantId(1L))
+				.thenReturn(Optional.of(certificateIssuedOn(LocalDate.now().minusDays(31))));
+
+		EligibilityResponseDto response = applicantServiceHandler.checkEligibility(1L);
+
+		assertThat(response.eligible()).isFalse();
+		assertThat(response.warning()).contains("vencida");
+	}
+
+	@Test
+	void GetPrescription_WhenItBelongsToAnotherApplicant() {
+		when(applicantRepository.findById(1L)).thenReturn(Optional.of(applicant()));
+		when(prescriptionRepository.findByIdAndApplicantId(7L, 1L)).thenReturn(Optional.empty());
+
+		assertThatThrownBy(() -> applicantServiceHandler.getPrescription(1L, 7L))
+				.isInstanceOf(PrescriptionNotFoundException.class);
 	}
 }

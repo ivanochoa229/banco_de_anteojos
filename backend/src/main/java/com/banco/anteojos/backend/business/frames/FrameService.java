@@ -16,4 +16,17 @@ public interface FrameService {
 	List<FrameResponseDto> listFrames(FrameStatus status);
 
 	List<FrameResponseDto> listFramesByDonor(Long donorId);
+
+	// Transiciones del ciclo de vida. Las dispara el dominio assignments a través del
+	// orchestrator: acá solo se valida el estado de origen y se mueve el marco.
+
+	FrameResponseDto markAsAssigned(Long frameId);
+
+	FrameResponseDto markAsAtOptician(Long frameId);
+
+	FrameResponseDto markAsReady(Long frameId);
+
+	FrameResponseDto markAsDelivered(Long frameId);
+
+	FrameResponseDto returnToInventory(Long frameId);
 }

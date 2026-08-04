@@ -17,8 +17,11 @@ import com.banco.anteojos.backend.business.applicants.exception.InvalidAnsesCert
 import com.banco.anteojos.backend.business.applicants.exception.InvalidPrescriptionFileException;
 import com.banco.anteojos.backend.business.applicants.exception.PrescriptionFileNotFoundException;
 import com.banco.anteojos.backend.business.applicants.exception.PrescriptionNotFoundException;
+import com.banco.anteojos.backend.business.assignments.exception.AssignmentNotFoundException;
+import com.banco.anteojos.backend.business.assignments.exception.InvalidAssignmentTransitionException;
 import com.banco.anteojos.backend.business.donors.exception.DonorNotFoundException;
 import com.banco.anteojos.backend.business.frames.exception.FrameNotFoundException;
+import com.banco.anteojos.backend.business.frames.exception.InvalidFrameTransitionException;
 import com.banco.anteojos.backend.business.frames.exception.SealCodeAlreadyExistsException;
 import com.banco.anteojos.backend.business.security.exception.InvalidCredentialsException;
 import com.banco.anteojos.backend.thirdPartyServiceComunication.storage.StorageException;
@@ -84,6 +87,20 @@ public class GlobalExceptionHandler {
 	public ErrorResponseDto invalidPrescriptionFile(InvalidPrescriptionFileException e,
 			HttpServletRequest request) {
 		return ErrorResponseDto.of(HttpStatus.BAD_REQUEST, e.getMessage(), request.getRequestURI());
+	}
+
+	@ExceptionHandler(AssignmentNotFoundException.class)
+	@ResponseStatus(HttpStatus.NOT_FOUND)
+	public ErrorResponseDto assignmentNotFound(AssignmentNotFoundException e, HttpServletRequest request) {
+		return ErrorResponseDto.of(HttpStatus.NOT_FOUND, e.getMessage(), request.getRequestURI());
+	}
+
+	// 409 y no 400: el request está bien formado, lo que no encaja es el momento del circuito
+	// en el que está el marco o la asignación.
+	@ExceptionHandler({ InvalidAssignmentTransitionException.class, InvalidFrameTransitionException.class })
+	@ResponseStatus(HttpStatus.CONFLICT)
+	public ErrorResponseDto invalidTransition(RuntimeException e, HttpServletRequest request) {
+		return ErrorResponseDto.of(HttpStatus.CONFLICT, e.getMessage(), request.getRequestURI());
 	}
 
 	@ExceptionHandler(AnsesCertificateNotFoundException.class)

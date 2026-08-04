@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.banco.anteojos.backend.business.applicants.dto.request.ApplicantCreationRequestDto;
 import com.banco.anteojos.backend.business.applicants.dto.request.ApplicantUpdateRequestDto;
 import com.banco.anteojos.backend.business.applicants.dto.response.ApplicantResponseDto;
+import com.banco.anteojos.backend.business.applicants.dto.response.EligibilityResponseDto;
 import com.banco.anteojos.backend.orchestrator.applicants.ApplicantUseCaseOrchestrator;
 
 import jakarta.validation.Valid;
@@ -47,5 +48,11 @@ public class ApplicantController {
 	public ApplicantResponseDto update(@PathVariable Long applicantId,
 			@Valid @RequestBody ApplicantUpdateRequestDto request) {
 		return applicantOrchestrator.updateApplicant(applicantId, request);
+	}
+
+	/** Para que el operador vea si falta la negativa de ANSES antes de intentar asignar. */
+	@GetMapping("/{applicantId}/eligibility")
+	public EligibilityResponseDto eligibility(@PathVariable Long applicantId) {
+		return applicantOrchestrator.checkEligibility(applicantId);
 	}
 }
