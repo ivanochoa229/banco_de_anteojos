@@ -15,6 +15,7 @@ import com.banco.anteojos.backend.business.applicants.dto.request.PrescriptionCr
 import com.banco.anteojos.backend.business.applicants.dto.request.PrescriptionFileUploadRequestDto;
 import com.banco.anteojos.backend.business.applicants.dto.response.AnsesCertificateResponseDto;
 import com.banco.anteojos.backend.business.applicants.dto.response.ApplicantResponseDto;
+import com.banco.anteojos.backend.business.applicants.dto.response.EligibilityResponseDto;
 import com.banco.anteojos.backend.business.applicants.dto.response.PrescriptionFileResponseDto;
 import com.banco.anteojos.backend.business.applicants.dto.response.PrescriptionResponseDto;
 import com.banco.anteojos.backend.business.applicants.entities.AnsesCertificate;
@@ -101,6 +102,27 @@ public class ApplicantServiceHandler implements ApplicantService {
 	public List<PrescriptionResponseDto> listPrescriptions(Long applicantId) {
 		findApplicant(applicantId);
 		return prescriptionRepository.findByApplicantId(applicantId).stream().map(this::toResponse).toList();
+	}
+
+	@Override
+	public PrescriptionResponseDto getPrescription(Long applicantId, Long prescriptionId) {
+		return toResponse(findPrescription(applicantId, prescriptionId));
+	}
+
+	@Override
+	public EligibilityResponseDto checkEligibility(Long applicantId) {
+		findApplicant(applicantId);
+		AnsesCertificate certificate = ansesCertificateRepository.findByApplicantId(applicantId).orElse(null);
+		if (certificate == null) {
+			return new EligibilityResponseDto(applicantId, false,
+					"El solicitante no tiene una certificación negativa de ANSES cargada");
+		}
+		if (!isStillInForce(certificate.getIssueDate())) {
+			return new EligibilityResponseDto(applicantId, false,
+					"La certificación negativa de ANSES está vencida: fue emitida el "
+							+ certificate.getIssueDate());
+		}
+		return new EligibilityResponseDto(applicantId, true, null);
 	}
 
 	@Override
@@ -212,14 +234,18 @@ public class ApplicantServiceHandler implements ApplicantService {
 	}
 
 	private void validateStillInForce(LocalDate issueDate) {
-		LocalDate today = LocalDate.now();
-		if (issueDate.isAfter(today)) {
+		if (issueDate.isAfter(LocalDate.now())) {
 			throw new InvalidAnsesCertificateException("La fecha de emisión de la certificación es futura");
 		}
-		if (ChronoUnit.DAYS.between(issueDate, today) > ANSES_VALIDITY_DAYS) {
+		if (!isStillInForce(issueDate)) {
 			throw new InvalidAnsesCertificateException(
 					"La certificación está vencida: tiene más de 30 días desde su emisión");
 		}
+	}
+
+	private boolean isStillInForce(LocalDate issueDate) {
+		LocalDate today = LocalDate.now();
+		return !issueDate.isAfter(today) && ChronoUnit.DAYS.between(issueDate, today) <= ANSES_VALIDITY_DAYS;
 	}
 
 	private boolean hasValidCheckDigit(String cuil) {

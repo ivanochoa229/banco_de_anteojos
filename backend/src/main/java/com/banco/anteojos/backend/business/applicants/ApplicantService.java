@@ -9,6 +9,7 @@ import com.banco.anteojos.backend.business.applicants.dto.request.PrescriptionCr
 import com.banco.anteojos.backend.business.applicants.dto.request.PrescriptionFileUploadRequestDto;
 import com.banco.anteojos.backend.business.applicants.dto.response.AnsesCertificateResponseDto;
 import com.banco.anteojos.backend.business.applicants.dto.response.ApplicantResponseDto;
+import com.banco.anteojos.backend.business.applicants.dto.response.EligibilityResponseDto;
 import com.banco.anteojos.backend.business.applicants.dto.response.PrescriptionFileResponseDto;
 import com.banco.anteojos.backend.business.applicants.dto.response.PrescriptionResponseDto;
 
@@ -25,6 +26,11 @@ public interface ApplicantService {
 	PrescriptionResponseDto addPrescription(Long applicantId, PrescriptionCreationRequestDto request);
 
 	List<PrescriptionResponseDto> listPrescriptions(Long applicantId);
+
+	/** Falla si la receta no existe o no es del solicitante: valida pertenencia. */
+	PrescriptionResponseDto getPrescription(Long applicantId, Long prescriptionId);
+
+	EligibilityResponseDto checkEligibility(Long applicantId);
 
 	PrescriptionResponseDto uploadPrescriptionFile(Long applicantId, Long prescriptionId,
 			PrescriptionFileUploadRequestDto request);

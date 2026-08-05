@@ -1,6 +1,7 @@
 package com.banco.anteojos.backend.business.frames;
 
 import java.util.List;
+import java.util.function.Consumer;
 
 import org.springframework.stereotype.Service;
 
@@ -33,7 +34,7 @@ public class FrameServiceHandler implements FrameService {
 
 	@Override
 	public FrameResponseDto getFrame(Long frameId) {
-		return toResponse(frameRepository.findById(frameId).orElseThrow(FrameNotFoundException::new));
+		return toResponse(findFrame(frameId));
 	}
 
 	@Override
@@ -47,6 +48,42 @@ public class FrameServiceHandler implements FrameService {
 	@Override
 	public List<FrameResponseDto> listFramesByDonor(Long donorId) {
 		return frameRepository.findByDonorIdOrderByReceivedAtDesc(donorId).stream().map(this::toResponse).toList();
+	}
+
+	@Override
+	public FrameResponseDto markAsAssigned(Long frameId) {
+		return transition(frameId, Frame::markAsAssigned);
+	}
+
+	@Override
+	public FrameResponseDto markAsAtOptician(Long frameId) {
+		return transition(frameId, Frame::markAsAtOptician);
+	}
+
+	@Override
+	public FrameResponseDto markAsReady(Long frameId) {
+		return transition(frameId, Frame::markAsReady);
+	}
+
+	@Override
+	public FrameResponseDto markAsDelivered(Long frameId) {
+		return transition(frameId, Frame::markAsDelivered);
+	}
+
+	@Override
+	public FrameResponseDto returnToInventory(Long frameId) {
+		return transition(frameId, Frame::returnToInventory);
+	}
+
+	/** Cada transición valida su estado de origen dentro de la entidad y falla si no encaja. */
+	private FrameResponseDto transition(Long frameId, Consumer<Frame> transition) {
+		Frame frame = findFrame(frameId);
+		transition.accept(frame);
+		return toResponse(frameRepository.save(frame));
+	}
+
+	private Frame findFrame(Long frameId) {
+		return frameRepository.findById(frameId).orElseThrow(FrameNotFoundException::new);
 	}
 
 	private FrameResponseDto toResponse(Frame frame) {

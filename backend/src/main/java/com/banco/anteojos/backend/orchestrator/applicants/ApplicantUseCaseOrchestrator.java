@@ -9,6 +9,7 @@ import com.banco.anteojos.backend.business.applicants.dto.request.PrescriptionCr
 import com.banco.anteojos.backend.business.applicants.dto.request.PrescriptionFileUploadRequestDto;
 import com.banco.anteojos.backend.business.applicants.dto.response.AnsesCertificateResponseDto;
 import com.banco.anteojos.backend.business.applicants.dto.response.ApplicantResponseDto;
+import com.banco.anteojos.backend.business.applicants.dto.response.EligibilityResponseDto;
 import com.banco.anteojos.backend.business.applicants.dto.response.PrescriptionFileResponseDto;
 import com.banco.anteojos.backend.business.applicants.dto.response.PrescriptionResponseDto;
 
@@ -34,4 +35,6 @@ public interface ApplicantUseCaseOrchestrator {
 	AnsesCertificateResponseDto uploadAnsesCertificate(Long applicantId, AnsesCertificateUploadRequestDto request);
 
 	AnsesCertificateResponseDto getAnsesCertificate(Long applicantId);
+
+	EligibilityResponseDto checkEligibility(Long applicantId);
 }

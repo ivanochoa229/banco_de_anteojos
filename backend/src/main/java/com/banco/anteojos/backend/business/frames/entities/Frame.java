@@ -2,6 +2,8 @@ package com.banco.anteojos.backend.business.frames.entities;
 
 import java.time.LocalDateTime;
 
+import com.banco.anteojos.backend.business.frames.exception.InvalidFrameTransitionException;
+
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -65,5 +67,47 @@ public class Frame {
 
 	public static String normalizeSealCode(String sealCode) {
 		return sealCode.trim().toUpperCase();
+	}
+
+	/** Reserva el marco para un beneficiario: solo se puede sacar del inventario disponible. */
+	public void markAsAssigned() {
+		requireStatus(FrameStatus.AVAILABLE, "El marco no está disponible en el inventario");
+		this.status = FrameStatus.ASSIGNED;
+	}
+
+	public void markAsAtOptician() {
+		requireStatus(FrameStatus.ASSIGNED, "El marco no está asignado a un beneficiario");
+		this.status = FrameStatus.AT_OPTICIAN;
+	}
+
+	public void markAsReady() {
+		requireStatus(FrameStatus.AT_OPTICIAN, "El marco no está en la óptica");
+		this.status = FrameStatus.READY;
+	}
+
+	public void markAsDelivered() {
+		requireStatus(FrameStatus.READY, "El marco todavía no tiene los cristales colocados");
+		this.status = FrameStatus.DELIVERED;
+	}
+
+	/**
+	 * Vuelve al inventario cuando se cancela la asignación. Un marco ya entregado no vuelve:
+	 * está puesto en la cara de alguien.
+	 *
+	 * <p>Cancelar con el marco en la óptica también lo deja disponible, a propósito: la
+	 * fundación puede pedirlo de vuelta, y el inventario refleja a qué marco se le puede dar
+	 * otro destino, no dónde está parado físicamente en este momento.
+	 */
+	public void returnToInventory() {
+		if (status == FrameStatus.DELIVERED || status == FrameStatus.DISCARDED) {
+			throw new InvalidFrameTransitionException("El marco ya salió de circulación y no vuelve al inventario");
+		}
+		this.status = FrameStatus.AVAILABLE;
+	}
+
+	private void requireStatus(FrameStatus expected, String message) {
+		if (status != expected) {
+			throw new InvalidFrameTransitionException(message);
+		}
 	}
 }
