@@ -20,6 +20,26 @@ export function HomePage() {
             Alta, edición y listado de beneficiarios con su DNI y datos de contacto.
           </p>
         </Link>
+
+        <Link
+          to="/donors"
+          className="rounded-lg border border-slate-200 bg-white p-5 transition hover:border-sky-300 hover:shadow-sm"
+        >
+          <h3 className="font-semibold text-slate-900">Donantes</h3>
+          <p className="mt-1 text-sm text-slate-500">
+            Registro de quién donó y carga de los marcos que trajo cada donación.
+          </p>
+        </Link>
+
+        <Link
+          to="/frames"
+          className="rounded-lg border border-slate-200 bg-white p-5 transition hover:border-sky-300 hover:shadow-sm"
+        >
+          <h3 className="font-semibold text-slate-900">Inventario</h3>
+          <p className="mt-1 text-sm text-slate-500">
+            Todos los marcos con su precinto, medidas y estado dentro del circuito.
+          </p>
+        </Link>
       </div>
     </Layout>
   )

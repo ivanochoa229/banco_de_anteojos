@@ -5,6 +5,10 @@ import { ApplicantEditPage } from '../features/applicants/pages/ApplicantEditPag
 import { ApplicantPrescriptionsPage } from '../features/applicants/pages/ApplicantPrescriptionsPage'
 import { ApplicantsListPage } from '../features/applicants/pages/ApplicantsListPage'
 import { LoginPage } from '../features/auth/pages/LoginPage'
+import { DonorCreatePage } from '../features/donors/pages/DonorCreatePage'
+import { DonorFramesPage } from '../features/donors/pages/DonorFramesPage'
+import { DonorsListPage } from '../features/donors/pages/DonorsListPage'
+import { FramesListPage } from '../features/frames/pages/FramesListPage'
 import { HomePage } from '../features/home/pages/HomePage'
 import { ProtectedRoute } from './ProtectedRoute'
 
@@ -26,6 +30,10 @@ export function AppRoutes() {
           path="/applicants/:applicantId/prescriptions"
           element={<ApplicantPrescriptionsPage />}
         />
+        <Route path="/donors" element={<DonorsListPage />} />
+        <Route path="/donors/new" element={<DonorCreatePage />} />
+        <Route path="/donors/:donorId/frames" element={<DonorFramesPage />} />
+        <Route path="/frames" element={<FramesListPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
