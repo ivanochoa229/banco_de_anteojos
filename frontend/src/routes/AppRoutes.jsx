@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
+import { ApplicantAnsesPage } from '../features/applicants/pages/ApplicantAnsesPage'
 import { ApplicantCreatePage } from '../features/applicants/pages/ApplicantCreatePage'
 import { ApplicantEditPage } from '../features/applicants/pages/ApplicantEditPage'
 import { ApplicantPrescriptionsPage } from '../features/applicants/pages/ApplicantPrescriptionsPage'
@@ -32,6 +33,10 @@ export function AppRoutes() {
         <Route
           path="/applicants/:applicantId/prescriptions"
           element={<ApplicantPrescriptionsPage />}
+        />
+        <Route
+          path="/applicants/:applicantId/anses-certificate"
+          element={<ApplicantAnsesPage />}
         />
         <Route
           path="/applicants/:applicantId/assignments/new"
