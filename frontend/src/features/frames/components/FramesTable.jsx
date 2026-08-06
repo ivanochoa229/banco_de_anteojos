@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { formatDateTime } from '../../../lib/dates'
 import { FRAME_MATERIAL_LABELS, FRAME_TYPE_LABELS } from '../labels'
+import { FrameImageCell } from './FrameImageCell'
 import { FrameStatusBadge } from './FrameStatusBadge'
 
 // Calibre · puente · patilla, la forma en que vienen grabadas en el marco.
@@ -24,6 +25,7 @@ export function FramesTable({ frames, donorNameById }) {
             <th className="px-4 py-3">Medidas (mm)</th>
             {donorNameById && <th className="px-4 py-3">Donante</th>}
             <th className="px-4 py-3">Estado</th>
+            <th className="px-4 py-3">Foto</th>
             <th className="px-4 py-3">Ingreso</th>
           </tr>
         </thead>
@@ -50,6 +52,9 @@ export function FramesTable({ frames, donorNameById }) {
               )}
               <td className="px-4 py-3">
                 <FrameStatusBadge status={frame.status} />
+              </td>
+              <td className="px-4 py-3">
+                <FrameImageCell frame={frame} />
               </td>
               <td className="px-4 py-3 text-slate-600">{formatDateTime(frame.receivedAt)}</td>
             </tr>

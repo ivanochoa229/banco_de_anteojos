@@ -14,6 +14,7 @@ import { DonorFramesPage } from '../features/donors/pages/DonorFramesPage'
 import { DonorsListPage } from '../features/donors/pages/DonorsListPage'
 import { FramesListPage } from '../features/frames/pages/FramesListPage'
 import { HomePage } from '../features/home/pages/HomePage'
+import { TryOnPage } from '../features/tryOn/pages/TryOnPage'
 import { ProtectedRoute } from './ProtectedRoute'
 
 export function AppRoutes() {
@@ -48,6 +49,7 @@ export function AppRoutes() {
         <Route path="/donors/new" element={<DonorCreatePage />} />
         <Route path="/donors/:donorId/frames" element={<DonorFramesPage />} />
         <Route path="/frames" element={<FramesListPage />} />
+        <Route path="/try-on" element={<TryOnPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
