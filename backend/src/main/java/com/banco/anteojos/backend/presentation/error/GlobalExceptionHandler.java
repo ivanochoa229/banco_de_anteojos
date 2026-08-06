@@ -20,6 +20,8 @@ import com.banco.anteojos.backend.business.applicants.exception.PrescriptionNotF
 import com.banco.anteojos.backend.business.assignments.exception.AssignmentNotFoundException;
 import com.banco.anteojos.backend.business.assignments.exception.InvalidAssignmentTransitionException;
 import com.banco.anteojos.backend.business.donors.exception.DonorNotFoundException;
+import com.banco.anteojos.backend.business.frames.exception.FrameImageNotFoundException;
+import com.banco.anteojos.backend.business.frames.exception.InvalidFrameImageException;
 import com.banco.anteojos.backend.business.frames.exception.FrameNotFoundException;
 import com.banco.anteojos.backend.business.frames.exception.InvalidFrameTransitionException;
 import com.banco.anteojos.backend.business.frames.exception.SealCodeAlreadyExistsException;
@@ -67,6 +69,18 @@ public class GlobalExceptionHandler {
 	@ResponseStatus(HttpStatus.CONFLICT)
 	public ErrorResponseDto sealCodeAlreadyExists(SealCodeAlreadyExistsException e, HttpServletRequest request) {
 		return ErrorResponseDto.of(HttpStatus.CONFLICT, e.getMessage(), request.getRequestURI());
+	}
+
+	@ExceptionHandler(FrameImageNotFoundException.class)
+	@ResponseStatus(HttpStatus.NOT_FOUND)
+	public ErrorResponseDto frameImageNotFound(FrameImageNotFoundException e, HttpServletRequest request) {
+		return ErrorResponseDto.of(HttpStatus.NOT_FOUND, e.getMessage(), request.getRequestURI());
+	}
+
+	@ExceptionHandler(InvalidFrameImageException.class)
+	@ResponseStatus(HttpStatus.BAD_REQUEST)
+	public ErrorResponseDto invalidFrameImage(InvalidFrameImageException e, HttpServletRequest request) {
+		return ErrorResponseDto.of(HttpStatus.BAD_REQUEST, e.getMessage(), request.getRequestURI());
 	}
 
 	@ExceptionHandler(PrescriptionNotFoundException.class)

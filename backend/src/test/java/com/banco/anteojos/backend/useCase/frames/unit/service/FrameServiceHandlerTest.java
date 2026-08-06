@@ -3,10 +3,14 @@ package com.banco.anteojos.backend.useCase.frames.unit.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.startsWith;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -19,15 +23,21 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.banco.anteojos.backend.business.frames.FrameServiceHandler;
 import com.banco.anteojos.backend.business.frames.dto.request.FrameCreationRequestDto;
+import com.banco.anteojos.backend.business.frames.dto.request.FrameImageUploadRequestDto;
+import com.banco.anteojos.backend.business.frames.dto.response.FrameImageResponseDto;
 import com.banco.anteojos.backend.business.frames.dto.response.FrameResponseDto;
 import com.banco.anteojos.backend.business.frames.entities.Frame;
 import com.banco.anteojos.backend.business.frames.entities.FrameMaterial;
 import com.banco.anteojos.backend.business.frames.entities.FrameStatus;
 import com.banco.anteojos.backend.business.frames.entities.FrameType;
+import com.banco.anteojos.backend.business.frames.exception.FrameImageNotFoundException;
 import com.banco.anteojos.backend.business.frames.exception.FrameNotFoundException;
+import com.banco.anteojos.backend.business.frames.exception.InvalidFrameImageException;
 import com.banco.anteojos.backend.business.frames.exception.InvalidFrameTransitionException;
 import com.banco.anteojos.backend.business.frames.exception.SealCodeAlreadyExistsException;
 import com.banco.anteojos.backend.persistence.frames.FramePostgresSqlRepository;
+import com.banco.anteojos.backend.thirdPartyServiceComunication.storage.PresignedUrl;
+import com.banco.anteojos.backend.thirdPartyServiceComunication.storage.R2StorageClient;
 
 @Tag("unit")
 @ExtendWith(MockitoExtension.class)
@@ -35,6 +45,9 @@ class FrameServiceHandlerTest {
 
 	@Mock
 	private FramePostgresSqlRepository frameRepository;
+
+	@Mock
+	private R2StorageClient r2StorageClient;
 
 	@InjectMocks
 	private FrameServiceHandler frameServiceHandler;
@@ -216,5 +229,91 @@ class FrameServiceHandlerTest {
 		assertThatThrownBy(() -> frameServiceHandler.returnToInventory(1L))
 				.isInstanceOf(InvalidFrameTransitionException.class)
 				.hasMessageContaining("no vuelve al inventario");
+	}
+
+	// --- Foto del marco para el probador virtual (RF-18) ---
+
+	private FrameImageUploadRequestDto imageRequest(String contentType) {
+		return new FrameImageUploadRequestDto(new byte[] { 1, 2, 3 }, contentType, "marco.png");
+	}
+
+	@Test
+	void UploadFrameImage_Successful() {
+		mockFind(frame("A-1001"));
+
+		FrameResponseDto response = frameServiceHandler.uploadFrameImage(1L, imageRequest("image/png"));
+
+		assertThat(response.imageOriginalName()).isEqualTo("marco.png");
+		// La key va prefijada por marco para poder mover el prefijo de bucket más adelante.
+		verify(r2StorageClient).upload(startsWith("frames/1/"), any(), eq("image/png"));
+	}
+
+	@Test
+	void UploadFrameImage_WhenFileIsJpeg() {
+		when(frameRepository.findById(1L)).thenReturn(Optional.of(frame("A-1001")));
+
+		// Sin canal alfa el marco taparía media cara: se rechaza antes de subirlo a R2.
+		assertThatThrownBy(() -> frameServiceHandler.uploadFrameImage(1L, imageRequest("image/jpeg")))
+				.isInstanceOf(InvalidFrameImageException.class)
+				.hasMessageContaining("PNG o WEBP");
+		verify(r2StorageClient, never()).upload(any(), any(), any());
+	}
+
+	@Test
+	void UploadFrameImage_WhenFileIsEmpty() {
+		when(frameRepository.findById(1L)).thenReturn(Optional.of(frame("A-1001")));
+
+		assertThatThrownBy(() -> frameServiceHandler.uploadFrameImage(1L,
+				new FrameImageUploadRequestDto(new byte[0], "image/png", "marco.png")))
+				.isInstanceOf(InvalidFrameImageException.class)
+				.hasMessageContaining("vacío");
+		verify(r2StorageClient, never()).upload(any(), any(), any());
+	}
+
+	@Test
+	void UploadFrameImage_ReplacesPreviousImage() {
+		Frame frame = frame("A-1001");
+		frame.attachImage("frames/1/vieja.png", "image/png", "vieja.png");
+		mockFind(frame);
+
+		frameServiceHandler.uploadFrameImage(1L, imageRequest("image/png"));
+
+		verify(r2StorageClient).delete("frames/1/vieja.png");
+	}
+
+	@Test
+	void UploadFrameImage_WhenDeletingPreviousImageFails() {
+		Frame frame = frame("A-1001");
+		frame.attachImage("frames/1/vieja.png", "image/png", "vieja.png");
+		mockFind(frame);
+		doThrow(new RuntimeException("R2 caído")).when(r2StorageClient).delete(any());
+
+		// Borrar la foto vieja no es crítico: queda huérfana en R2 pero el marco ya apunta a la nueva.
+		assertThat(frameServiceHandler.uploadFrameImage(1L, imageRequest("image/png"))
+				.imageOriginalName()).isEqualTo("marco.png");
+	}
+
+	@Test
+	void GetFrameImage_Successful() {
+		Frame frame = frame("A-1001");
+		frame.attachImage("frames/1/foto.png", "image/png", "foto.png");
+		when(frameRepository.findById(1L)).thenReturn(Optional.of(frame));
+		LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(15);
+		when(r2StorageClient.presignedGetUrl("frames/1/foto.png"))
+				.thenReturn(new PresignedUrl("https://r2/firmada", expiresAt));
+
+		FrameImageResponseDto response = frameServiceHandler.getFrameImage(1L);
+
+		assertThat(response.url()).isEqualTo("https://r2/firmada");
+		assertThat(response.expiresAt()).isEqualTo(expiresAt);
+		assertThat(response.fileName()).isEqualTo("foto.png");
+	}
+
+	@Test
+	void GetFrameImage_WhenFrameHasNoImage() {
+		when(frameRepository.findById(1L)).thenReturn(Optional.of(frame("A-1001")));
+
+		assertThatThrownBy(() -> frameServiceHandler.getFrameImage(1L))
+				.isInstanceOf(FrameImageNotFoundException.class);
 	}
 }
