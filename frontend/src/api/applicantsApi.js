@@ -19,4 +19,12 @@ export const applicantsApi = {
   // Devuelve una URL firmada que vence: se pide en el momento de abrirla, no se guarda.
   getPrescriptionFile: (applicantId, prescriptionId) =>
     apiFetch(`/v1/applicants/${applicantId}/prescriptions/${prescriptionId}/file`),
+  // La negativa de ANSES es un sub-recurso único: subir otra reemplaza a la anterior.
+  getAnsesCertificate: (applicantId) => apiFetch(`/v1/applicants/${applicantId}/anses-certificate`),
+  uploadAnsesCertificate: (applicantId, file) => {
+    const body = new FormData()
+    body.append('file', file)
+    return apiFetch(`/v1/applicants/${applicantId}/anses-certificate`, { method: 'PUT', body })
+  },
+  getEligibility: (applicantId) => apiFetch(`/v1/applicants/${applicantId}/eligibility`),
 }

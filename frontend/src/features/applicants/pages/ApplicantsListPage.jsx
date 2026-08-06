@@ -75,6 +75,12 @@ export function ApplicantsListPage() {
                           Recetas
                         </Link>
                         <Link
+                          to={`/applicants/${applicant.id}/anses-certificate`}
+                          className="font-medium text-sky-700 hover:underline"
+                        >
+                          ANSES
+                        </Link>
+                        <Link
                           to={`/applicants/${applicant.id}/assignments/new`}
                           className="font-medium text-sky-700 hover:underline"
                         >
