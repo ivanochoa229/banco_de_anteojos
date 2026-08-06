@@ -40,6 +40,16 @@ export function HomePage() {
             Todos los marcos con su precinto, medidas y estado dentro del circuito.
           </p>
         </Link>
+
+        <Link
+          to="/assignments"
+          className="rounded-lg border border-slate-200 bg-white p-5 transition hover:border-sky-300 hover:shadow-sm"
+        >
+          <h3 className="font-semibold text-slate-900">Asignaciones</h3>
+          <p className="mt-1 text-sm text-slate-500">
+            El circuito de cada par: envío a la óptica, retorno con los cristales y entrega.
+          </p>
+        </Link>
       </div>
     </Layout>
   )

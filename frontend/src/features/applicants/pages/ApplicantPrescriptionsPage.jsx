@@ -6,20 +6,7 @@ import { Layout } from '../../../components/Layout'
 import { formatDateTime } from '../../../lib/dates'
 import { PrescriptionFileCell } from '../components/PrescriptionFileCell'
 import { PrescriptionForm } from '../components/PrescriptionForm'
-
-// Las dioptrías se leen siempre con signo y dos decimales (+1.00 / -0.75).
-function formatDiopter(value) {
-  if (value === null || value === undefined) return '—'
-  const number = Number(value)
-  return `${number > 0 ? '+' : ''}${number.toFixed(2)}`
-}
-
-function formatEye(sphere, cylinder, axis) {
-  if (sphere === null && cylinder === null && axis === null) return '—'
-  const parts = [`Esf ${formatDiopter(sphere)}`, `Cil ${formatDiopter(cylinder)}`]
-  if (axis !== null && axis !== undefined) parts.push(`Eje ${axis}°`)
-  return parts.join(' · ')
-}
+import { formatEye } from '../prescriptionFormat'
 
 export function ApplicantPrescriptionsPage() {
   const { applicantId } = useParams()

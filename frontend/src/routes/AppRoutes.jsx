@@ -4,6 +4,9 @@ import { ApplicantCreatePage } from '../features/applicants/pages/ApplicantCreat
 import { ApplicantEditPage } from '../features/applicants/pages/ApplicantEditPage'
 import { ApplicantPrescriptionsPage } from '../features/applicants/pages/ApplicantPrescriptionsPage'
 import { ApplicantsListPage } from '../features/applicants/pages/ApplicantsListPage'
+import { AssignmentCreatePage } from '../features/assignments/pages/AssignmentCreatePage'
+import { AssignmentDetailPage } from '../features/assignments/pages/AssignmentDetailPage'
+import { AssignmentsQueuePage } from '../features/assignments/pages/AssignmentsQueuePage'
 import { LoginPage } from '../features/auth/pages/LoginPage'
 import { DonorCreatePage } from '../features/donors/pages/DonorCreatePage'
 import { DonorFramesPage } from '../features/donors/pages/DonorFramesPage'
@@ -30,6 +33,12 @@ export function AppRoutes() {
           path="/applicants/:applicantId/prescriptions"
           element={<ApplicantPrescriptionsPage />}
         />
+        <Route
+          path="/applicants/:applicantId/assignments/new"
+          element={<AssignmentCreatePage />}
+        />
+        <Route path="/assignments" element={<AssignmentsQueuePage />} />
+        <Route path="/assignments/:assignmentId" element={<AssignmentDetailPage />} />
         <Route path="/donors" element={<DonorsListPage />} />
         <Route path="/donors/new" element={<DonorCreatePage />} />
         <Route path="/donors/:donorId/frames" element={<DonorFramesPage />} />
