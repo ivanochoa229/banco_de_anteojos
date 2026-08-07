@@ -23,3 +23,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Runtime wasm de MediaPipe: lo copia vite.config.js desde node_modules en cada build.
+public/mediapipe/

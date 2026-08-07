@@ -45,6 +45,13 @@ public class Frame {
 	@Enumerated(EnumType.STRING)
 	private FrameStatus status;
 
+	/** Foto recortada del marco para el probador virtual. Null mientras nadie le saque una. */
+	private String imageKey;
+
+	private String imageContentType;
+
+	private String imageOriginalName;
+
 	private LocalDateTime receivedAt;
 
 	protected Frame() {
@@ -67,6 +74,22 @@ public class Frame {
 
 	public static String normalizeSealCode(String sealCode) {
 		return sealCode.trim().toUpperCase();
+	}
+
+	/**
+	 * Adjunta la foto del marco y devuelve la key de la anterior (null si no había), para que
+	 * quien llama pueda borrar el objeto reemplazado en R2.
+	 */
+	public String attachImage(String key, String contentType, String originalName) {
+		String previousKey = this.imageKey;
+		this.imageKey = key;
+		this.imageContentType = contentType;
+		this.imageOriginalName = originalName;
+		return previousKey;
+	}
+
+	public boolean hasImage() {
+		return imageKey != null;
 	}
 
 	/** Reserva el marco para un beneficiario: solo se puede sacar del inventario disponible. */

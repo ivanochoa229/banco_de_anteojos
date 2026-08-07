@@ -7,6 +7,8 @@ import org.springframework.stereotype.Component;
 import com.banco.anteojos.backend.business.donors.DonorService;
 import com.banco.anteojos.backend.business.frames.FrameService;
 import com.banco.anteojos.backend.business.frames.dto.request.FrameCreationRequestDto;
+import com.banco.anteojos.backend.business.frames.dto.request.FrameImageUploadRequestDto;
+import com.banco.anteojos.backend.business.frames.dto.response.FrameImageResponseDto;
 import com.banco.anteojos.backend.business.frames.dto.response.FrameResponseDto;
 import com.banco.anteojos.backend.business.frames.entities.FrameStatus;
 
@@ -32,6 +34,17 @@ public class FrameUseCaseHandler implements FrameUseCaseOrchestrator {
 	@Override
 	public FrameResponseDto getFrame(Long frameId) {
 		return frameService.getFrame(frameId);
+	}
+
+	// La foto es del marco y de nadie más: no hay nada cross-domain que coordinar acá.
+	@Override
+	public FrameResponseDto uploadFrameImage(Long frameId, FrameImageUploadRequestDto request) {
+		return frameService.uploadFrameImage(frameId, request);
+	}
+
+	@Override
+	public FrameImageResponseDto getFrameImage(Long frameId) {
+		return frameService.getFrameImage(frameId);
 	}
 
 	@Override

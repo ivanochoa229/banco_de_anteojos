@@ -16,5 +16,7 @@ public record FrameResponseDto(
 		Integer bridgeWidthMm,
 		Integer templeLengthMm,
 		FrameStatus status,
+		// null si el marco no tiene foto cargada; el probador virtual solo ofrece los que sí.
+		String imageOriginalName,
 		LocalDateTime receivedAt) {
 }

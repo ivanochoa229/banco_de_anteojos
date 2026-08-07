@@ -38,6 +38,9 @@ export function Layout({ children }) {
               <NavLink to="/assignments" className={navLinkClass}>
                 Asignaciones
               </NavLink>
+              <NavLink to="/try-on" className={navLinkClass}>
+                Probador
+              </NavLink>
             </nav>
           </div>
           <div className="flex items-center gap-4">
