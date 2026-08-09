@@ -42,6 +42,8 @@ public class SecurityConfig {
 						.requestMatchers("/v1/applicants/**").hasAnyRole("ADMIN", "OPERATOR")
 						.requestMatchers("/v1/donors/**").hasAnyRole("ADMIN", "OPERATOR")
 						.requestMatchers("/v1/frames/**").hasAnyRole("ADMIN", "OPERATOR")
+						.requestMatchers("/v1/assignments/**").hasAnyRole("ADMIN", "OPERATOR")
+						.requestMatchers("/v1/appointments/**").hasAnyRole("ADMIN", "OPERATOR")
 						.anyRequest().authenticated())
 				.exceptionHandling(exceptions -> exceptions
 						.authenticationEntryPoint((request, response, e) ->

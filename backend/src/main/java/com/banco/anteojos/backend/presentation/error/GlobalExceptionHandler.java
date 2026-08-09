@@ -17,6 +17,8 @@ import com.banco.anteojos.backend.business.applicants.exception.InvalidAnsesCert
 import com.banco.anteojos.backend.business.applicants.exception.InvalidPrescriptionFileException;
 import com.banco.anteojos.backend.business.applicants.exception.PrescriptionFileNotFoundException;
 import com.banco.anteojos.backend.business.applicants.exception.PrescriptionNotFoundException;
+import com.banco.anteojos.backend.business.appointments.exception.AppointmentNotFoundException;
+import com.banco.anteojos.backend.business.appointments.exception.InvalidAppointmentTransitionException;
 import com.banco.anteojos.backend.business.assignments.exception.AssignmentNotFoundException;
 import com.banco.anteojos.backend.business.assignments.exception.InvalidAssignmentTransitionException;
 import com.banco.anteojos.backend.business.donors.exception.DonorNotFoundException;
@@ -110,11 +112,18 @@ public class GlobalExceptionHandler {
 	}
 
 	// 409 y no 400: el request está bien formado, lo que no encaja es el momento del circuito
-	// en el que está el marco o la asignación.
-	@ExceptionHandler({ InvalidAssignmentTransitionException.class, InvalidFrameTransitionException.class })
+	// en el que está el marco o la asignación, o el estado del turno.
+	@ExceptionHandler({ InvalidAssignmentTransitionException.class, InvalidFrameTransitionException.class,
+			InvalidAppointmentTransitionException.class })
 	@ResponseStatus(HttpStatus.CONFLICT)
 	public ErrorResponseDto invalidTransition(RuntimeException e, HttpServletRequest request) {
 		return ErrorResponseDto.of(HttpStatus.CONFLICT, e.getMessage(), request.getRequestURI());
+	}
+
+	@ExceptionHandler(AppointmentNotFoundException.class)
+	@ResponseStatus(HttpStatus.NOT_FOUND)
+	public ErrorResponseDto appointmentNotFound(AppointmentNotFoundException e, HttpServletRequest request) {
+		return ErrorResponseDto.of(HttpStatus.NOT_FOUND, e.getMessage(), request.getRequestURI());
 	}
 
 	@ExceptionHandler(AnsesCertificateNotFoundException.class)
