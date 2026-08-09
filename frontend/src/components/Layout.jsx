@@ -38,6 +38,9 @@ export function Layout({ children }) {
               <NavLink to="/assignments" className={navLinkClass}>
                 Asignaciones
               </NavLink>
+              <NavLink to="/appointments" className={navLinkClass}>
+                Turnos
+              </NavLink>
               <NavLink to="/try-on" className={navLinkClass}>
                 Probador
               </NavLink>

@@ -87,6 +87,12 @@ export function ApplicantsListPage() {
                           Asignar marco
                         </Link>
                         <Link
+                          to={`/applicants/${applicant.id}/appointments/new`}
+                          className="font-medium text-sky-700 hover:underline"
+                        >
+                          Turno
+                        </Link>
+                        <Link
                           to={`/applicants/${applicant.id}/edit`}
                           className="font-medium text-sky-700 hover:underline"
                         >

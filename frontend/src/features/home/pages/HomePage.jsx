@@ -52,6 +52,16 @@ export function HomePage() {
         </Link>
 
         <Link
+          to="/appointments"
+          className="rounded-lg border border-slate-200 bg-white p-5 transition hover:border-sky-300 hover:shadow-sm"
+        >
+          <h3 className="font-semibold text-slate-900">Turnos</h3>
+          <p className="mt-1 text-sm text-slate-500">
+            La agenda de atención del día: asistencia, reprogramaciones y cancelaciones.
+          </p>
+        </Link>
+
+        <Link
           to="/try-on"
           className="rounded-lg border border-slate-200 bg-white p-5 transition hover:border-sky-300 hover:shadow-sm"
         >
