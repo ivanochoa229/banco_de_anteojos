@@ -28,7 +28,14 @@ import com.banco.anteojos.backend.business.frames.exception.FrameNotFoundExcepti
 import com.banco.anteojos.backend.business.frames.exception.InvalidFrameTransitionException;
 import com.banco.anteojos.backend.business.frames.exception.SealCodeAlreadyExistsException;
 import com.banco.anteojos.backend.business.security.exception.InvalidCredentialsException;
+import com.banco.anteojos.backend.business.shipments.exception.InvalidShipmentTransitionException;
+import com.banco.anteojos.backend.business.shipments.exception.InvalidWebhookPayloadException;
+import com.banco.anteojos.backend.business.shipments.exception.InvalidWebhookSignatureException;
+import com.banco.anteojos.backend.business.shipments.exception.ShipmentNotFoundException;
+import com.banco.anteojos.backend.business.shipments.exception.TrackingNumberAlreadyExistsException;
 import com.banco.anteojos.backend.thirdPartyServiceComunication.storage.StorageException;
+import com.banco.anteojos.backend.thirdPartyServiceComunication.tracking.TrackingException;
+import com.banco.anteojos.backend.thirdPartyServiceComunication.tracking.TrackingRejectedException;
 
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
@@ -112,9 +119,9 @@ public class GlobalExceptionHandler {
 	}
 
 	// 409 y no 400: el request está bien formado, lo que no encaja es el momento del circuito
-	// en el que está el marco o la asignación, o el estado del turno.
+	// en el que está el marco o la asignación, o el estado del turno o del envío.
 	@ExceptionHandler({ InvalidAssignmentTransitionException.class, InvalidFrameTransitionException.class,
-			InvalidAppointmentTransitionException.class })
+			InvalidAppointmentTransitionException.class, InvalidShipmentTransitionException.class })
 	@ResponseStatus(HttpStatus.CONFLICT)
 	public ErrorResponseDto invalidTransition(RuntimeException e, HttpServletRequest request) {
 		return ErrorResponseDto.of(HttpStatus.CONFLICT, e.getMessage(), request.getRequestURI());
@@ -124,6 +131,49 @@ public class GlobalExceptionHandler {
 	@ResponseStatus(HttpStatus.NOT_FOUND)
 	public ErrorResponseDto appointmentNotFound(AppointmentNotFoundException e, HttpServletRequest request) {
 		return ErrorResponseDto.of(HttpStatus.NOT_FOUND, e.getMessage(), request.getRequestURI());
+	}
+
+	@ExceptionHandler(ShipmentNotFoundException.class)
+	@ResponseStatus(HttpStatus.NOT_FOUND)
+	public ErrorResponseDto shipmentNotFound(ShipmentNotFoundException e, HttpServletRequest request) {
+		return ErrorResponseDto.of(HttpStatus.NOT_FOUND, e.getMessage(), request.getRequestURI());
+	}
+
+	@ExceptionHandler(TrackingNumberAlreadyExistsException.class)
+	@ResponseStatus(HttpStatus.CONFLICT)
+	public ErrorResponseDto trackingNumberAlreadyExists(TrackingNumberAlreadyExistsException e,
+			HttpServletRequest request) {
+		return ErrorResponseDto.of(HttpStatus.CONFLICT, e.getMessage(), request.getRequestURI());
+	}
+
+	// 401 del webhook público de 17TRACK: firma ausente o que no coincide (ver RF-24).
+	@ExceptionHandler(InvalidWebhookSignatureException.class)
+	@ResponseStatus(HttpStatus.UNAUTHORIZED)
+	public ErrorResponseDto invalidWebhookSignature(InvalidWebhookSignatureException e,
+			HttpServletRequest request) {
+		return ErrorResponseDto.of(HttpStatus.UNAUTHORIZED, e.getMessage(), request.getRequestURI());
+	}
+
+	@ExceptionHandler(InvalidWebhookPayloadException.class)
+	@ResponseStatus(HttpStatus.BAD_REQUEST)
+	public ErrorResponseDto invalidWebhookPayload(InvalidWebhookPayloadException e,
+			HttpServletRequest request) {
+		return ErrorResponseDto.of(HttpStatus.BAD_REQUEST, e.getMessage(), request.getRequestURI());
+	}
+
+	// 422: el número no es un tracking válido para 17TRACK; que el operador lo revise.
+	@ExceptionHandler(TrackingRejectedException.class)
+	@ResponseStatus(HttpStatus.UNPROCESSABLE_CONTENT)
+	public ErrorResponseDto trackingRejected(TrackingRejectedException e, HttpServletRequest request) {
+		return ErrorResponseDto.of(HttpStatus.UNPROCESSABLE_CONTENT, e.getMessage(), request.getRequestURI());
+	}
+
+	// El detalle del fallo de 17TRACK va al log; al operador solo le sirve saber que reintente.
+	@ExceptionHandler(TrackingException.class)
+	@ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
+	public ErrorResponseDto trackingUnavailable(TrackingException e, HttpServletRequest request) {
+		log.error("Fallo de 17TRACK en {}", request.getRequestURI(), e);
+		return ErrorResponseDto.of(HttpStatus.SERVICE_UNAVAILABLE, e.getMessage(), request.getRequestURI());
 	}
 
 	@ExceptionHandler(AnsesCertificateNotFoundException.class)

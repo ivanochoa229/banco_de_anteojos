@@ -23,6 +23,11 @@ bootstrap:
     email: ""
     password: ""
 
+# Clave fija para poder firmar los pushes de 17TRACK en los E2E del webhook. El cliente HTTP
+# real se mockea; esta clave solo la usa la verificación local de firma.
+track17:
+  api-key: test-17track-key
+
 # Credenciales de juguete, por el mismo motivo que el secreto JWT: ningún test depende del .env.
 # Los tests que usan R2 mockean el cliente, pero el bean real igual se construye en el resto
 # de los contextos. Construirlo no abre conexiones: el SDK de S3 no valida credenciales al armarse.

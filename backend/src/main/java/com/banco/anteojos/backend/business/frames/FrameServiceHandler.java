@@ -2,6 +2,7 @@ package com.banco.anteojos.backend.business.frames;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Consumer;
 
@@ -54,6 +55,16 @@ public class FrameServiceHandler implements FrameService {
 	@Override
 	public FrameResponseDto getFrame(Long frameId) {
 		return toResponse(findFrame(frameId));
+	}
+
+	@Override
+	public List<FrameResponseDto> getFrames(List<Long> frameIds) {
+		List<Frame> frames = frameRepository.findAllById(frameIds);
+		// findAllById ignora en silencio los ids inexistentes: la diferencia de tamaño los delata.
+		if (frames.size() != Set.copyOf(frameIds).size()) {
+			throw new FrameNotFoundException();
+		}
+		return frames.stream().map(this::toResponse).toList();
 	}
 
 	@Override
