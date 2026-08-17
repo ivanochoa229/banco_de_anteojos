@@ -16,6 +16,9 @@ import { DonorFramesPage } from '../features/donors/pages/DonorFramesPage'
 import { DonorsListPage } from '../features/donors/pages/DonorsListPage'
 import { FramesListPage } from '../features/frames/pages/FramesListPage'
 import { HomePage } from '../features/home/pages/HomePage'
+import { ShipmentCreatePage } from '../features/shipments/pages/ShipmentCreatePage'
+import { ShipmentDetailPage } from '../features/shipments/pages/ShipmentDetailPage'
+import { ShipmentsListPage } from '../features/shipments/pages/ShipmentsListPage'
 import { TryOnPage } from '../features/tryOn/pages/TryOnPage'
 import { ProtectedRoute } from './ProtectedRoute'
 
@@ -56,6 +59,9 @@ export function AppRoutes() {
         <Route path="/donors/new" element={<DonorCreatePage />} />
         <Route path="/donors/:donorId/frames" element={<DonorFramesPage />} />
         <Route path="/frames" element={<FramesListPage />} />
+        <Route path="/shipments" element={<ShipmentsListPage />} />
+        <Route path="/shipments/new" element={<ShipmentCreatePage />} />
+        <Route path="/shipments/:shipmentId" element={<ShipmentDetailPage />} />
         <Route path="/try-on" element={<TryOnPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
