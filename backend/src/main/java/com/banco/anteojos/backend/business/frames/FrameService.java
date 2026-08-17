@@ -14,6 +14,9 @@ public interface FrameService {
 
 	FrameResponseDto getFrame(Long frameId);
 
+	/** Los marcos de un envío entre sucursales. Falla si alguno no existe en el inventario. */
+	List<FrameResponseDto> getFrames(List<Long> frameIds);
+
 	/** Foto recortada del marco para el probador virtual (RF-18). Subir otra reemplaza la anterior. */
 	FrameResponseDto uploadFrameImage(Long frameId, FrameImageUploadRequestDto request);
 

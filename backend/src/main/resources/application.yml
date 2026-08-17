@@ -46,6 +46,11 @@ bootstrap:
 
 # Cloudflare R2. Un solo bucket PRIVADO: todo se sirve con presigned URLs, nunca por URL pública.
 # Las recetas son datos de salud (RNF-02, Ley 25.326) y no pueden quedar accesibles sin firma.
+# 17TRACK (seguimiento de Vía Cargo, RF-23/24). La misma API key firma los webhooks entrantes.
+track17:
+  api-key: ${TRACK17_API_KEY:}
+  base-url: https://api.17track.net/track/v2.4
+
 r2:
   account-id: ${R2_ACCOUNT_ID:}
   access-key-id: ${R2_ACCESS_KEY_ID:}
