@@ -62,6 +62,16 @@ export function HomePage() {
         </Link>
 
         <Link
+          to="/shipments"
+          className="rounded-lg border border-slate-200 bg-white p-5 transition hover:border-sky-300 hover:shadow-sm"
+        >
+          <h3 className="font-semibold text-slate-900">Envíos</h3>
+          <p className="mt-1 text-sm text-slate-500">
+            Paquetes de marcos entre sucursales, con el seguimiento que informa el correo.
+          </p>
+        </Link>
+
+        <Link
           to="/try-on"
           className="rounded-lg border border-slate-200 bg-white p-5 transition hover:border-sky-300 hover:shadow-sm"
         >
