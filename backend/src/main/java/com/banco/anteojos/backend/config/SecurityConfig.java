@@ -48,6 +48,7 @@ public class SecurityConfig {
 						// firma del push (ver ShipmentWebhookController).
 						.requestMatchers(HttpMethod.POST, "/v1/shipments/webhook").permitAll()
 						.requestMatchers("/v1/shipments/**").hasAnyRole("ADMIN", "OPERATOR")
+						.requestMatchers("/v1/indicators/**").hasAnyRole("ADMIN", "OPERATOR")
 						.anyRequest().authenticated())
 				.exceptionHandling(exceptions -> exceptions
 						.authenticationEntryPoint((request, response, e) ->

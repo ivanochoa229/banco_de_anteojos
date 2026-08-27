@@ -8,6 +8,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -25,6 +26,7 @@ import com.banco.anteojos.backend.business.shipments.dto.request.ShipmentCreatio
 import com.banco.anteojos.backend.business.shipments.dto.response.ShipmentResponseDto;
 import com.banco.anteojos.backend.business.shipments.entities.Shipment;
 import com.banco.anteojos.backend.business.shipments.entities.ShipmentEvent;
+import com.banco.anteojos.backend.business.shipments.entities.ShipmentStatus;
 import com.banco.anteojos.backend.business.shipments.exception.ShipmentNotFoundException;
 import com.banco.anteojos.backend.business.shipments.exception.TrackingNumberAlreadyExistsException;
 import com.banco.anteojos.backend.persistence.shipments.ShipmentEventPostgresSqlRepository;
@@ -181,5 +183,15 @@ class ShipmentServiceHandlerTest {
 		shipmentServiceHandler.processTrackingPush("firma", "body");
 
 		verify(shipmentRepository, never()).findByTrackingNumber(any());
+	}
+
+	@Test
+	void CountDelivered_DelegatesToRepository() {
+		LocalDateTime from = LocalDateTime.of(2026, 1, 1, 0, 0);
+		LocalDateTime to = LocalDateTime.of(2026, 2, 1, 0, 0);
+		when(shipmentRepository.countByStatusAndDeliveredAtBetween(ShipmentStatus.DELIVERED, from, to))
+				.thenReturn(2L);
+
+		assertThat(shipmentServiceHandler.countDelivered(from, to)).isEqualTo(2L);
 	}
 }

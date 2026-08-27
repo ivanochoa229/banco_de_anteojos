@@ -1,5 +1,6 @@
 package com.banco.anteojos.backend.business.assignments;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import com.banco.anteojos.backend.business.applicants.dto.response.ApplicantResponseDto;
@@ -7,6 +8,7 @@ import com.banco.anteojos.backend.business.assignments.dto.request.AssignmentCre
 import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentCreationResponseDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentDetailResponseDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentResponseDto;
+import com.banco.anteojos.backend.business.assignments.dto.response.MonthlyDeliveryResponseDto;
 import com.banco.anteojos.backend.business.donors.dto.response.DonorResponseDto;
 import com.banco.anteojos.backend.business.frames.dto.response.FrameResponseDto;
 
@@ -36,4 +38,12 @@ public interface AssignmentService {
 	/** Arma la trazabilidad con los datos que el orchestrator ya resolvió en cada dominio. */
 	AssignmentDetailResponseDto buildDetail(AssignmentResponseDto assignment, ApplicantResponseDto applicant,
 			FrameResponseDto frame, DonorResponseDto donor);
+
+	// Para el panel de indicadores (RF-26/27).
+
+	long countDelivered(LocalDateTime from, LocalDateTime to);
+
+	long countDistinctApplicantsServed(LocalDateTime from, LocalDateTime to);
+
+	List<MonthlyDeliveryResponseDto> deliveriesByMonth(LocalDateTime from, LocalDateTime to);
 }

@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.banco.anteojos.backend.business.appointments.entities.Appointment;
+import com.banco.anteojos.backend.business.appointments.entities.AppointmentStatus;
 
 public interface AppointmentPostgresSqlRepository extends JpaRepository<Appointment, Long> {
 
@@ -19,4 +20,6 @@ public interface AppointmentPostgresSqlRepository extends JpaRepository<Appointm
 	@Query("SELECT a FROM Appointment a WHERE a.scheduledAt >= :from AND a.scheduledAt < :to "
 			+ "ORDER BY a.scheduledAt ASC")
 	List<Appointment> findByDay(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+
+	long countByStatusAndScheduledAtBetween(AppointmentStatus status, LocalDateTime from, LocalDateTime to);
 }

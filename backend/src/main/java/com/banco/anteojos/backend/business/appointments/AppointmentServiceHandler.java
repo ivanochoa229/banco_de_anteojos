@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import com.banco.anteojos.backend.business.appointments.dto.request.AppointmentCreationRequestDto;
 import com.banco.anteojos.backend.business.appointments.dto.response.AppointmentResponseDto;
 import com.banco.anteojos.backend.business.appointments.entities.Appointment;
+import com.banco.anteojos.backend.business.appointments.entities.AppointmentStatus;
 import com.banco.anteojos.backend.business.appointments.exception.AppointmentNotFoundException;
 import com.banco.anteojos.backend.persistence.appointments.AppointmentPostgresSqlRepository;
 
@@ -65,6 +66,11 @@ public class AppointmentServiceHandler implements AppointmentService {
 		Appointment appointment = findAppointment(appointmentId);
 		appointment.registerAttendance(attended);
 		return toResponse(appointmentRepository.save(appointment));
+	}
+
+	@Override
+	public long countByStatus(AppointmentStatus status, LocalDateTime from, LocalDateTime to) {
+		return appointmentRepository.countByStatusAndScheduledAtBetween(status, from, to);
 	}
 
 	private Appointment findAppointment(Long appointmentId) {

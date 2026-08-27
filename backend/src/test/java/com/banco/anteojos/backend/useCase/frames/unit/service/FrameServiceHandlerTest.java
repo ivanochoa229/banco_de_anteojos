@@ -316,4 +316,13 @@ class FrameServiceHandlerTest {
 		assertThatThrownBy(() -> frameServiceHandler.getFrameImage(1L))
 				.isInstanceOf(FrameImageNotFoundException.class);
 	}
+
+	@Test
+	void CountReceived_DelegatesToRepository() {
+		LocalDateTime from = LocalDateTime.of(2026, 1, 1, 0, 0);
+		LocalDateTime to = LocalDateTime.of(2026, 2, 1, 0, 0);
+		when(frameRepository.countByReceivedAtBetween(from, to)).thenReturn(3L);
+
+		assertThat(frameServiceHandler.countReceived(from, to)).isEqualTo(3L);
+	}
 }

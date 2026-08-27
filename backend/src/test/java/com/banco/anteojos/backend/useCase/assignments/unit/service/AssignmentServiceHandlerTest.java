@@ -3,9 +3,12 @@ package com.banco.anteojos.backend.useCase.assignments.unit.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.time.LocalDateTime;
+import java.time.YearMonth;
 import java.util.List;
 import java.util.Optional;
 
@@ -20,9 +23,11 @@ import com.banco.anteojos.backend.business.assignments.AssignmentServiceHandler;
 import com.banco.anteojos.backend.business.assignments.dto.request.AssignmentCreationRequestDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentCreationResponseDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentResponseDto;
+import com.banco.anteojos.backend.business.assignments.dto.response.MonthlyDeliveryResponseDto;
 import com.banco.anteojos.backend.business.assignments.entities.Assignment;
 import com.banco.anteojos.backend.business.assignments.exception.AssignmentNotFoundException;
 import com.banco.anteojos.backend.persistence.assignments.AssignmentPostgresSqlRepository;
+import com.banco.anteojos.backend.persistence.assignments.MonthlyDeliveryProjection;
 
 @Tag("unit")
 @ExtendWith(MockitoExtension.class)
@@ -138,5 +143,39 @@ class AssignmentServiceHandlerTest {
 				.thenReturn(List.of(assignment()));
 
 		assertThat(assignmentServiceHandler.listAssignmentsByApplicant(1L)).hasSize(1);
+	}
+
+	@Test
+	void CountDelivered_DelegatesToRepository() {
+		LocalDateTime from = LocalDateTime.of(2026, 1, 1, 0, 0);
+		LocalDateTime to = LocalDateTime.of(2026, 2, 1, 0, 0);
+		when(assignmentRepository.countDelivered(from, to)).thenReturn(5L);
+
+		assertThat(assignmentServiceHandler.countDelivered(from, to)).isEqualTo(5L);
+	}
+
+	@Test
+	void CountDistinctApplicantsServed_DelegatesToRepository() {
+		LocalDateTime from = LocalDateTime.of(2026, 1, 1, 0, 0);
+		LocalDateTime to = LocalDateTime.of(2026, 2, 1, 0, 0);
+		when(assignmentRepository.countDistinctApplicantsServed(from, to)).thenReturn(4L);
+
+		assertThat(assignmentServiceHandler.countDistinctApplicantsServed(from, to)).isEqualTo(4L);
+	}
+
+	@Test
+	void DeliveriesByMonth_MapsProjectionToDto() {
+		LocalDateTime from = LocalDateTime.of(2026, 1, 1, 0, 0);
+		LocalDateTime to = LocalDateTime.of(2026, 3, 1, 0, 0);
+		MonthlyDeliveryProjection row = mock(MonthlyDeliveryProjection.class);
+		when(row.getMonth()).thenReturn(LocalDateTime.of(2026, 1, 1, 0, 0));
+		when(row.getDeliveries()).thenReturn(2L);
+		when(row.getApplicants()).thenReturn(2L);
+		when(assignmentRepository.deliveriesByMonth(from, to)).thenReturn(List.of(row));
+
+		List<MonthlyDeliveryResponseDto> response = assignmentServiceHandler.deliveriesByMonth(from, to);
+
+		assertThat(response).containsExactly(
+				new MonthlyDeliveryResponseDto(YearMonth.of(2026, 1), 2L, 2L));
 	}
 }

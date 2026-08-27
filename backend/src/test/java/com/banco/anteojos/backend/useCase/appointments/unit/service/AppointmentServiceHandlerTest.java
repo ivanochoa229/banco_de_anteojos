@@ -22,6 +22,7 @@ import com.banco.anteojos.backend.business.appointments.AppointmentServiceHandle
 import com.banco.anteojos.backend.business.appointments.dto.request.AppointmentCreationRequestDto;
 import com.banco.anteojos.backend.business.appointments.dto.response.AppointmentResponseDto;
 import com.banco.anteojos.backend.business.appointments.entities.Appointment;
+import com.banco.anteojos.backend.business.appointments.entities.AppointmentStatus;
 import com.banco.anteojos.backend.business.appointments.exception.AppointmentNotFoundException;
 import com.banco.anteojos.backend.persistence.appointments.AppointmentPostgresSqlRepository;
 
@@ -128,5 +129,15 @@ class AppointmentServiceHandlerTest {
 				.thenReturn(List.of(appointment()));
 
 		assertThat(appointmentServiceHandler.listAppointmentsByApplicant(1L)).hasSize(1);
+	}
+
+	@Test
+	void CountByStatus_DelegatesToRepository() {
+		LocalDateTime from = LocalDateTime.of(2026, 1, 1, 0, 0);
+		LocalDateTime to = LocalDateTime.of(2026, 2, 1, 0, 0);
+		when(appointmentRepository.countByStatusAndScheduledAtBetween(AppointmentStatus.COMPLETED, from, to))
+				.thenReturn(6L);
+
+		assertThat(appointmentServiceHandler.countByStatus(AppointmentStatus.COMPLETED, from, to)).isEqualTo(6L);
 	}
 }

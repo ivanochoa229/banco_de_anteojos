@@ -27,6 +27,7 @@ import com.banco.anteojos.backend.business.frames.exception.InvalidFrameImageExc
 import com.banco.anteojos.backend.business.frames.exception.FrameNotFoundException;
 import com.banco.anteojos.backend.business.frames.exception.InvalidFrameTransitionException;
 import com.banco.anteojos.backend.business.frames.exception.SealCodeAlreadyExistsException;
+import com.banco.anteojos.backend.business.indicators.exception.InvalidIndicatorsRangeException;
 import com.banco.anteojos.backend.business.security.exception.InvalidCredentialsException;
 import com.banco.anteojos.backend.business.shipments.exception.InvalidShipmentTransitionException;
 import com.banco.anteojos.backend.business.shipments.exception.InvalidWebhookPayloadException;
@@ -190,6 +191,12 @@ public class GlobalExceptionHandler {
 	public ErrorResponseDto invalidAnsesCertificate(InvalidAnsesCertificateException e,
 			HttpServletRequest request) {
 		return ErrorResponseDto.of(HttpStatus.UNPROCESSABLE_CONTENT, e.getMessage(), request.getRequestURI());
+	}
+
+	@ExceptionHandler(InvalidIndicatorsRangeException.class)
+	@ResponseStatus(HttpStatus.BAD_REQUEST)
+	public ErrorResponseDto invalidIndicatorsRange(InvalidIndicatorsRangeException e, HttpServletRequest request) {
+		return ErrorResponseDto.of(HttpStatus.BAD_REQUEST, e.getMessage(), request.getRequestURI());
 	}
 
 	@ExceptionHandler(MaxUploadSizeExceededException.class)
