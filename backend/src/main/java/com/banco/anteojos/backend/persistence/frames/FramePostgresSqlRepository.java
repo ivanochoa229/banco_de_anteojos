@@ -1,5 +1,6 @@
 package com.banco.anteojos.backend.persistence.frames;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -17,4 +18,6 @@ public interface FramePostgresSqlRepository extends JpaRepository<Frame, Long> {
 	List<Frame> findByStatusOrderByReceivedAtDesc(FrameStatus status);
 
 	List<Frame> findByDonorIdOrderByReceivedAtDesc(Long donorId);
+
+	long countByReceivedAtBetween(LocalDateTime from, LocalDateTime to);
 }

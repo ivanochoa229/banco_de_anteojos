@@ -1,5 +1,6 @@
 package com.banco.anteojos.backend.business.shipments;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import com.banco.anteojos.backend.business.frames.dto.response.FrameResponseDto;
@@ -26,4 +27,7 @@ public interface ShipmentService {
 
 	/** Arma la trazabilidad con los marcos que el orchestrator ya resolvió en el dominio frames. */
 	ShipmentDetailResponseDto buildDetail(ShipmentResponseDto shipment, List<FrameResponseDto> frames);
+
+	/** Envíos completados en el rango, para el panel de indicadores (RF-26). */
+	long countDelivered(LocalDateTime from, LocalDateTime to);
 }

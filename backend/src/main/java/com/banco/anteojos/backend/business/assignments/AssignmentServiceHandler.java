@@ -1,5 +1,7 @@
 package com.banco.anteojos.backend.business.assignments;
 
+import java.time.LocalDateTime;
+import java.time.YearMonth;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -10,6 +12,7 @@ import com.banco.anteojos.backend.business.assignments.dto.request.AssignmentCre
 import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentCreationResponseDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentDetailResponseDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentResponseDto;
+import com.banco.anteojos.backend.business.assignments.dto.response.MonthlyDeliveryResponseDto;
 import com.banco.anteojos.backend.business.assignments.entities.Assignment;
 import com.banco.anteojos.backend.business.assignments.exception.AssignmentNotFoundException;
 import com.banco.anteojos.backend.business.donors.dto.response.DonorResponseDto;
@@ -84,6 +87,24 @@ public class AssignmentServiceHandler implements AssignmentService {
 	public AssignmentDetailResponseDto buildDetail(AssignmentResponseDto assignment,
 			ApplicantResponseDto applicant, FrameResponseDto frame, DonorResponseDto donor) {
 		return new AssignmentDetailResponseDto(assignment, applicant, frame, donor);
+	}
+
+	@Override
+	public long countDelivered(LocalDateTime from, LocalDateTime to) {
+		return assignmentRepository.countDelivered(from, to);
+	}
+
+	@Override
+	public long countDistinctApplicantsServed(LocalDateTime from, LocalDateTime to) {
+		return assignmentRepository.countDistinctApplicantsServed(from, to);
+	}
+
+	@Override
+	public List<MonthlyDeliveryResponseDto> deliveriesByMonth(LocalDateTime from, LocalDateTime to) {
+		return assignmentRepository.deliveriesByMonth(from, to).stream()
+				.map(row -> new MonthlyDeliveryResponseDto(YearMonth.from(row.getMonth()), row.getDeliveries(),
+						row.getApplicants()))
+				.toList();
 	}
 
 	private Assignment findAssignment(Long assignmentId) {

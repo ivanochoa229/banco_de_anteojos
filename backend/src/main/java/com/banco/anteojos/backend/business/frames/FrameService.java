@@ -1,5 +1,6 @@
 package com.banco.anteojos.backend.business.frames;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import com.banco.anteojos.backend.business.frames.dto.request.FrameCreationRequestDto;
@@ -26,6 +27,9 @@ public interface FrameService {
 	List<FrameResponseDto> listFrames(FrameStatus status);
 
 	List<FrameResponseDto> listFramesByDonor(Long donorId);
+
+	/** Donaciones recibidas en el rango, para el panel de indicadores (RF-26). */
+	long countReceived(LocalDateTime from, LocalDateTime to);
 
 	// Transiciones del ciclo de vida. Las dispara el dominio assignments a través del
 	// orchestrator: acá solo se valida el estado de origen y se mueve el marco.

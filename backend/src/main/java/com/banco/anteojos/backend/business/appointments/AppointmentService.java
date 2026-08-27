@@ -6,6 +6,7 @@ import java.util.List;
 
 import com.banco.anteojos.backend.business.appointments.dto.request.AppointmentCreationRequestDto;
 import com.banco.anteojos.backend.business.appointments.dto.response.AppointmentResponseDto;
+import com.banco.anteojos.backend.business.appointments.entities.AppointmentStatus;
 
 public interface AppointmentService {
 
@@ -27,4 +28,7 @@ public interface AppointmentService {
 	AppointmentResponseDto cancel(Long appointmentId, String reason);
 
 	AppointmentResponseDto registerAttendance(Long appointmentId, boolean attended);
+
+	/** Turnos en un estado final dentro del rango, para el panel de indicadores (RF-26). */
+	long countByStatus(AppointmentStatus status, LocalDateTime from, LocalDateTime to);
 }

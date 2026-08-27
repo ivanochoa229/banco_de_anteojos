@@ -1,5 +1,6 @@
 package com.banco.anteojos.backend.business.frames;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -126,6 +127,11 @@ public class FrameServiceHandler implements FrameService {
 	@Override
 	public List<FrameResponseDto> listFramesByDonor(Long donorId) {
 		return frameRepository.findByDonorIdOrderByReceivedAtDesc(donorId).stream().map(this::toResponse).toList();
+	}
+
+	@Override
+	public long countReceived(LocalDateTime from, LocalDateTime to) {
+		return frameRepository.countByReceivedAtBetween(from, to);
 	}
 
 	@Override

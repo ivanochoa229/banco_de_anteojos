@@ -1,5 +1,6 @@
 package com.banco.anteojos.backend.business.shipments;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -109,6 +110,11 @@ public class ShipmentServiceHandler implements ShipmentService {
 						event.getLocation(), event.getOccurredAt(), event.getReceivedAt()))
 				.toList();
 		return new ShipmentDetailResponseDto(shipment, frames, events);
+	}
+
+	@Override
+	public long countDelivered(LocalDateTime from, LocalDateTime to) {
+		return shipmentRepository.countByStatusAndDeliveredAtBetween(ShipmentStatus.DELIVERED, from, to);
 	}
 
 	private Shipment findShipment(Long shipmentId) {
