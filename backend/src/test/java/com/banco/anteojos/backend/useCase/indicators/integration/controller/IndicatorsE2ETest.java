@@ -29,17 +29,26 @@ import com.banco.anteojos.backend.business.applicants.entities.Prescription;
 import com.banco.anteojos.backend.business.security.JwtService;
 import com.banco.anteojos.backend.business.security.entities.Role;
 import com.banco.anteojos.backend.business.security.entities.User;
+import com.banco.anteojos.backend.business.shipments.entities.Shipment;
+import com.banco.anteojos.backend.business.shipments.entities.ShipmentStatus;
 import com.banco.anteojos.backend.persistence.applicants.PrescriptionPostgresSqlRepository;
+import com.banco.anteojos.backend.persistence.shipments.ShipmentPostgresSqlRepository;
 import com.banco.anteojos.backend.thirdPartyServiceComunication.notifications.NotificationClient;
 import com.banco.anteojos.backend.thirdPartyServiceComunication.storage.R2StorageClient;
 import com.banco.anteojos.backend.thirdPartyServiceComunication.tracking.TrackingClient;
 import com.jayway.jsonpath.JsonPath;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+
 /**
  * Panel de impacto (RF-26/27) con el solicitante 200000 y los marcos 400000/400001 de los
  * templates. Arma el circuito completo por la API (asignaciones, turnos, envío) y solo recurre
  * a SQL directo para correr {@code delivered_at} de las asignaciones a dos meses distintos: la
- * entidad no expone un setter de fecha a propósito, y acá hace falta un dato histórico.
+ * entidad no expone un setter de fecha a propósito, y acá hace falta un dato histórico. El
+ * {@code flush()+clear()} después de cada UPDATE crudo evita que el auto-flush de Hibernate,
+ * disparado más tarde por cualquier query, pise el dato con el estado en memoria que dejó el
+ * flujo por la API.
  */
 @Tag("integration")
 @SpringBootTest
@@ -63,7 +72,13 @@ class IndicatorsE2ETest {
 	private PrescriptionPostgresSqlRepository prescriptionRepository;
 
 	@Autowired
+	private ShipmentPostgresSqlRepository shipmentRepository;
+
+	@Autowired
 	private JdbcTemplate jdbcTemplate;
+
+	@PersistenceContext
+	private EntityManager entityManager;
 
 	@MockitoBean
 	private TrackingClient trackingClient;
@@ -89,6 +104,12 @@ class IndicatorsE2ETest {
 	}
 
 	private Long createAndDeliverAssignment(Long frameId, LocalDateTime deliveredAt) throws Exception {
+		// El marco 400001 del template llega DELIVERED; el circuito real exige que esté
+		// AVAILABLE antes de asignarlo.
+		jdbcTemplate.update("UPDATE frames SET status = 'AVAILABLE' WHERE id = ?", frameId);
+		entityManager.flush();
+		entityManager.clear();
+
 		String response = mockMvc.perform(post("/v1/applicants/" + APPLICANT_ID + "/assignments")
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
@@ -106,7 +127,11 @@ class IndicatorsE2ETest {
 		mockMvc.perform(put("/v1/assignments/" + assignmentId + "/delivery")
 				.header(HttpHeaders.AUTHORIZATION, bearerToken())).andExpect(status().isOk());
 
+		// Vuelca a la DB lo que dejó pendiente el flujo por la API antes de correr la fecha
+		// a mano: si no, el auto-flush de una query posterior pisaría este UPDATE.
+		entityManager.flush();
 		jdbcTemplate.update("UPDATE assignments SET delivered_at = ? WHERE id = ?", deliveredAt, assignmentId);
+		entityManager.clear();
 		return assignmentId;
 	}
 
@@ -130,6 +155,7 @@ class IndicatorsE2ETest {
 				.andExpect(status().isOk());
 	}
 
+	/** "Hoy" alcanza: a diferencia de las asignaciones, acá no hace falta un mes distinto. */
 	private void createAndDeliverShipment() throws Exception {
 		String response = mockMvc.perform(post("/v1/shipments")
 						.contentType(MediaType.APPLICATION_JSON)
@@ -148,8 +174,11 @@ class IndicatorsE2ETest {
 						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
 				.andExpect(status().isOk());
 
-		jdbcTemplate.update("UPDATE shipments SET status = 'DELIVERED', delivered_at = ? WHERE id = ?",
-				LocalDateTime.now(), shipmentId);
+		// Vía el método de dominio y no SQL directo: no hay fecha histórica que forzar acá,
+		// así que no vale la pena arriesgarse a la carrera con el flush de Hibernate.
+		Shipment shipment = shipmentRepository.findById(shipmentId).orElseThrow();
+		shipment.applyTrackingUpdate(ShipmentStatus.DELIVERED);
+		shipmentRepository.save(shipment);
 	}
 
 	@Test
