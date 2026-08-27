@@ -21,6 +21,11 @@ import com.banco.anteojos.backend.business.appointments.exception.AppointmentNot
 import com.banco.anteojos.backend.business.appointments.exception.InvalidAppointmentTransitionException;
 import com.banco.anteojos.backend.business.assignments.exception.AssignmentNotFoundException;
 import com.banco.anteojos.backend.business.assignments.exception.InvalidAssignmentTransitionException;
+import com.banco.anteojos.backend.business.catalog.exception.InsufficientStockException;
+import com.banco.anteojos.backend.business.catalog.exception.InvalidProductImageException;
+import com.banco.anteojos.backend.business.catalog.exception.InvalidProductTransitionException;
+import com.banco.anteojos.backend.business.catalog.exception.ProductImageNotFoundException;
+import com.banco.anteojos.backend.business.catalog.exception.ProductNotFoundException;
 import com.banco.anteojos.backend.business.donors.exception.DonorNotFoundException;
 import com.banco.anteojos.backend.business.frames.exception.FrameImageNotFoundException;
 import com.banco.anteojos.backend.business.frames.exception.InvalidFrameImageException;
@@ -120,12 +125,31 @@ public class GlobalExceptionHandler {
 	}
 
 	// 409 y no 400: el request está bien formado, lo que no encaja es el momento del circuito
-	// en el que está el marco o la asignación, o el estado del turno o del envío.
+	// en el que está el marco o la asignación, o el estado del turno, del envío o del producto.
 	@ExceptionHandler({ InvalidAssignmentTransitionException.class, InvalidFrameTransitionException.class,
-			InvalidAppointmentTransitionException.class, InvalidShipmentTransitionException.class })
+			InvalidAppointmentTransitionException.class, InvalidShipmentTransitionException.class,
+			InvalidProductTransitionException.class, InsufficientStockException.class })
 	@ResponseStatus(HttpStatus.CONFLICT)
 	public ErrorResponseDto invalidTransition(RuntimeException e, HttpServletRequest request) {
 		return ErrorResponseDto.of(HttpStatus.CONFLICT, e.getMessage(), request.getRequestURI());
+	}
+
+	@ExceptionHandler(ProductNotFoundException.class)
+	@ResponseStatus(HttpStatus.NOT_FOUND)
+	public ErrorResponseDto productNotFound(ProductNotFoundException e, HttpServletRequest request) {
+		return ErrorResponseDto.of(HttpStatus.NOT_FOUND, e.getMessage(), request.getRequestURI());
+	}
+
+	@ExceptionHandler(ProductImageNotFoundException.class)
+	@ResponseStatus(HttpStatus.NOT_FOUND)
+	public ErrorResponseDto productImageNotFound(ProductImageNotFoundException e, HttpServletRequest request) {
+		return ErrorResponseDto.of(HttpStatus.NOT_FOUND, e.getMessage(), request.getRequestURI());
+	}
+
+	@ExceptionHandler(InvalidProductImageException.class)
+	@ResponseStatus(HttpStatus.BAD_REQUEST)
+	public ErrorResponseDto invalidProductImage(InvalidProductImageException e, HttpServletRequest request) {
+		return ErrorResponseDto.of(HttpStatus.BAD_REQUEST, e.getMessage(), request.getRequestURI());
 	}
 
 	@ExceptionHandler(AppointmentNotFoundException.class)
