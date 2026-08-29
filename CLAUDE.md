@@ -81,3 +81,6 @@ Clientes de terceros: RENAPER, 17TRACK, Cloudflare R2, notificaciones.
 - No inventes integraciones ni cambies decisiones técnicas ya tomadas (ver sección de integraciones).
 - Sin abstracciones prematuras: preferí código directo y claro sobre capas hipotéticas.
 - Mostrá el plan antes de cambios grandes (crear módulos, tocar el schema, agregar dependencias).
+- **Ningún commit ni PR debe llevar atribución a Claude** (nada de `Co-Authored-By: Claude`, ni el link
+  de sesión `Claude-Session: ...`, ni menciones de Claude Code en el mensaje). Los commits y PRs se
+  firman solo como el integrante del equipo que corresponda.
