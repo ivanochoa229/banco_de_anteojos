@@ -44,6 +44,9 @@ export function Layout({ children }) {
               <NavLink to="/shipments" className={navLinkClass}>
                 Envíos
               </NavLink>
+              <NavLink to="/catalog" className={navLinkClass}>
+                Catálogo
+              </NavLink>
               <NavLink to="/try-on" className={navLinkClass}>
                 Probador
               </NavLink>
