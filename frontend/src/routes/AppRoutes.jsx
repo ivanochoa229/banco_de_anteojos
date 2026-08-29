@@ -11,6 +11,9 @@ import { AssignmentCreatePage } from '../features/assignments/pages/AssignmentCr
 import { AssignmentDetailPage } from '../features/assignments/pages/AssignmentDetailPage'
 import { AssignmentsQueuePage } from '../features/assignments/pages/AssignmentsQueuePage'
 import { LoginPage } from '../features/auth/pages/LoginPage'
+import { CatalogListPage } from '../features/catalog/pages/CatalogListPage'
+import { ProductCreatePage } from '../features/catalog/pages/ProductCreatePage'
+import { ProductEditPage } from '../features/catalog/pages/ProductEditPage'
 import { DonorCreatePage } from '../features/donors/pages/DonorCreatePage'
 import { DonorFramesPage } from '../features/donors/pages/DonorFramesPage'
 import { DonorsListPage } from '../features/donors/pages/DonorsListPage'
@@ -22,6 +25,7 @@ import { ShipmentDetailPage } from '../features/shipments/pages/ShipmentDetailPa
 import { ShipmentsListPage } from '../features/shipments/pages/ShipmentsListPage'
 import { TryOnPage } from '../features/tryOn/pages/TryOnPage'
 import { ProtectedRoute } from './ProtectedRoute'
+import { RoleRoute } from './RoleRoute'
 
 export function AppRoutes() {
   const { isAuthenticated } = useAuth()
@@ -65,6 +69,11 @@ export function AppRoutes() {
         <Route path="/shipments/:shipmentId" element={<ShipmentDetailPage />} />
         <Route path="/try-on" element={<TryOnPage />} />
         <Route path="/indicators" element={<IndicatorsPage />} />
+        <Route path="/catalog" element={<CatalogListPage />} />
+        <Route element={<RoleRoute allowedRoles={['ADMIN']} />}>
+          <Route path="/catalog/new" element={<ProductCreatePage />} />
+          <Route path="/catalog/:productId/edit" element={<ProductEditPage />} />
+        </Route>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
