@@ -16,6 +16,7 @@ import { DonorFramesPage } from '../features/donors/pages/DonorFramesPage'
 import { DonorsListPage } from '../features/donors/pages/DonorsListPage'
 import { FramesListPage } from '../features/frames/pages/FramesListPage'
 import { HomePage } from '../features/home/pages/HomePage'
+import { IndicatorsPage } from '../features/indicators/pages/IndicatorsPage'
 import { ShipmentCreatePage } from '../features/shipments/pages/ShipmentCreatePage'
 import { ShipmentDetailPage } from '../features/shipments/pages/ShipmentDetailPage'
 import { ShipmentsListPage } from '../features/shipments/pages/ShipmentsListPage'
@@ -63,6 +64,7 @@ export function AppRoutes() {
         <Route path="/shipments/new" element={<ShipmentCreatePage />} />
         <Route path="/shipments/:shipmentId" element={<ShipmentDetailPage />} />
         <Route path="/try-on" element={<TryOnPage />} />
+        <Route path="/indicators" element={<IndicatorsPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

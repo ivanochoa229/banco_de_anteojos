@@ -14,6 +14,28 @@ export function todayIsoDate() {
   return `${now.getFullYear()}-${month}-${day}`
 }
 
+const MONTH_LABELS = [
+  'ene',
+  'feb',
+  'mar',
+  'abr',
+  'may',
+  'jun',
+  'jul',
+  'ago',
+  'sep',
+  'oct',
+  'nov',
+  'dic',
+]
+
+// El backend serializa YearMonth como "2026-07" (panel de indicadores, RF-26/27).
+export function formatMonth(yearMonth) {
+  if (!yearMonth) return '—'
+  const [year, month] = yearMonth.split('-')
+  return `${MONTH_LABELS[Number(month) - 1]} ${year}`
+}
+
 // Los timestamps del backend son LocalDateTime ISO sin zona (2026-07-26T10:30:00).
 export function formatDateTime(isoDateTime) {
   if (!isoDateTime) return '—'
