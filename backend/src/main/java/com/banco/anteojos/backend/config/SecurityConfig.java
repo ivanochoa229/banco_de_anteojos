@@ -39,8 +39,13 @@ public class SecurityConfig {
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 				.authorizeHttpRequests(auth -> auth
 						.requestMatchers(HttpMethod.POST, "/v1/auth/login").permitAll()
+						.requestMatchers(HttpMethod.POST, "/v1/auth/register").permitAll()
+						.requestMatchers("/v1/me/**").hasRole("APPLICANT")
 						.requestMatchers("/v1/applicants/**").hasAnyRole("ADMIN", "OPERATOR")
 						.requestMatchers("/v1/donors/**").hasAnyRole("ADMIN", "OPERATOR")
+						// GET va antes que el matcher genérico de abajo: el solicitante puede navegar
+						// el inventario disponible desde el probador virtual, pero no mutarlo.
+						.requestMatchers(HttpMethod.GET, "/v1/frames/**").hasAnyRole("ADMIN", "OPERATOR", "APPLICANT")
 						.requestMatchers("/v1/frames/**").hasAnyRole("ADMIN", "OPERATOR")
 						.requestMatchers("/v1/assignments/**").hasAnyRole("ADMIN", "OPERATOR")
 						.requestMatchers("/v1/appointments/**").hasAnyRole("ADMIN", "OPERATOR")

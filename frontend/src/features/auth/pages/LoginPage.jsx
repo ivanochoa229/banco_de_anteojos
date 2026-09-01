@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
 import { useAuth } from '../../../context/useAuth'
 import { Alert } from '../../../components/Alert'
@@ -62,6 +62,13 @@ export function LoginPage() {
             {loginMutation.isPending ? 'Ingresando…' : 'Ingresar'}
           </Button>
         </form>
+
+        <p className="mt-6 text-center text-sm text-slate-500">
+          ¿Sos solicitante y no tenés cuenta?{' '}
+          <Link to="/register" className="font-medium text-sky-700 hover:underline">
+            Registrate
+          </Link>
+        </p>
       </div>
     </main>
   )

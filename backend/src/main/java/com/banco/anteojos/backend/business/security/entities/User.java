@@ -33,16 +33,24 @@ public class User {
 
 	private LocalDateTime createdAt;
 
+	// Solo se usa cuando role es APPLICANT: vincula el login con su registro de beneficiario.
+	private Long applicantId;
+
 	protected User() {
 	}
 
 	public User(String name, String email, String passwordHash, Role role) {
+		this(name, email, passwordHash, role, null);
+	}
+
+	public User(String name, String email, String passwordHash, Role role, Long applicantId) {
 		this.name = name.trim();
 		this.email = email.trim().toLowerCase();
 		this.passwordHash = passwordHash;
 		this.role = role;
 		this.isActive = true;
 		this.createdAt = LocalDateTime.now();
+		this.applicantId = applicantId;
 	}
 
 	public void activate() {

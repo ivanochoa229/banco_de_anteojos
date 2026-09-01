@@ -10,6 +10,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import com.banco.anteojos.backend.business.security.AuthenticatedPrincipal;
 import com.banco.anteojos.backend.business.security.JwtService;
 
 import jakarta.servlet.FilterChain;
@@ -33,7 +34,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 		if (header != null && header.startsWith(BEARER_PREFIX)) {
 			jwtService.validate(header.substring(BEARER_PREFIX.length()))
 					.ifPresent(tokenData -> SecurityContextHolder.getContext().setAuthentication(
-							new UsernamePasswordAuthenticationToken(tokenData.email(), null,
+							new UsernamePasswordAuthenticationToken(
+									new AuthenticatedPrincipal(tokenData.email(), tokenData.role(), tokenData.applicantId()),
+									null,
 									List.of(new SimpleGrantedAuthority("ROLE_" + tokenData.role())))));
 		}
 		filterChain.doFilter(request, response);

@@ -29,15 +29,22 @@ export function AuthProvider({ children }) {
     setToken(newToken)
   }, [])
 
+  const registerApplicant = useCallback(async (data) => {
+    const { token: newToken } = await authApi.registerApplicant(data)
+    storeToken(newToken)
+    setToken(newToken)
+  }, [])
+
   const value = useMemo(
     () => ({
       token,
       role: token ? (decodeJwtPayload(token)?.role ?? null) : null,
       isAuthenticated: Boolean(token),
       login,
+      registerApplicant,
       logout,
     }),
-    [token, login, logout],
+    [token, login, registerApplicant, logout],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

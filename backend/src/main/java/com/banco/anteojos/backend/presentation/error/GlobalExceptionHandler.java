@@ -33,6 +33,7 @@ import com.banco.anteojos.backend.business.frames.exception.FrameNotFoundExcepti
 import com.banco.anteojos.backend.business.frames.exception.InvalidFrameTransitionException;
 import com.banco.anteojos.backend.business.frames.exception.SealCodeAlreadyExistsException;
 import com.banco.anteojos.backend.business.indicators.exception.InvalidIndicatorsRangeException;
+import com.banco.anteojos.backend.business.security.exception.EmailAlreadyExistsException;
 import com.banco.anteojos.backend.business.security.exception.InvalidCredentialsException;
 import com.banco.anteojos.backend.business.shipments.exception.InvalidShipmentTransitionException;
 import com.banco.anteojos.backend.business.shipments.exception.InvalidWebhookPayloadException;
@@ -65,6 +66,12 @@ public class GlobalExceptionHandler {
 	@ExceptionHandler(DniAlreadyExistsException.class)
 	@ResponseStatus(HttpStatus.CONFLICT)
 	public ErrorResponseDto dniAlreadyExists(DniAlreadyExistsException e, HttpServletRequest request) {
+		return ErrorResponseDto.of(HttpStatus.CONFLICT, e.getMessage(), request.getRequestURI());
+	}
+
+	@ExceptionHandler(EmailAlreadyExistsException.class)
+	@ResponseStatus(HttpStatus.CONFLICT)
+	public ErrorResponseDto emailAlreadyExists(EmailAlreadyExistsException e, HttpServletRequest request) {
 		return ErrorResponseDto.of(HttpStatus.CONFLICT, e.getMessage(), request.getRequestURI());
 	}
 

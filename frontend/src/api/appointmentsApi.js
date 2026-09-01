@@ -14,4 +14,7 @@ export const appointmentsApi = {
     apiFetch(`/v1/appointments/${appointmentId}/cancellation`, { method: 'PUT', body: { reason } }),
   registerAttendance: (appointmentId, attended) =>
     apiFetch(`/v1/appointments/${appointmentId}/attendance`, { method: 'PUT', body: { attended } }),
+  // Autogestión: el applicantId sale del JWT en el backend, no se manda acá.
+  listMine: () => apiFetch('/v1/me/appointments'),
+  createMine: (data) => apiFetch('/v1/me/appointments', { method: 'POST', body: data }),
 }

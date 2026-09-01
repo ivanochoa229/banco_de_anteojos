@@ -15,4 +15,6 @@ export const assignmentsApi = {
   deliver: (assignmentId) => apiFetch(`/v1/assignments/${assignmentId}/delivery`, { method: 'PUT' }),
   cancel: (assignmentId, reason) =>
     apiFetch(`/v1/assignments/${assignmentId}/cancellation`, { method: 'PUT', body: { reason } }),
+  // Autogestión: el applicantId sale del JWT en el backend, no se manda acá.
+  listMine: () => apiFetch('/v1/me/assignments'),
 }

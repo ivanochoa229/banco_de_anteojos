@@ -7,6 +7,7 @@ import com.banco.anteojos.backend.business.security.dto.request.LoginRequestDto;
 import com.banco.anteojos.backend.business.security.dto.response.LoginResponseDto;
 import com.banco.anteojos.backend.business.security.entities.Role;
 import com.banco.anteojos.backend.business.security.entities.User;
+import com.banco.anteojos.backend.business.security.exception.EmailAlreadyExistsException;
 import com.banco.anteojos.backend.business.security.exception.InvalidCredentialsException;
 import com.banco.anteojos.backend.persistence.security.UserPostgresSqlRepository;
 
@@ -40,5 +41,16 @@ public class SecurityServiceHandler implements SecurityService {
 		}
 		userRepository.save(new User(INITIAL_ADMIN_NAME, email, passwordEncoder.encode(password), Role.ADMIN));
 		log.info("Admin inicial creado con email {}", email);
+	}
+
+	@Override
+	public LoginResponseDto registerApplicantUser(String name, String email, String rawPassword, Long applicantId) {
+		String normalizedEmail = email.trim().toLowerCase();
+		if (userRepository.findByEmail(normalizedEmail).isPresent()) {
+			throw new EmailAlreadyExistsException();
+		}
+		User user = userRepository.save(new User(name, normalizedEmail, passwordEncoder.encode(rawPassword),
+				Role.APPLICANT, applicantId));
+		return new LoginResponseDto(jwtService.generateToken(user));
 	}
 }

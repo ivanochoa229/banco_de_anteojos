@@ -25,6 +25,7 @@ import com.banco.anteojos.backend.business.security.dto.request.LoginRequestDto;
 import com.banco.anteojos.backend.business.security.dto.response.LoginResponseDto;
 import com.banco.anteojos.backend.business.security.entities.Role;
 import com.banco.anteojos.backend.business.security.entities.User;
+import com.banco.anteojos.backend.business.security.exception.EmailAlreadyExistsException;
 import com.banco.anteojos.backend.business.security.exception.InvalidCredentialsException;
 import com.banco.anteojos.backend.persistence.security.UserPostgresSqlRepository;
 
@@ -111,6 +112,35 @@ class SecurityServiceHandlerTest {
 
 		securityServiceHandler.createInitialAdmin("admin@mail.com", "secret");
 
+		verify(userRepository, never()).save(any());
+	}
+
+	@Test
+	void RegisterApplicantUser_Successful() {
+		when(userRepository.findByEmail("nueva@mail.com")).thenReturn(Optional.empty());
+		when(passwordEncoder.encode("password123")).thenReturn("encoded-hash");
+		when(userRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+		when(jwtService.generateToken(any())).thenReturn("jwt-token");
+
+		LoginResponseDto response = securityServiceHandler.registerApplicantUser(
+				"Nueva Beneficiaria", "Nueva@Mail.com", "password123", 55L);
+
+		assertThat(response.token()).isEqualTo("jwt-token");
+		ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+		verify(userRepository).save(captor.capture());
+		User saved = captor.getValue();
+		assertThat(saved.getEmail()).isEqualTo("nueva@mail.com");
+		assertThat(saved.getRole()).isEqualTo(Role.APPLICANT);
+		assertThat(saved.getApplicantId()).isEqualTo(55L);
+	}
+
+	@Test
+	void RegisterApplicantUser_WhenEmailAlreadyExists() {
+		when(userRepository.findByEmail("test@mail.com")).thenReturn(Optional.of(user));
+
+		assertThatThrownBy(() -> securityServiceHandler.registerApplicantUser(
+				"Otra Persona", "test@mail.com", "password123", 55L))
+				.isInstanceOf(EmailAlreadyExistsException.class);
 		verify(userRepository, never()).save(any());
 	}
 }
