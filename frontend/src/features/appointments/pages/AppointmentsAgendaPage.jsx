@@ -9,6 +9,7 @@ import { Layout } from '../../../components/Layout'
 import { Select } from '../../../components/Select'
 import { formatDateTime, todayIsoDate } from '../../../lib/dates'
 import { AppointmentActions } from '../components/AppointmentActions'
+import { AppointmentReceiptLink } from '../components/AppointmentReceiptLink'
 import { AppointmentStatusBadge } from '../components/AppointmentStatusBadge'
 
 const SCOPE_OPTIONS = [
@@ -161,6 +162,14 @@ export function AppointmentsAgendaPage() {
                       </td>
                       <td className="px-4 py-3">
                         <AppointmentStatusBadge status={appointment.status} />
+                        {appointment.receiptOriginalName && (
+                          <div className="mt-1">
+                            <AppointmentReceiptLink
+                              appointmentId={appointment.id}
+                              fileName={appointment.receiptOriginalName}
+                            />
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         <AppointmentActions

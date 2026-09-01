@@ -2,10 +2,13 @@ package com.banco.anteojos.backend.useCase.appointments.integration.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -21,7 +24,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.web.servlet.MockMvc;
@@ -39,6 +44,7 @@ import com.banco.anteojos.backend.persistence.applicants.PrescriptionPostgresSql
 import com.banco.anteojos.backend.persistence.appointments.AppointmentPostgresSqlRepository;
 import com.banco.anteojos.backend.persistence.assignments.AssignmentPostgresSqlRepository;
 import com.banco.anteojos.backend.thirdPartyServiceComunication.notifications.NotificationClient;
+import com.banco.anteojos.backend.thirdPartyServiceComunication.storage.PresignedUrl;
 import com.banco.anteojos.backend.thirdPartyServiceComunication.storage.R2StorageClient;
 import com.jayway.jsonpath.JsonPath;
 
@@ -84,6 +90,12 @@ class AppointmentE2ETest {
 				new User("Operador Test", "operator.test@bancoanteojos.org", "hash", Role.OPERATOR));
 	}
 
+	// El JWT no valida contra la base: alcanza un User en memoria con el applicantId del claim.
+	private String applicantBearerToken(long applicantId) {
+		return "Bearer " + jwtService.generateToken(
+				new User("Beneficiario Test", "beneficiario.test@mail.com", "hash", Role.APPLICANT, applicantId));
+	}
+
 	private String creationBody(LocalDateTime scheduledAt) {
 		return """
 				{"scheduledAt": "%s", "notes": "trae la receta original"}
@@ -100,6 +112,21 @@ class AppointmentE2ETest {
 		return ((Number) JsonPath.read(response, "$.id")).longValue();
 	}
 
+	private void confirmAppointment(Long appointmentId) throws Exception {
+		MockMultipartFile file = new MockMultipartFile("file", "comprobante.pdf", "application/pdf",
+				new byte[] { 1, 2, 3 });
+		mockMvc.perform(multipart(HttpMethod.PUT, "/v1/me/appointments/" + appointmentId + "/receipt")
+						.file(file)
+						.header(HttpHeaders.AUTHORIZATION, applicantBearerToken(APPLICANT_ID)))
+				.andExpect(status().isOk());
+	}
+
+	private Long createConfirmedAppointment() throws Exception {
+		Long appointmentId = createAppointment();
+		confirmAppointment(appointmentId);
+		return appointmentId;
+	}
+
 	private AppointmentStatus statusInDb(Long appointmentId) {
 		return appointmentRepository.findById(appointmentId).orElseThrow().getStatus();
 	}
@@ -113,12 +140,50 @@ class AppointmentE2ETest {
 				.andExpect(status().isCreated())
 				.andExpect(jsonPath("$.applicantId").value(APPLICANT_ID))
 				.andExpect(jsonPath("$.scheduledAt").value(SCHEDULED_AT.toString()))
-				.andExpect(jsonPath("$.status").value("SCHEDULED"))
+				.andExpect(jsonPath("$.status").value("PENDING_PAYMENT"))
 				.andExpect(jsonPath("$.assignmentId").isEmpty());
 
-		// La confirmación de RF-22 sale con el email del template.
+		// Todavía no está confirmado: RF-22 recién sale al subir el comprobante.
+		verifyNoInteractions(notificationClient);
+	}
+
+	@Test
+	void ConfirmAppointment_Successful() throws Exception {
+		Long appointmentId = createAppointment();
+
+		confirmAppointment(appointmentId);
+
+		assertThat(statusInDb(appointmentId)).isEqualTo(AppointmentStatus.SCHEDULED);
 		verify(notificationClient).sendAppointmentScheduled(eq("juana.perez@mail.com"), eq("Juana"),
 				eq(SCHEDULED_AT));
+	}
+
+	@Test
+	void ConfirmAppointment_WhenNotOwner() throws Exception {
+		Long appointmentId = createAppointment();
+		MockMultipartFile file = new MockMultipartFile("file", "comprobante.pdf", "application/pdf",
+				new byte[] { 1, 2, 3 });
+
+		mockMvc.perform(multipart(HttpMethod.PUT, "/v1/me/appointments/" + appointmentId + "/receipt")
+						.file(file)
+						.header(HttpHeaders.AUTHORIZATION, applicantBearerToken(999999L)))
+				.andExpect(status().isNotFound());
+
+		assertThat(statusInDb(appointmentId)).isEqualTo(AppointmentStatus.PENDING_PAYMENT);
+	}
+
+	@Test
+	void GetReceipt_AfterConfirmation() throws Exception {
+		Long appointmentId = createConfirmedAppointment();
+		LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(15);
+		when(r2StorageClient.presignedGetUrl(anyString()))
+				.thenReturn(new PresignedUrl("https://r2.example/comprobante.pdf", expiresAt));
+
+		mockMvc.perform(get("/v1/appointments/" + appointmentId + "/receipt")
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.url").value("https://r2.example/comprobante.pdf"))
+				.andExpect(jsonPath("$.fileName").value("comprobante.pdf"));
 	}
 
 	@Test
@@ -185,7 +250,7 @@ class AppointmentE2ETest {
 
 	@Test
 	void Reschedule_Successful() throws Exception {
-		Long appointmentId = createAppointment();
+		Long appointmentId = createConfirmedAppointment();
 		LocalDateTime newDate = SCHEDULED_AT.plusDays(3);
 
 		mockMvc.perform(put("/v1/appointments/" + appointmentId + "/schedule")
@@ -202,7 +267,7 @@ class AppointmentE2ETest {
 
 	@Test
 	void Cancel_Successful() throws Exception {
-		Long appointmentId = createAppointment();
+		Long appointmentId = createConfirmedAppointment();
 
 		mockMvc.perform(put("/v1/appointments/" + appointmentId + "/cancellation")
 						.contentType(MediaType.APPLICATION_JSON)
@@ -219,7 +284,7 @@ class AppointmentE2ETest {
 
 	@Test
 	void Reschedule_WhenCancelled() throws Exception {
-		Long appointmentId = createAppointment();
+		Long appointmentId = createConfirmedAppointment();
 		mockMvc.perform(put("/v1/appointments/" + appointmentId + "/cancellation")
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("{\"reason\": null}")
@@ -236,7 +301,7 @@ class AppointmentE2ETest {
 
 	@Test
 	void RegisterAttendance_WhenMissed() throws Exception {
-		Long appointmentId = createAppointment();
+		Long appointmentId = createConfirmedAppointment();
 
 		mockMvc.perform(put("/v1/appointments/" + appointmentId + "/attendance")
 						.contentType(MediaType.APPLICATION_JSON)

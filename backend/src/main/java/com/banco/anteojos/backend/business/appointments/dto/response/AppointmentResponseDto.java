@@ -10,5 +10,6 @@ public record AppointmentResponseDto(
 		String status,
 		String notes,
 		String cancellationReason,
-		LocalDateTime createdAt) {
+		LocalDateTime createdAt,
+		String receiptOriginalName) {
 }

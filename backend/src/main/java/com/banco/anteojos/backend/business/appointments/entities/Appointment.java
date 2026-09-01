@@ -42,6 +42,13 @@ public class Appointment {
 
 	private LocalDateTime createdAt;
 
+	// Comprobante del bono contribución que confirma el turno. Nulos hasta que se sube.
+	private String receiptKey;
+
+	private String receiptContentType;
+
+	private String receiptOriginalName;
+
 	protected Appointment() {
 	}
 
@@ -50,8 +57,19 @@ public class Appointment {
 		this.assignmentId = assignmentId;
 		this.scheduledAt = scheduledAt;
 		this.notes = notes == null || notes.isBlank() ? null : notes.trim();
-		this.status = AppointmentStatus.SCHEDULED;
+		this.status = AppointmentStatus.PENDING_PAYMENT;
 		this.createdAt = LocalDateTime.now();
+	}
+
+	/** Solo se puede confirmar un turno que todavía no lo está: no admite reemplazar el comprobante. */
+	public void confirmWithReceipt(String key, String contentType, String originalName) {
+		if (status != AppointmentStatus.PENDING_PAYMENT) {
+			throw new InvalidAppointmentTransitionException("El turno ya está confirmado");
+		}
+		this.receiptKey = key;
+		this.receiptContentType = contentType;
+		this.receiptOriginalName = originalName;
+		this.status = AppointmentStatus.SCHEDULED;
 	}
 
 	public void reschedule(LocalDateTime newScheduledAt) {
@@ -72,6 +90,8 @@ public class Appointment {
 
 	private void requireScheduled() {
 		switch (status) {
+			case PENDING_PAYMENT -> throw new InvalidAppointmentTransitionException(
+					"El turno todavía no está confirmado: falta el comprobante");
 			case CANCELLED -> throw new InvalidAppointmentTransitionException("El turno está cancelado");
 			case COMPLETED -> throw new InvalidAppointmentTransitionException("El turno ya fue atendido");
 			case MISSED -> throw new InvalidAppointmentTransitionException(

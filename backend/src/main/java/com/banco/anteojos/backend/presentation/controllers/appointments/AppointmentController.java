@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.banco.anteojos.backend.business.appointments.dto.request.AppointmentAttendanceRequestDto;
 import com.banco.anteojos.backend.business.appointments.dto.request.AppointmentCancellationRequestDto;
 import com.banco.anteojos.backend.business.appointments.dto.request.AppointmentRescheduleRequestDto;
+import com.banco.anteojos.backend.business.appointments.dto.response.AppointmentReceiptResponseDto;
 import com.banco.anteojos.backend.business.appointments.dto.response.AppointmentResponseDto;
 import com.banco.anteojos.backend.orchestrator.appointments.AppointmentUseCaseOrchestrator;
 
@@ -63,5 +64,11 @@ public class AppointmentController {
 	public AppointmentResponseDto registerAttendance(@PathVariable Long appointmentId,
 			@Valid @RequestBody AppointmentAttendanceRequestDto request) {
 		return appointmentOrchestrator.registerAttendance(appointmentId, request.attended());
+	}
+
+	/** Para que el operador revise offline el comprobante del bono contribución. */
+	@GetMapping("/{appointmentId}/receipt")
+	public AppointmentReceiptResponseDto getReceipt(@PathVariable Long appointmentId) {
+		return appointmentOrchestrator.getReceipt(appointmentId);
 	}
 }

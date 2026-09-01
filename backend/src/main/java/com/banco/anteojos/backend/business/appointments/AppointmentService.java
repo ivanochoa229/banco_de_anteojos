@@ -5,6 +5,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import com.banco.anteojos.backend.business.appointments.dto.request.AppointmentCreationRequestDto;
+import com.banco.anteojos.backend.business.appointments.dto.request.AppointmentReceiptUploadRequestDto;
+import com.banco.anteojos.backend.business.appointments.dto.response.AppointmentReceiptResponseDto;
 import com.banco.anteojos.backend.business.appointments.dto.response.AppointmentResponseDto;
 import com.banco.anteojos.backend.business.appointments.entities.AppointmentStatus;
 
@@ -31,4 +33,9 @@ public interface AppointmentService {
 
 	/** Turnos en un estado final dentro del rango, para el panel de indicadores (RF-26). */
 	long countByStatus(AppointmentStatus status, LocalDateTime from, LocalDateTime to);
+
+	/** Confirma el turno (PENDING_PAYMENT → SCHEDULED) al subir el comprobante del bono contribución. */
+	AppointmentResponseDto confirmWithReceipt(Long appointmentId, AppointmentReceiptUploadRequestDto request);
+
+	AppointmentReceiptResponseDto getReceipt(Long appointmentId);
 }

@@ -6,6 +6,7 @@ import { Layout } from '../../../components/Layout'
 import { formatDateTime } from '../../../lib/dates'
 import { ASSIGNMENT_STAGE_LABELS, assignmentStage } from '../../assignments/labels'
 import { AppointmentForm } from '../components/AppointmentForm'
+import { AppointmentReceiptUpload } from '../components/AppointmentReceiptUpload'
 import { AppointmentStatusBadge } from '../components/AppointmentStatusBadge'
 
 // Autogestión: applicantId sale del JWT en el backend, no se pide acá.
@@ -82,11 +83,16 @@ export function MyAppointmentsPage() {
           {appointments.length > 0 && (
             <ul className="mt-3 divide-y divide-slate-100 rounded-lg border border-slate-200 bg-white">
               {appointments.map((appointment) => (
-                <li key={appointment.id} className="flex items-center justify-between px-4 py-3 text-sm">
-                  <span className="font-medium text-slate-900">
-                    {formatDateTime(appointment.scheduledAt)}
-                  </span>
-                  <AppointmentStatusBadge status={appointment.status} />
+                <li key={appointment.id} className="px-4 py-3 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium text-slate-900">
+                      {formatDateTime(appointment.scheduledAt)}
+                    </span>
+                    <AppointmentStatusBadge status={appointment.status} />
+                  </div>
+                  {appointment.status === 'PENDING_PAYMENT' && (
+                    <AppointmentReceiptUpload appointmentId={appointment.id} />
+                  )}
                 </li>
               ))}
             </ul>

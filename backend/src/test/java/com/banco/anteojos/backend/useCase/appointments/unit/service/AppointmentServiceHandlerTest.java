@@ -3,6 +3,7 @@ package com.banco.anteojos.backend.useCase.appointments.unit.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -20,11 +21,18 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.banco.anteojos.backend.business.appointments.AppointmentServiceHandler;
 import com.banco.anteojos.backend.business.appointments.dto.request.AppointmentCreationRequestDto;
+import com.banco.anteojos.backend.business.appointments.dto.request.AppointmentReceiptUploadRequestDto;
+import com.banco.anteojos.backend.business.appointments.dto.response.AppointmentReceiptResponseDto;
 import com.banco.anteojos.backend.business.appointments.dto.response.AppointmentResponseDto;
 import com.banco.anteojos.backend.business.appointments.entities.Appointment;
 import com.banco.anteojos.backend.business.appointments.entities.AppointmentStatus;
 import com.banco.anteojos.backend.business.appointments.exception.AppointmentNotFoundException;
+import com.banco.anteojos.backend.business.appointments.exception.AppointmentReceiptNotFoundException;
+import com.banco.anteojos.backend.business.appointments.exception.InvalidAppointmentReceiptException;
+import com.banco.anteojos.backend.business.appointments.exception.InvalidAppointmentTransitionException;
 import com.banco.anteojos.backend.persistence.appointments.AppointmentPostgresSqlRepository;
+import com.banco.anteojos.backend.thirdPartyServiceComunication.storage.PresignedUrl;
+import com.banco.anteojos.backend.thirdPartyServiceComunication.storage.R2StorageClient;
 
 @Tag("unit")
 @ExtendWith(MockitoExtension.class)
@@ -35,11 +43,20 @@ class AppointmentServiceHandlerTest {
 	@Mock
 	private AppointmentPostgresSqlRepository appointmentRepository;
 
+	@Mock
+	private R2StorageClient r2StorageClient;
+
 	@InjectMocks
 	private AppointmentServiceHandler appointmentServiceHandler;
 
 	private Appointment appointment() {
 		return new Appointment(1L, null, SCHEDULED_AT, null);
+	}
+
+	private Appointment confirmedAppointment() {
+		Appointment appointment = appointment();
+		appointment.confirmWithReceipt("appointments/1/comprobante.pdf", "application/pdf", "comprobante.pdf");
+		return appointment;
 	}
 
 	private void mockFind(Appointment appointment) {
@@ -57,7 +74,8 @@ class AppointmentServiceHandlerTest {
 		assertThat(response.applicantId()).isEqualTo(1L);
 		assertThat(response.assignmentId()).isEqualTo(9L);
 		assertThat(response.scheduledAt()).isEqualTo(SCHEDULED_AT);
-		assertThat(response.status()).isEqualTo("SCHEDULED");
+		// Nace sin confirmar: recién queda SCHEDULED con el comprobante.
+		assertThat(response.status()).isEqualTo("PENDING_PAYMENT");
 		assertThat(response.notes()).isEqualTo("retiro de anteojos");
 		assertThat(response.createdAt()).isNotNull();
 	}
@@ -71,8 +89,70 @@ class AppointmentServiceHandlerTest {
 	}
 
 	@Test
-	void Reschedule_Successful() {
+	void ConfirmWithReceipt_Successful() {
 		mockFind(appointment());
+		byte[] content = { 1, 2, 3 };
+
+		AppointmentResponseDto response = appointmentServiceHandler.confirmWithReceipt(10L,
+				new AppointmentReceiptUploadRequestDto(content, "application/pdf", "comprobante.pdf"));
+
+		assertThat(response.status()).isEqualTo("SCHEDULED");
+		assertThat(response.receiptOriginalName()).isEqualTo("comprobante.pdf");
+		verify(r2StorageClient).upload(anyString(), any(byte[].class), any());
+	}
+
+	@Test
+	void ConfirmWithReceipt_WhenFileIsEmpty() {
+		when(appointmentRepository.findById(10L)).thenReturn(Optional.of(appointment()));
+
+		assertThatThrownBy(() -> appointmentServiceHandler.confirmWithReceipt(10L,
+				new AppointmentReceiptUploadRequestDto(new byte[0], "application/pdf", "comprobante.pdf")))
+				.isInstanceOf(InvalidAppointmentReceiptException.class);
+	}
+
+	@Test
+	void ConfirmWithReceipt_WhenContentTypeNotAllowed() {
+		when(appointmentRepository.findById(10L)).thenReturn(Optional.of(appointment()));
+
+		assertThatThrownBy(() -> appointmentServiceHandler.confirmWithReceipt(10L,
+				new AppointmentReceiptUploadRequestDto(new byte[] { 1 }, "text/plain", "comprobante.txt")))
+				.isInstanceOf(InvalidAppointmentReceiptException.class);
+	}
+
+	@Test
+	void ConfirmWithReceipt_WhenAlreadyConfirmed() {
+		when(appointmentRepository.findById(10L)).thenReturn(Optional.of(confirmedAppointment()));
+
+		assertThatThrownBy(() -> appointmentServiceHandler.confirmWithReceipt(10L,
+				new AppointmentReceiptUploadRequestDto(new byte[] { 1 }, "application/pdf", "otro.pdf")))
+				.isInstanceOf(InvalidAppointmentTransitionException.class);
+	}
+
+	@Test
+	void GetReceipt_WhenNoReceipt() {
+		when(appointmentRepository.findById(10L)).thenReturn(Optional.of(appointment()));
+
+		assertThatThrownBy(() -> appointmentServiceHandler.getReceipt(10L))
+				.isInstanceOf(AppointmentReceiptNotFoundException.class);
+	}
+
+	@Test
+	void GetReceipt_Successful() {
+		when(appointmentRepository.findById(10L)).thenReturn(Optional.of(confirmedAppointment()));
+		LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(15);
+		when(r2StorageClient.presignedGetUrl("appointments/1/comprobante.pdf"))
+				.thenReturn(new PresignedUrl("https://r2.example/comprobante.pdf", expiresAt));
+
+		AppointmentReceiptResponseDto response = appointmentServiceHandler.getReceipt(10L);
+
+		assertThat(response.url()).isEqualTo("https://r2.example/comprobante.pdf");
+		assertThat(response.expiresAt()).isEqualTo(expiresAt);
+		assertThat(response.fileName()).isEqualTo("comprobante.pdf");
+	}
+
+	@Test
+	void Reschedule_Successful() {
+		mockFind(confirmedAppointment());
 		LocalDateTime newDate = SCHEDULED_AT.plusDays(2);
 
 		AppointmentResponseDto response = appointmentServiceHandler.reschedule(10L, newDate);
@@ -84,7 +164,7 @@ class AppointmentServiceHandlerTest {
 
 	@Test
 	void Cancel_Successful() {
-		mockFind(appointment());
+		mockFind(confirmedAppointment());
 
 		AppointmentResponseDto response = appointmentServiceHandler.cancel(10L, "viaja esa semana");
 
@@ -94,14 +174,14 @@ class AppointmentServiceHandlerTest {
 
 	@Test
 	void RegisterAttendance_WhenAttended() {
-		mockFind(appointment());
+		mockFind(confirmedAppointment());
 
 		assertThat(appointmentServiceHandler.registerAttendance(10L, true).status()).isEqualTo("COMPLETED");
 	}
 
 	@Test
 	void RegisterAttendance_WhenMissed() {
-		mockFind(appointment());
+		mockFind(confirmedAppointment());
 
 		assertThat(appointmentServiceHandler.registerAttendance(10L, false).status()).isEqualTo("MISSED");
 	}
