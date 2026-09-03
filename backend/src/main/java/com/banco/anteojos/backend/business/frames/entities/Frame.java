@@ -92,6 +92,17 @@ public class Frame {
 		return imageKey != null;
 	}
 
+	/** Corrige atributos cargados a mano (precinto, tipo, material, medidas). No toca el estado. */
+	public void updateDetails(String sealCode, FrameType frameType, FrameMaterial material,
+			Integer lensWidthMm, Integer bridgeWidthMm, Integer templeLengthMm) {
+		this.sealCode = normalizeSealCode(sealCode);
+		this.frameType = frameType;
+		this.material = material;
+		this.lensWidthMm = lensWidthMm;
+		this.bridgeWidthMm = bridgeWidthMm;
+		this.templeLengthMm = templeLengthMm;
+	}
+
 	/** Reserva el marco para un beneficiario: solo se puede sacar del inventario disponible. */
 	public void markAsAssigned() {
 		requireStatus(FrameStatus.AVAILABLE, "El marco no está disponible en el inventario");
@@ -126,6 +137,15 @@ public class Frame {
 			throw new InvalidFrameTransitionException("El marco ya salió de circulación y no vuelve al inventario");
 		}
 		this.status = FrameStatus.AVAILABLE;
+	}
+
+	/**
+	 * Baja definitiva (rotura, deterioro). Solo desde AVAILABLE: uno en curso por una
+	 * asignación primero tiene que volver al inventario con {@link #returnToInventory()}.
+	 */
+	public void discard() {
+		requireStatus(FrameStatus.AVAILABLE, "Solo se puede dar de baja un marco disponible en el inventario");
+		this.status = FrameStatus.DISCARDED;
 	}
 
 	private void requireStatus(FrameStatus expected, String message) {

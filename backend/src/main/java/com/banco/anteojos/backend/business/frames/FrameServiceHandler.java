@@ -59,6 +59,25 @@ public class FrameServiceHandler implements FrameService {
 	}
 
 	@Override
+	public FrameResponseDto updateFrame(Long frameId, FrameCreationRequestDto request) {
+		Frame frame = findFrame(frameId);
+		String sealCode = Frame.normalizeSealCode(request.sealCode());
+		// Solo choca contra otro marco si el precinto realmente cambió: conservarlo no debe
+		// chocar contra el propio registro.
+		if (!sealCode.equals(frame.getSealCode()) && frameRepository.findBySealCode(sealCode).isPresent()) {
+			throw new SealCodeAlreadyExistsException();
+		}
+		frame.updateDetails(sealCode, request.frameType(), request.material(), request.lensWidthMm(),
+				request.bridgeWidthMm(), request.templeLengthMm());
+		return toResponse(frameRepository.save(frame));
+	}
+
+	@Override
+	public FrameResponseDto discardFrame(Long frameId) {
+		return transition(frameId, Frame::discard);
+	}
+
+	@Override
 	public List<FrameResponseDto> getFrames(List<Long> frameIds) {
 		List<Frame> frames = frameRepository.findAllById(frameIds);
 		// findAllById ignora en silencio los ids inexistentes: la diferencia de tamaño los delata.

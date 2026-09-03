@@ -92,6 +92,68 @@ class FrameServiceHandlerTest {
 	}
 
 	@Test
+	void UpdateFrame_Successful() {
+		mockFind(frame("A-1001"));
+		when(frameRepository.findBySealCode("A-2002")).thenReturn(Optional.empty());
+
+		FrameResponseDto response = frameServiceHandler.updateFrame(1L, new FrameCreationRequestDto(
+				"a-2002", FrameType.RIMLESS, FrameMaterial.METAL, 54, 20, 145));
+
+		assertThat(response.sealCode()).isEqualTo("A-2002");
+		assertThat(response.frameType()).isEqualTo(FrameType.RIMLESS);
+		assertThat(response.lensWidthMm()).isEqualTo(54);
+	}
+
+	@Test
+	void UpdateFrame_KeepingSameSealCodeDoesNotConflictWithItself() {
+		mockFind(frame("A-1001"));
+
+		FrameResponseDto response = frameServiceHandler.updateFrame(1L, new FrameCreationRequestDto(
+				"A-1001", FrameType.FULL_RIM, FrameMaterial.ACETATE, null, null, null));
+
+		assertThat(response.sealCode()).isEqualTo("A-1001");
+		verify(frameRepository, never()).findBySealCode(any());
+	}
+
+	@Test
+	void UpdateFrame_WhenSealCodeBelongsToAnotherFrame() {
+		when(frameRepository.findById(1L)).thenReturn(Optional.of(frame("A-1001")));
+		Frame other = frame("A-2002");
+		when(frameRepository.findBySealCode("A-2002")).thenReturn(Optional.of(other));
+
+		assertThatThrownBy(() -> frameServiceHandler.updateFrame(1L, new FrameCreationRequestDto(
+				"A-2002", FrameType.FULL_RIM, FrameMaterial.ACETATE, null, null, null)))
+				.isInstanceOf(SealCodeAlreadyExistsException.class);
+		verify(frameRepository, never()).save(any());
+	}
+
+	@Test
+	void UpdateFrame_WhenFrameDoesNotExist() {
+		when(frameRepository.findById(999L)).thenReturn(Optional.empty());
+
+		assertThatThrownBy(() -> frameServiceHandler.updateFrame(999L, new FrameCreationRequestDto(
+				"A-1001", FrameType.FULL_RIM, FrameMaterial.ACETATE, null, null, null)))
+				.isInstanceOf(FrameNotFoundException.class);
+	}
+
+	@Test
+	void DiscardFrame_Successful() {
+		mockFind(frameAt(FrameStatus.AVAILABLE));
+
+		assertThat(frameServiceHandler.discardFrame(1L).status()).isEqualTo(FrameStatus.DISCARDED);
+	}
+
+	@Test
+	void DiscardFrame_WhenFrameIsNotAvailable() {
+		when(frameRepository.findById(1L)).thenReturn(Optional.of(frameAt(FrameStatus.ASSIGNED)));
+
+		assertThatThrownBy(() -> frameServiceHandler.discardFrame(1L))
+				.isInstanceOf(InvalidFrameTransitionException.class)
+				.hasMessageContaining("disponible");
+		verify(frameRepository, never()).save(any());
+	}
+
+	@Test
 	void GetFrame_WhenNotFound() {
 		when(frameRepository.findById(999L)).thenReturn(Optional.empty());
 
