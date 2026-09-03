@@ -34,14 +34,21 @@ export function computeFramePlacement(landmarks, imageWidth, imageHeight) {
 }
 
 /**
- * Dibuja la foto y encima el marco. `scale` y `verticalOffset` son los ajustes manuales: el
- * encuadre automático acierta el eje y la inclinación, pero cuánto baja el anteojo sobre la
- * nariz depende de cada cara y de cómo esté recortada la foto del marco.
+ * Dibuja la foto y encima el marco. `scale`, `verticalOffset` y `rotationOffsetDegrees` son los
+ * ajustes manuales: el encuadre automático acierta el eje y la inclinación en la mayoría de los
+ * casos, pero cuánto baja el anteojo sobre la nariz depende de cada cara y de cómo esté recortada
+ * la foto del marco, y a veces el ángulo detectado necesita una corrección fina.
  */
-export function drawTryOn(canvas, photo, frameImage, placement, { scale, verticalOffset }) {
+export function drawTryOn(
+  canvas,
+  photo,
+  frameImage,
+  placement,
+  { scale, verticalOffset, rotationOffsetDegrees = 0 },
+) {
   const context = canvas.getContext('2d')
-  canvas.width = photo.naturalWidth
-  canvas.height = photo.naturalHeight
+  canvas.width = photo.width
+  canvas.height = photo.height
   context.clearRect(0, 0, canvas.width, canvas.height)
   context.drawImage(photo, 0, 0)
 
@@ -49,12 +56,12 @@ export function drawTryOn(canvas, photo, frameImage, placement, { scale, vertica
 
   const width = placement.width * scale
   // Se respeta la proporción del PNG del marco: estirarlo lo deformaría.
-  const height = width * (frameImage.naturalHeight / frameImage.naturalWidth)
+  const height = width * (frameImage.height / frameImage.width)
   const offsetInPixels = placement.width * verticalOffset
 
   context.save()
   context.translate(placement.centerX, placement.centerY + offsetInPixels)
-  context.rotate(placement.angle)
+  context.rotate(placement.angle + (rotationOffsetDegrees * Math.PI) / 180)
   context.drawImage(frameImage, -width / 2, -height / 2, width, height)
   context.restore()
 }

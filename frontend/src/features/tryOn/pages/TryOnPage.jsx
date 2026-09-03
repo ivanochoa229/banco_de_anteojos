@@ -28,6 +28,7 @@ export function TryOnPage() {
 
   const [scale, setScale] = useState(1)
   const [verticalOffset, setVerticalOffset] = useState(0)
+  const [rotationOffsetDegrees, setRotationOffsetDegrees] = useState(0)
 
   // Solo los marcos disponibles y con foto: sin foto no hay nada que superponer.
   const framesQuery = useQuery({
@@ -56,7 +57,7 @@ export function TryOnPage() {
         )
         return
       }
-      setPlacement(computeFramePlacement(landmarks, image.naturalWidth, image.naturalHeight))
+      setPlacement(computeFramePlacement(landmarks, image.width, image.height))
     } catch (caught) {
       setPhotoError(caught.message)
     }
@@ -161,6 +162,7 @@ export function TryOnPage() {
                     placement={placement}
                     scale={scale}
                     verticalOffset={verticalOffset}
+                    rotationOffsetDegrees={rotationOffsetDegrees}
                   />
                 ) : (
                   <div className="flex h-80 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white px-6 text-center text-slate-500">
@@ -269,11 +271,23 @@ export function TryOnPage() {
                   Altura
                   <input
                     type="range"
-                    min="-0.2"
-                    max="0.2"
-                    step="0.005"
+                    min="-0.6"
+                    max="0.6"
+                    step="0.01"
                     value={verticalOffset}
                     onChange={(event) => setVerticalOffset(Number(event.target.value))}
+                    className="mt-1 w-full"
+                  />
+                </label>
+                <label className="mt-3 block text-sm text-slate-600">
+                  Rotación
+                  <input
+                    type="range"
+                    min="-20"
+                    max="20"
+                    step="1"
+                    value={rotationOffsetDegrees}
+                    onChange={(event) => setRotationOffsetDegrees(Number(event.target.value))}
                     className="mt-1 w-full"
                   />
                 </label>

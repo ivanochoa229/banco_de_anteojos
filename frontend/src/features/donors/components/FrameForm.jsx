@@ -21,6 +21,17 @@ const EMPTY_VALUES = {
   templeLengthMm: '',
 }
 
+function toFormValues(frame) {
+  return {
+    sealCode: frame.sealCode ?? '',
+    frameType: frame.frameType ?? 'FULL_RIM',
+    material: frame.material ?? 'ACETATE',
+    lensWidthMm: frame.lensWidthMm?.toString() ?? '',
+    bridgeWidthMm: frame.bridgeWidthMm?.toString() ?? '',
+    templeLengthMm: frame.templeLengthMm?.toString() ?? '',
+  }
+}
+
 function validateMeasurement(raw, { label, min, max }) {
   if (!raw.trim()) return null
   const value = Number(raw)
@@ -30,8 +41,9 @@ function validateMeasurement(raw, { label, min, max }) {
   return null
 }
 
-export function FrameForm({ onSubmit, isPending, submitError }) {
-  const [values, setValues] = useState(EMPTY_VALUES)
+// initialValues: un marco existente para editar. Sin él, arranca vacío para dar de alta.
+export function FrameForm({ initialValues, submitLabel, onSubmit, isPending, submitError }) {
+  const [values, setValues] = useState(initialValues ? toFormValues(initialValues) : EMPTY_VALUES)
   const [fieldErrors, setFieldErrors] = useState({})
 
   function setField(name) {
@@ -62,7 +74,8 @@ export function FrameForm({ onSubmit, isPending, submitError }) {
         material: values.material,
         ...measurements,
       })
-      setValues(EMPTY_VALUES)
+      // En edición la página navega al guardar; limpiar el form ahí encima no aporta nada.
+      if (!initialValues) setValues(EMPTY_VALUES)
     } catch {
       // El mensaje del backend se muestra vía submitError; los valores quedan para corregir
       // (típicamente un precinto repetido).
@@ -123,7 +136,7 @@ export function FrameForm({ onSubmit, isPending, submitError }) {
       {submitError && <Alert>{submitError}</Alert>}
 
       <Button type="submit" disabled={isPending}>
-        {isPending ? 'Guardando…' : 'Agregar marco'}
+        {isPending ? 'Guardando…' : (submitLabel ?? 'Agregar marco')}
       </Button>
     </form>
   )

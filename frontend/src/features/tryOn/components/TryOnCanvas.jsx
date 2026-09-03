@@ -6,13 +6,17 @@ import { drawTryOn } from '../framePlacement'
  * descargar el resultado a propósito: la foto del marco viene de una URL firmada de R2 y
  * dibujarla "mancha" el canvas, así que `toDataURL` fallaría sin configurar CORS en el bucket.
  */
-export function TryOnCanvas({ photo, frameImage, placement, scale, verticalOffset }) {
+export function TryOnCanvas({ photo, frameImage, placement, scale, verticalOffset, rotationOffsetDegrees }) {
   const canvasRef = useRef(null)
 
   useEffect(() => {
     if (!canvasRef.current || !photo) return
-    drawTryOn(canvasRef.current, photo, frameImage, placement, { scale, verticalOffset })
-  }, [photo, frameImage, placement, scale, verticalOffset])
+    drawTryOn(canvasRef.current, photo, frameImage, placement, {
+      scale,
+      verticalOffset,
+      rotationOffsetDegrees,
+    })
+  }, [photo, frameImage, placement, scale, verticalOffset, rotationOffsetDegrees])
 
   return (
     <canvas
