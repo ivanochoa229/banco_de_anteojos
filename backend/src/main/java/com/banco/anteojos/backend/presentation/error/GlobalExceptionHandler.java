@@ -18,6 +18,8 @@ import com.banco.anteojos.backend.business.applicants.exception.InvalidPrescript
 import com.banco.anteojos.backend.business.applicants.exception.PrescriptionFileNotFoundException;
 import com.banco.anteojos.backend.business.applicants.exception.PrescriptionNotFoundException;
 import com.banco.anteojos.backend.business.appointments.exception.AppointmentNotFoundException;
+import com.banco.anteojos.backend.business.appointments.exception.AppointmentReceiptNotFoundException;
+import com.banco.anteojos.backend.business.appointments.exception.InvalidAppointmentReceiptException;
 import com.banco.anteojos.backend.business.appointments.exception.InvalidAppointmentTransitionException;
 import com.banco.anteojos.backend.business.assignments.exception.AssignmentNotFoundException;
 import com.banco.anteojos.backend.business.assignments.exception.InvalidAssignmentTransitionException;
@@ -33,6 +35,7 @@ import com.banco.anteojos.backend.business.frames.exception.FrameNotFoundExcepti
 import com.banco.anteojos.backend.business.frames.exception.InvalidFrameTransitionException;
 import com.banco.anteojos.backend.business.frames.exception.SealCodeAlreadyExistsException;
 import com.banco.anteojos.backend.business.indicators.exception.InvalidIndicatorsRangeException;
+import com.banco.anteojos.backend.business.security.exception.EmailAlreadyExistsException;
 import com.banco.anteojos.backend.business.security.exception.InvalidCredentialsException;
 import com.banco.anteojos.backend.business.shipments.exception.InvalidShipmentTransitionException;
 import com.banco.anteojos.backend.business.shipments.exception.InvalidWebhookPayloadException;
@@ -65,6 +68,12 @@ public class GlobalExceptionHandler {
 	@ExceptionHandler(DniAlreadyExistsException.class)
 	@ResponseStatus(HttpStatus.CONFLICT)
 	public ErrorResponseDto dniAlreadyExists(DniAlreadyExistsException e, HttpServletRequest request) {
+		return ErrorResponseDto.of(HttpStatus.CONFLICT, e.getMessage(), request.getRequestURI());
+	}
+
+	@ExceptionHandler(EmailAlreadyExistsException.class)
+	@ResponseStatus(HttpStatus.CONFLICT)
+	public ErrorResponseDto emailAlreadyExists(EmailAlreadyExistsException e, HttpServletRequest request) {
 		return ErrorResponseDto.of(HttpStatus.CONFLICT, e.getMessage(), request.getRequestURI());
 	}
 
@@ -156,6 +165,20 @@ public class GlobalExceptionHandler {
 	@ResponseStatus(HttpStatus.NOT_FOUND)
 	public ErrorResponseDto appointmentNotFound(AppointmentNotFoundException e, HttpServletRequest request) {
 		return ErrorResponseDto.of(HttpStatus.NOT_FOUND, e.getMessage(), request.getRequestURI());
+	}
+
+	@ExceptionHandler(AppointmentReceiptNotFoundException.class)
+	@ResponseStatus(HttpStatus.NOT_FOUND)
+	public ErrorResponseDto appointmentReceiptNotFound(AppointmentReceiptNotFoundException e,
+			HttpServletRequest request) {
+		return ErrorResponseDto.of(HttpStatus.NOT_FOUND, e.getMessage(), request.getRequestURI());
+	}
+
+	@ExceptionHandler(InvalidAppointmentReceiptException.class)
+	@ResponseStatus(HttpStatus.BAD_REQUEST)
+	public ErrorResponseDto invalidAppointmentReceipt(InvalidAppointmentReceiptException e,
+			HttpServletRequest request) {
+		return ErrorResponseDto.of(HttpStatus.BAD_REQUEST, e.getMessage(), request.getRequestURI());
 	}
 
 	@ExceptionHandler(ShipmentNotFoundException.class)

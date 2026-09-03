@@ -63,4 +63,56 @@ class AuthControllerE2ETest {
 				.andExpect(jsonPath("$.path").value("/v1/auth/login"))
 				.andExpect(jsonPath("$.timestamp").isNotEmpty());
 	}
+
+	@Test
+	void Register_Successful() throws Exception {
+		String body = mockMvc.perform(post("/v1/auth/register")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{"firstName": "Juana", "lastName": "Pérez", "dni": "30111222",
+								"phone": "3811234567", "email": "juana.registro@mail.com",
+								"password": "password123"}
+								"""))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.token").isNotEmpty())
+				.andReturn().getResponse().getContentAsString();
+
+		String token = JsonPath.read(body, "$.token");
+		assertThat(jwtService.validate(token)).hasValueSatisfying(tokenData -> {
+			assertThat(tokenData.email()).isEqualTo("juana.registro@mail.com");
+			assertThat(tokenData.role()).isEqualTo("APPLICANT");
+			assertThat(tokenData.applicantId()).isNotNull();
+		});
+	}
+
+	@Test
+	void Register_WhenDniAlreadyExists() throws Exception {
+		String request = """
+				{"firstName": "Juana", "lastName": "Pérez", "dni": "30222333",
+				"phone": "3811234567", "email": "%s", "password": "password123"}
+				""";
+		mockMvc.perform(post("/v1/auth/register")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(request.formatted("primera@mail.com")))
+				.andExpect(status().isOk());
+
+		mockMvc.perform(post("/v1/auth/register")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(request.formatted("segunda@mail.com")))
+				.andExpect(status().isConflict())
+				.andExpect(jsonPath("$.message").value("Ya existe un solicitante con ese DNI"));
+	}
+
+	@Test
+	void Register_WhenEmailAlreadyExists() throws Exception {
+		mockMvc.perform(post("/v1/auth/register")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{"firstName": "Juana", "lastName": "Pérez", "dni": "30333444",
+								"phone": "3811234567", "email": "operator.test@bancoanteojos.org",
+								"password": "password123"}
+								"""))
+				.andExpect(status().isConflict())
+				.andExpect(jsonPath("$.message").value("Ya existe una cuenta con ese email"));
+	}
 }

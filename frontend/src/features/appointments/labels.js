@@ -2,15 +2,18 @@
 // estos labels son la única traducción a UI para que todas las pantallas coincidan.
 
 export const APPOINTMENT_STATUS_LABELS = {
+  PENDING_PAYMENT: 'Pendiente de pago',
   SCHEDULED: 'Agendado',
   COMPLETED: 'Asistió',
   MISSED: 'Ausente',
   CANCELLED: 'Cancelado',
 }
 
-// Celeste lo que está por venir, verde lo que terminó bien, rojo la falta (para que salte a la
-// vista y se reprograme), gris lo que salió de la agenda.
+// Ámbar lo que está en proceso (falta el comprobante), celeste lo que está por venir, verde lo
+// que terminó bien, rojo la falta (para que salte a la vista y se reprograme), gris lo que salió
+// de la agenda.
 export const APPOINTMENT_STATUS_STYLES = {
+  PENDING_PAYMENT: 'bg-amber-50 text-amber-700',
   SCHEDULED: 'bg-sky-50 text-sky-700',
   COMPLETED: 'bg-green-50 text-green-700',
   MISSED: 'bg-red-50 text-red-700',

@@ -33,13 +33,15 @@ public class JwtService {
 
 	public String generateToken(User user) {
 		Date now = new Date();
-		return Jwts.builder()
+		var builder = Jwts.builder()
 				.subject(user.getEmail())
 				.claim("role", user.getRole().name())
 				.issuedAt(now)
-				.expiration(new Date(now.getTime() + expirationMs))
-				.signWith(key)
-				.compact();
+				.expiration(new Date(now.getTime() + expirationMs));
+		if (user.getApplicantId() != null) {
+			builder.claim("applicantId", user.getApplicantId());
+		}
+		return builder.signWith(key).compact();
 	}
 
 	public Optional<TokenData> validate(String token) {
@@ -49,12 +51,13 @@ public class JwtService {
 					.build()
 					.parseSignedClaims(token)
 					.getPayload();
-			return Optional.of(new TokenData(claims.getSubject(), claims.get("role", String.class)));
+			return Optional.of(new TokenData(claims.getSubject(), claims.get("role", String.class),
+					claims.get("applicantId", Long.class)));
 		} catch (JwtException | IllegalArgumentException e) {
 			return Optional.empty();
 		}
 	}
 
-	public record TokenData(String email, String role) {
+	public record TokenData(String email, String role, Long applicantId) {
 	}
 }

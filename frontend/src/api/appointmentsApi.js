@@ -14,4 +14,15 @@ export const appointmentsApi = {
     apiFetch(`/v1/appointments/${appointmentId}/cancellation`, { method: 'PUT', body: { reason } }),
   registerAttendance: (appointmentId, attended) =>
     apiFetch(`/v1/appointments/${appointmentId}/attendance`, { method: 'PUT', body: { attended } }),
+  // Autogestión: el applicantId sale del JWT en el backend, no se manda acá.
+  listMine: () => apiFetch('/v1/me/appointments'),
+  createMine: (data) => apiFetch('/v1/me/appointments', { method: 'POST', body: data }),
+  // Confirma el turno (PENDING_PAYMENT → SCHEDULED) con el comprobante del bono contribución.
+  uploadReceipt: (appointmentId, file) => {
+    const body = new FormData()
+    body.append('file', file)
+    return apiFetch(`/v1/me/appointments/${appointmentId}/receipt`, { method: 'PUT', body })
+  },
+  // Staff: URL firmada para revisar el comprobante offline.
+  getReceipt: (appointmentId) => apiFetch(`/v1/appointments/${appointmentId}/receipt`),
 }

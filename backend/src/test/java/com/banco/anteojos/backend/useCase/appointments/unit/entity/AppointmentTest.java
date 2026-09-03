@@ -21,6 +21,14 @@ class AppointmentTest {
 		return new Appointment(1L, null, SCHEDULED_AT, "  trae la receta original  ");
 	}
 
+	// La mayoría de las transiciones (reprogramar, cancelar, asistencia) exigen un turno ya
+	// confirmado: este helper lo deja en ese estado sin repetir el confirmWithReceipt en cada test.
+	private Appointment confirmedAppointment() {
+		Appointment appointment = appointment();
+		appointment.confirmWithReceipt("appointments/1/comprobante.pdf", "application/pdf", "comprobante.pdf");
+		return appointment;
+	}
+
 	@Test
 	void Create_Successful() {
 		Appointment appointment = appointment();
@@ -28,7 +36,8 @@ class AppointmentTest {
 		assertThat(appointment.getApplicantId()).isEqualTo(1L);
 		assertThat(appointment.getAssignmentId()).isNull();
 		assertThat(appointment.getScheduledAt()).isEqualTo(SCHEDULED_AT);
-		assertThat(appointment.getStatus()).isEqualTo(AppointmentStatus.SCHEDULED);
+		// Nace sin confirmar: recién pasa a SCHEDULED con el comprobante del bono contribución.
+		assertThat(appointment.getStatus()).isEqualTo(AppointmentStatus.PENDING_PAYMENT);
 		assertThat(appointment.getNotes()).isEqualTo("trae la receta original");
 		assertThat(appointment.getCreatedAt()).isNotNull();
 	}
@@ -44,8 +53,29 @@ class AppointmentTest {
 	}
 
 	@Test
-	void Reschedule_Successful() {
+	void ConfirmWithReceipt_Successful() {
 		Appointment appointment = appointment();
+
+		appointment.confirmWithReceipt("appointments/1/comprobante.pdf", "application/pdf", "comprobante.pdf");
+
+		assertThat(appointment.getStatus()).isEqualTo(AppointmentStatus.SCHEDULED);
+		assertThat(appointment.getReceiptKey()).isEqualTo("appointments/1/comprobante.pdf");
+		assertThat(appointment.getReceiptContentType()).isEqualTo("application/pdf");
+		assertThat(appointment.getReceiptOriginalName()).isEqualTo("comprobante.pdf");
+	}
+
+	@Test
+	void ConfirmWithReceipt_WhenAlreadyConfirmed() {
+		Appointment appointment = confirmedAppointment();
+
+		assertThatThrownBy(() -> appointment.confirmWithReceipt("otra-key", "application/pdf", "otro.pdf"))
+				.isInstanceOf(InvalidAppointmentTransitionException.class)
+				.hasMessageContaining("ya está confirmado");
+	}
+
+	@Test
+	void Reschedule_Successful() {
+		Appointment appointment = confirmedAppointment();
 		LocalDateTime newDate = SCHEDULED_AT.plusDays(2);
 
 		appointment.reschedule(newDate);
@@ -56,8 +86,17 @@ class AppointmentTest {
 	}
 
 	@Test
-	void Cancel_Successful() {
+	void Reschedule_WhenPendingPayment() {
 		Appointment appointment = appointment();
+
+		assertThatThrownBy(() -> appointment.reschedule(SCHEDULED_AT.plusDays(1)))
+				.isInstanceOf(InvalidAppointmentTransitionException.class)
+				.hasMessageContaining("no está confirmado");
+	}
+
+	@Test
+	void Cancel_Successful() {
+		Appointment appointment = confirmedAppointment();
 
 		appointment.cancel("  viaja esa semana  ");
 
@@ -67,7 +106,7 @@ class AppointmentTest {
 
 	@Test
 	void Cancel_WhenReasonIsBlank() {
-		Appointment appointment = appointment();
+		Appointment appointment = confirmedAppointment();
 
 		appointment.cancel("   ");
 
@@ -76,7 +115,7 @@ class AppointmentTest {
 
 	@Test
 	void RegisterAttendance_WhenAttended() {
-		Appointment appointment = appointment();
+		Appointment appointment = confirmedAppointment();
 
 		appointment.registerAttendance(true);
 
@@ -85,7 +124,7 @@ class AppointmentTest {
 
 	@Test
 	void RegisterAttendance_WhenMissed() {
-		Appointment appointment = appointment();
+		Appointment appointment = confirmedAppointment();
 
 		appointment.registerAttendance(false);
 
@@ -94,7 +133,7 @@ class AppointmentTest {
 
 	@Test
 	void Reschedule_WhenCancelled() {
-		Appointment appointment = appointment();
+		Appointment appointment = confirmedAppointment();
 		appointment.cancel("no viene más");
 
 		assertThatThrownBy(() -> appointment.reschedule(SCHEDULED_AT.plusDays(1)))
@@ -104,7 +143,7 @@ class AppointmentTest {
 
 	@Test
 	void Cancel_WhenAlreadyCompleted() {
-		Appointment appointment = appointment();
+		Appointment appointment = confirmedAppointment();
 		appointment.registerAttendance(true);
 
 		assertThatThrownBy(() -> appointment.cancel("tarde"))
@@ -114,7 +153,7 @@ class AppointmentTest {
 
 	@Test
 	void RegisterAttendance_WhenAlreadyMissed() {
-		Appointment appointment = appointment();
+		Appointment appointment = confirmedAppointment();
 		appointment.registerAttendance(false);
 
 		assertThatThrownBy(() -> appointment.registerAttendance(true))

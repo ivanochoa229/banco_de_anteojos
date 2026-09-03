@@ -1,6 +1,7 @@
 package com.banco.anteojos.backend.useCase.indicators.integration.controller;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -18,8 +19,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.web.servlet.MockMvc;
@@ -103,6 +106,11 @@ class IndicatorsE2ETest {
 				new User("Operador Test", "operator.test@bancoanteojos.org", "hash", Role.OPERATOR));
 	}
 
+	private String applicantBearerToken() {
+		return "Bearer " + jwtService.generateToken(
+				new User("Beneficiario Test", "beneficiario.test@mail.com", "hash", Role.APPLICANT, APPLICANT_ID));
+	}
+
 	private Long createAndDeliverAssignment(Long frameId, LocalDateTime deliveredAt) throws Exception {
 		// El marco 400001 del template llega DELIVERED; el circuito real exige que esté
 		// AVAILABLE antes de asignarlo.
@@ -145,6 +153,15 @@ class IndicatorsE2ETest {
 				.andExpect(status().isCreated())
 				.andReturn().getResponse().getContentAsString();
 		return ((Number) JsonPath.read(response, "$.id")).longValue();
+	}
+
+	private void confirmAppointment(Long appointmentId) throws Exception {
+		MockMultipartFile file = new MockMultipartFile("file", "comprobante.pdf", "application/pdf",
+				new byte[] { 1, 2, 3 });
+		mockMvc.perform(multipart(HttpMethod.PUT, "/v1/me/appointments/" + appointmentId + "/receipt")
+						.file(file)
+						.header(HttpHeaders.AUTHORIZATION, applicantBearerToken()))
+				.andExpect(status().isOk());
 	}
 
 	private void registerAttendance(Long appointmentId, boolean attended) throws Exception {
@@ -192,6 +209,8 @@ class IndicatorsE2ETest {
 
 		Long attended = createAppointment(now.plusDays(2).withSecond(0).withNano(0));
 		Long missed = createAppointment(now.plusDays(3).withSecond(0).withNano(0));
+		confirmAppointment(attended);
+		confirmAppointment(missed);
 		registerAttendance(attended, true);
 		registerAttendance(missed, false);
 

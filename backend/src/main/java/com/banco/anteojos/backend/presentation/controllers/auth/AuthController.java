@@ -5,6 +5,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.banco.anteojos.backend.business.security.dto.request.ApplicantRegistrationRequestDto;
 import com.banco.anteojos.backend.business.security.dto.request.LoginRequestDto;
 import com.banco.anteojos.backend.business.security.dto.response.LoginResponseDto;
 import com.banco.anteojos.backend.orchestrator.security.AuthUseCaseOrchestrator;
@@ -22,5 +23,10 @@ public class AuthController {
 	@PostMapping("/login")
 	public LoginResponseDto login(@Valid @RequestBody LoginRequestDto request) {
 		return authOrchestrator.login(request);
+	}
+
+	@PostMapping("/register")
+	public LoginResponseDto register(@Valid @RequestBody ApplicantRegistrationRequestDto request) {
+		return authOrchestrator.registerApplicant(request);
 	}
 }

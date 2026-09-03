@@ -7,10 +7,13 @@ import { ApplicantPrescriptionsPage } from '../features/applicants/pages/Applica
 import { ApplicantsListPage } from '../features/applicants/pages/ApplicantsListPage'
 import { AppointmentCreatePage } from '../features/appointments/pages/AppointmentCreatePage'
 import { AppointmentsAgendaPage } from '../features/appointments/pages/AppointmentsAgendaPage'
+import { MyAppointmentsPage } from '../features/appointments/pages/MyAppointmentsPage'
 import { AssignmentCreatePage } from '../features/assignments/pages/AssignmentCreatePage'
 import { AssignmentDetailPage } from '../features/assignments/pages/AssignmentDetailPage'
 import { AssignmentsQueuePage } from '../features/assignments/pages/AssignmentsQueuePage'
+import { MyStatusPage } from '../features/assignments/pages/MyStatusPage'
 import { LoginPage } from '../features/auth/pages/LoginPage'
+import { RegisterPage } from '../features/auth/pages/RegisterPage'
 import { CatalogListPage } from '../features/catalog/pages/CatalogListPage'
 import { ProductCreatePage } from '../features/catalog/pages/ProductCreatePage'
 import { ProductEditPage } from '../features/catalog/pages/ProductEditPage'
@@ -27,6 +30,8 @@ import { TryOnPage } from '../features/tryOn/pages/TryOnPage'
 import { ProtectedRoute } from './ProtectedRoute'
 import { RoleRoute } from './RoleRoute'
 
+const STAFF_ROLES = ['ADMIN', 'OPERATOR']
+
 export function AppRoutes() {
   const { isAuthenticated } = useAuth()
 
@@ -36,43 +41,57 @@ export function AppRoutes() {
         path="/login"
         element={isAuthenticated ? <Navigate to="/" replace /> : <LoginPage />}
       />
+      <Route
+        path="/register"
+        element={isAuthenticated ? <Navigate to="/" replace /> : <RegisterPage />}
+      />
       <Route element={<ProtectedRoute />}>
         <Route path="/" element={<HomePage />} />
-        <Route path="/applicants" element={<ApplicantsListPage />} />
-        <Route path="/applicants/new" element={<ApplicantCreatePage />} />
-        <Route path="/applicants/:applicantId/edit" element={<ApplicantEditPage />} />
-        <Route
-          path="/applicants/:applicantId/prescriptions"
-          element={<ApplicantPrescriptionsPage />}
-        />
-        <Route
-          path="/applicants/:applicantId/anses-certificate"
-          element={<ApplicantAnsesPage />}
-        />
-        <Route
-          path="/applicants/:applicantId/assignments/new"
-          element={<AssignmentCreatePage />}
-        />
-        <Route path="/assignments" element={<AssignmentsQueuePage />} />
-        <Route path="/assignments/:assignmentId" element={<AssignmentDetailPage />} />
-        <Route
-          path="/applicants/:applicantId/appointments/new"
-          element={<AppointmentCreatePage />}
-        />
-        <Route path="/appointments" element={<AppointmentsAgendaPage />} />
-        <Route path="/donors" element={<DonorsListPage />} />
-        <Route path="/donors/new" element={<DonorCreatePage />} />
-        <Route path="/donors/:donorId/frames" element={<DonorFramesPage />} />
-        <Route path="/frames" element={<FramesListPage />} />
-        <Route path="/shipments" element={<ShipmentsListPage />} />
-        <Route path="/shipments/new" element={<ShipmentCreatePage />} />
-        <Route path="/shipments/:shipmentId" element={<ShipmentDetailPage />} />
         <Route path="/try-on" element={<TryOnPage />} />
-        <Route path="/indicators" element={<IndicatorsPage />} />
-        <Route path="/catalog" element={<CatalogListPage />} />
-        <Route element={<RoleRoute allowedRoles={['ADMIN']} />}>
-          <Route path="/catalog/new" element={<ProductCreatePage />} />
-          <Route path="/catalog/:productId/edit" element={<ProductEditPage />} />
+
+        {/* Autogestión del solicitante. */}
+        <Route element={<RoleRoute allowedRoles={['APPLICANT']} />}>
+          <Route path="/my-appointments" element={<MyAppointmentsPage />} />
+          <Route path="/my-status" element={<MyStatusPage />} />
+        </Route>
+
+        {/* Gestión interna: staff únicamente. */}
+        <Route element={<RoleRoute allowedRoles={STAFF_ROLES} />}>
+          <Route path="/applicants" element={<ApplicantsListPage />} />
+          <Route path="/applicants/new" element={<ApplicantCreatePage />} />
+          <Route path="/applicants/:applicantId/edit" element={<ApplicantEditPage />} />
+          <Route
+            path="/applicants/:applicantId/prescriptions"
+            element={<ApplicantPrescriptionsPage />}
+          />
+          <Route
+            path="/applicants/:applicantId/anses-certificate"
+            element={<ApplicantAnsesPage />}
+          />
+          <Route
+            path="/applicants/:applicantId/assignments/new"
+            element={<AssignmentCreatePage />}
+          />
+          <Route path="/assignments" element={<AssignmentsQueuePage />} />
+          <Route path="/assignments/:assignmentId" element={<AssignmentDetailPage />} />
+          <Route
+            path="/applicants/:applicantId/appointments/new"
+            element={<AppointmentCreatePage />}
+          />
+          <Route path="/appointments" element={<AppointmentsAgendaPage />} />
+          <Route path="/donors" element={<DonorsListPage />} />
+          <Route path="/donors/new" element={<DonorCreatePage />} />
+          <Route path="/donors/:donorId/frames" element={<DonorFramesPage />} />
+          <Route path="/frames" element={<FramesListPage />} />
+          <Route path="/shipments" element={<ShipmentsListPage />} />
+          <Route path="/shipments/new" element={<ShipmentCreatePage />} />
+          <Route path="/shipments/:shipmentId" element={<ShipmentDetailPage />} />
+          <Route path="/indicators" element={<IndicatorsPage />} />
+          <Route path="/catalog" element={<CatalogListPage />} />
+          <Route element={<RoleRoute allowedRoles={['ADMIN']} />}>
+            <Route path="/catalog/new" element={<ProductCreatePage />} />
+            <Route path="/catalog/:productId/edit" element={<ProductEditPage />} />
+          </Route>
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
