@@ -15,6 +15,12 @@ public interface FrameService {
 
 	FrameResponseDto getFrame(Long frameId);
 
+	/** Corrige atributos cargados a mano. Falla si el precinto nuevo ya lo tiene otro marco. */
+	FrameResponseDto updateFrame(Long frameId, FrameCreationRequestDto request);
+
+	/** Baja definitiva (rotura, deterioro). Solo desde el inventario disponible. */
+	FrameResponseDto discardFrame(Long frameId);
+
 	/** Los marcos de un envío entre sucursales. Falla si alguno no existe en el inventario. */
 	List<FrameResponseDto> getFrames(List<Long> frameIds);
 

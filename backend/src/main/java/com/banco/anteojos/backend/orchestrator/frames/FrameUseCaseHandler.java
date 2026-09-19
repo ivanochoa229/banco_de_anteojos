@@ -36,6 +36,16 @@ public class FrameUseCaseHandler implements FrameUseCaseOrchestrator {
 		return frameService.getFrame(frameId);
 	}
 
+	@Override
+	public FrameResponseDto updateFrame(Long frameId, FrameCreationRequestDto request) {
+		return frameService.updateFrame(frameId, request);
+	}
+
+	@Override
+	public FrameResponseDto discardFrame(Long frameId) {
+		return frameService.discardFrame(frameId);
+	}
+
 	// La foto es del marco y de nadie más: no hay nada cross-domain que coordinar acá.
 	@Override
 	public FrameResponseDto uploadFrameImage(Long frameId, FrameImageUploadRequestDto request) {

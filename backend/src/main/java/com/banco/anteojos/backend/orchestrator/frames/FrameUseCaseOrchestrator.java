@@ -14,6 +14,10 @@ public interface FrameUseCaseOrchestrator {
 
 	FrameResponseDto getFrame(Long frameId);
 
+	FrameResponseDto updateFrame(Long frameId, FrameCreationRequestDto request);
+
+	FrameResponseDto discardFrame(Long frameId);
+
 	FrameResponseDto uploadFrameImage(Long frameId, FrameImageUploadRequestDto request);
 
 	FrameImageResponseDto getFrameImage(Long frameId);

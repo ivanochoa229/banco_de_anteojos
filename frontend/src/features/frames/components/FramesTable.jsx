@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { formatDateTime } from '../../../lib/dates'
 import { FRAME_MATERIAL_LABELS, FRAME_TYPE_LABELS } from '../labels'
+import { FrameActionsCell } from './FrameActionsCell'
 import { FrameImageCell } from './FrameImageCell'
 import { FrameStatusBadge } from './FrameStatusBadge'
 
@@ -27,6 +28,7 @@ export function FramesTable({ frames, donorNameById }) {
             <th className="px-4 py-3">Estado</th>
             <th className="px-4 py-3">Foto</th>
             <th className="px-4 py-3">Ingreso</th>
+            <th className="px-4 py-3"></th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
@@ -57,6 +59,9 @@ export function FramesTable({ frames, donorNameById }) {
                 <FrameImageCell frame={frame} />
               </td>
               <td className="px-4 py-3 text-slate-600">{formatDateTime(frame.receivedAt)}</td>
+              <td className="px-4 py-3">
+                <FrameActionsCell frame={frame} />
+              </td>
             </tr>
           ))}
         </tbody>

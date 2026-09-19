@@ -20,6 +20,7 @@ import { ProductEditPage } from '../features/catalog/pages/ProductEditPage'
 import { DonorCreatePage } from '../features/donors/pages/DonorCreatePage'
 import { DonorFramesPage } from '../features/donors/pages/DonorFramesPage'
 import { DonorsListPage } from '../features/donors/pages/DonorsListPage'
+import { FrameEditPage } from '../features/frames/pages/FrameEditPage'
 import { FramesListPage } from '../features/frames/pages/FramesListPage'
 import { HomePage } from '../features/home/pages/HomePage'
 import { IndicatorsPage } from '../features/indicators/pages/IndicatorsPage'
@@ -83,6 +84,7 @@ export function AppRoutes() {
           <Route path="/donors/new" element={<DonorCreatePage />} />
           <Route path="/donors/:donorId/frames" element={<DonorFramesPage />} />
           <Route path="/frames" element={<FramesListPage />} />
+          <Route path="/frames/:frameId/edit" element={<FrameEditPage />} />
           <Route path="/shipments" element={<ShipmentsListPage />} />
           <Route path="/shipments/new" element={<ShipmentCreatePage />} />
           <Route path="/shipments/:shipmentId" element={<ShipmentDetailPage />} />

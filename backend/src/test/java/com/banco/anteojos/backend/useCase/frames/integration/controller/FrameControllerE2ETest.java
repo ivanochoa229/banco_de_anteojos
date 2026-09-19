@@ -3,6 +3,7 @@ package com.banco.anteojos.backend.useCase.frames.integration.controller;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -18,6 +19,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.banco.anteojos.backend.business.frames.entities.Frame;
+import com.banco.anteojos.backend.business.frames.entities.FrameMaterial;
 import com.banco.anteojos.backend.business.frames.entities.FrameStatus;
 import com.banco.anteojos.backend.business.security.JwtService;
 import com.banco.anteojos.backend.business.security.entities.Role;
@@ -106,6 +108,67 @@ class FrameControllerE2ETest {
 				.andExpect(jsonPath("$.status").value(400));
 
 		assertThat(frameRepository.findBySealCode("C-3002")).isEmpty();
+	}
+
+	@Test
+	void UpdateFrame_Successful() throws Exception {
+		mockMvc.perform(put("/v1/frames/400000")
+						.header(HttpHeaders.AUTHORIZATION, bearerToken())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{"sealCode": "a-9001", "frameType": "SEMI_RIMLESS", "material": "METAL",
+								 "lensWidthMm": 54, "bridgeWidthMm": 17, "templeLengthMm": 145}
+								"""))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.sealCode").value("A-9001"))
+				.andExpect(jsonPath("$.frameType").value("SEMI_RIMLESS"));
+
+		assertThat(frameRepository.findById(400000L))
+				.hasValueSatisfying(saved -> assertThat(saved.getMaterial()).isEqualTo(FrameMaterial.METAL));
+	}
+
+	@Test
+	void UpdateFrame_WhenSealCodeAlreadyExists() throws Exception {
+		mockMvc.perform(put("/v1/frames/400000")
+						.header(HttpHeaders.AUTHORIZATION, bearerToken())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{"sealCode": "A-1002", "frameType": "FULL_RIM", "material": "ACETATE"}
+								"""))
+				.andExpect(status().isConflict())
+				.andExpect(jsonPath("$.message").value("Ya existe un marco con ese precinto"));
+	}
+
+	@Test
+	void UpdateFrame_WhenFrameDoesNotExist() throws Exception {
+		mockMvc.perform(put("/v1/frames/999999")
+						.header(HttpHeaders.AUTHORIZATION, bearerToken())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{"sealCode": "C-3001", "frameType": "FULL_RIM", "material": "PLASTIC"}
+								"""))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.message").value("Marco no encontrado"));
+	}
+
+	@Test
+	void DiscardFrame_Successful() throws Exception {
+		mockMvc.perform(put("/v1/frames/400000/disposal")
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.status").value("DISCARDED"));
+
+		assertThat(frameRepository.findById(400000L))
+				.hasValueSatisfying(saved -> assertThat(saved.getStatus()).isEqualTo(FrameStatus.DISCARDED));
+	}
+
+	@Test
+	void DiscardFrame_WhenFrameIsNotAvailable() throws Exception {
+		// 400001 ya está DELIVERED en el template.
+		mockMvc.perform(put("/v1/frames/400001/disposal")
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isConflict())
+				.andExpect(jsonPath("$.message").value("Solo se puede dar de baja un marco disponible en el inventario"));
 	}
 
 	@Test
