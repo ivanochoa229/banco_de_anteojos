@@ -114,23 +114,9 @@ en papel). Se compone de:
 - **Cliente embebido en el navegador**: MediaPipe Face Mesh para el probador virtual, ejecutado
   100% en el dispositivo del usuario.
 
-Diagrama de contexto (texto):
+Diagrama de contexto:
 
-```
- [Operador/Admin]        [Beneficiario autogestión]        [Comprador catálogo]
-        │                          │                                │
-        └─────────────┬────────────┴───────────────┬────────────────┘
-                       ▼                            ▼
-                 Frontend (React/Vite) ── navegador del usuario
-                       │  HTTPS + JWT
-                       ▼
-                 Backend (Spring Boot, /v1/**)
-                       │
-     ┌─────────────────┼──────────────────┬───────────────────┐
-     ▼                 ▼                  ▼                    ▼
- PostgreSQL      Cloudflare R2        RENAPER (SID)        17TRACK
- (Flyway)        (imágenes/PDFs)   (validación identidad)  (webhook push)
-```
+![Diagrama de contexto](img/contexto.png)
 
 ### 2.2 Funciones del producto
 

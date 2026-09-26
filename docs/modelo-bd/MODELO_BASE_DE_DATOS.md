@@ -22,18 +22,16 @@
 - Las migraciones son **append-only**: un cambio de schema siempre es una migración nueva, nunca se
   edita una ya aplicada.
 
-## 2. Diagrama — Núcleo (solicitantes, donaciones e inventario)
+## 2. Diagrama
 
-![Modelo de BD — Núcleo](img/db-01-nucleo.png)
+Las 13 tablas del esquema en un único diagrama.
 
-## 3. Diagrama — Turnos, Logística y Catálogo
+![Modelo de Base de Datos](img/modelo-base-de-datos.png)
 
-![Modelo de BD — Turnos, Logística y Catálogo](img/db-02-turnos-logistica-catalogo.png)
+> El diagrama muestra columnas clave (PK/FK/UNIQUE + atributos distintivos) para que se lea de un
+> vistazo. El detalle completo de cada tabla está en el diccionario de datos (sección 4).
 
-> Ambos diagramas muestran columnas clave (PK/FK/UNIQUE + atributos distintivos) para que se lean de
-> un vistazo. El detalle completo de cada tabla está en el diccionario de datos (sección 4).
-
-## 4. Diccionario de datos
+## 3. Diccionario de datos
 
 ### `users` — V1, alterada en V13
 
@@ -237,7 +235,7 @@ viaja en un mismo paquete.
 > `unit_price` no se recalcula desde `products.price`: si el precio cambia después, no debe
 > reescribir ventas ya cerradas.
 
-## 5. Índices
+## 4. Índices
 
 | Índice | Tabla | Columnas | Tipo |
 |---|---|---|---|
@@ -252,7 +250,7 @@ viaja en un mismo paquete.
 | `idx_product_sales_product_id` | product_sales | product_id | normal |
 | `idx_users_applicant_id` | users | applicant_id | único, parcial (`WHERE applicant_id IS NOT NULL`) |
 
-## 6. Decisiones de diseño transversales
+## 5. Decisiones de diseño transversales
 
 - **Nunca se persisten binarios**: toda tabla con un archivo asociado guarda `*_key` /
   `*_content_type` / `*_original_name`, nunca el contenido ni una URL (RNF-07).
