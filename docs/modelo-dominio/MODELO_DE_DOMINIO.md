@@ -8,15 +8,12 @@
 > artefacto de análisis que precede al diseño; la Vista Lógica del Documento de Arquitectura
 > retoma estos mismos conceptos ya en el contexto de la solución de software.
 
-## 1. Conceptos del dominio
+## 1. Diagrama
 
-## Diagrama — Solicitantes, Donaciones e Inventario (DM-1)
+Las 12 clases del dominio y sus 12 asociaciones, todas en un único diagrama (ninguna relación
+queda relegada a una nota de texto).
 
-![DM-1](img/dm-01-nucleo.png)
-
-## Diagrama — Turnos, Logística y Catálogo (DM-2)
-
-![DM-2](img/dm-02-turnos-logistica-catalogo.png)
+![Modelo de Dominio](img/modelo-de-dominio.png)
 
 ## 2. Enumeraciones
 
