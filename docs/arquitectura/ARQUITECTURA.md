@@ -61,6 +61,12 @@ Es independiente de cómo se implementan (esa es la Vista de Desarrollo) y de d�
 - **Catálogo (`Product`/`Sale`) es un dominio intencionalmente independiente**: no tiene relación de
   datos con `Donor`/`Frame` — son anteojos de sol para la venta, no marcos donados para beneficiarios.
   Mezclar ambos inventarios sería un acoplamiento accidental que el diseño evita a propósito.
+- `Appointment` se asocia opcionalmente con `Assignment` ("retiro de", `0..1`–`0..1`): un turno
+  puede ser para retirar un par puntual, o de atención general (`assignment_id` nulo).
+
+> Este diagrama es un resumen a nivel de arquitectura. El detalle completo de atributos,
+> enumeraciones y asociaciones — incluida la asociación conceptual con `Comprador`, que no tiene
+> tabla propia — está en el Modelo de Dominio (`docs/modelo-dominio/MODELO_DE_DOMINIO.md`).
 
 ---
 
