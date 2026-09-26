@@ -10,7 +10,7 @@
 
 ## 1. Diagrama
 
-Las 12 clases del dominio y sus 12 asociaciones, todas en un único diagrama (ninguna relación
+Las 13 clases del dominio y sus 13 asociaciones, todas en un único diagrama (ninguna relación
 queda relegada a una nota de texto).
 
 ![Modelo de Dominio](img/modelo-de-dominio.png)
@@ -48,12 +48,19 @@ aviso).
 | Frame — Shipment | 0..* — 0..* | Un envío agrupa varios marcos; un marco puede viajar más de una vez entre sucursales |
 | Shipment — ShipmentEvent | 1 — 0..* | Historial de eventos del carrier para ese envío |
 | Product — Sale | 1 — 0..* | Historial de ventas de ese producto |
+| Sale — Comprador | 0..* — 1 *(conceptual)* | El comprador navega el catálogo y decide la compra; el Operador es quien la registra |
 
 ## 4. Conceptos deliberadamente sin relación
 
 - **Product/Sale** (catálogo de venta) no se relaciona con `Donor` ni `Frame`: son anteojos de sol
   para financiar la fundación, no marcos donados para beneficiarios — mezclar ambos inventarios
   sería un acoplamiento accidental.
+- **Comprador** se dibuja con línea punteada porque es una asociación conceptual, no una FK
+  persistida: el comprador no tiene cuenta ni login (consulta el catálogo público, RF-28), y el
+  sistema no guarda su identidad más allá del nombre suelto en `Sale.buyerName`. Quien efectivamente
+  registra la venta es un Operador — sin login especial para "vendedor", igual que el resto de las
+  operaciones de mostrador — por eso tampoco aparece una asociación formal Operador–Sale: el
+  sistema no lleva ese registro.
 - **Assignment** no tiene un atributo de "estado": cada hito del circuito (asignado, enviado a la
   óptica, retornado, entregado, cancelado) es un atributo de fecha propio, y esa secuencia de
   fechas **es** la trazabilidad (RF-16). El estado "actual" de un marco vive en `Frame.status`, no
