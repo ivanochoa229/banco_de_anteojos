@@ -61,14 +61,22 @@ public class Appointment {
 		this.createdAt = LocalDateTime.now();
 	}
 
-	/** Solo se puede confirmar un turno que todavía no lo está: no admite reemplazar el comprobante. */
-	public void confirmWithReceipt(String key, String contentType, String originalName) {
+	/** Solo se puede subir el comprobante de un turno que todavía no lo tiene. */
+	public void submitReceiptForReview(String key, String contentType, String originalName) {
 		if (status != AppointmentStatus.PENDING_PAYMENT) {
-			throw new InvalidAppointmentTransitionException("El turno ya está confirmado");
+			throw new InvalidAppointmentTransitionException("El turno ya tiene un comprobante cargado");
 		}
 		this.receiptKey = key;
 		this.receiptContentType = contentType;
 		this.receiptOriginalName = originalName;
+		this.status = AppointmentStatus.PENDING_REVIEW;
+	}
+
+	/** El administrativo revisó el comprobante y no encontró problemas: recién acá queda agendado. */
+	public void approve() {
+		if (status != AppointmentStatus.PENDING_REVIEW) {
+			throw new InvalidAppointmentTransitionException("El turno no tiene un comprobante pendiente de revisión");
+		}
 		this.status = AppointmentStatus.SCHEDULED;
 	}
 
@@ -77,8 +85,9 @@ public class Appointment {
 		this.scheduledAt = newScheduledAt;
 	}
 
+	/** Un turno se cancela ya agendado, o desde la revisión si el comprobante tiene un problema. */
 	public void cancel(String reason) {
-		requireScheduled();
+		requireScheduledOrPendingReview();
 		this.status = AppointmentStatus.CANCELLED;
 		this.cancellationReason = reason == null || reason.isBlank() ? null : reason.trim();
 	}
@@ -92,6 +101,8 @@ public class Appointment {
 		switch (status) {
 			case PENDING_PAYMENT -> throw new InvalidAppointmentTransitionException(
 					"El turno todavía no está confirmado: falta el comprobante");
+			case PENDING_REVIEW -> throw new InvalidAppointmentTransitionException(
+					"El turno todavía no está confirmado: falta revisar el comprobante");
 			case CANCELLED -> throw new InvalidAppointmentTransitionException("El turno está cancelado");
 			case COMPLETED -> throw new InvalidAppointmentTransitionException("El turno ya fue atendido");
 			case MISSED -> throw new InvalidAppointmentTransitionException(
@@ -99,5 +110,12 @@ public class Appointment {
 			case SCHEDULED -> {
 			}
 		}
+	}
+
+	private void requireScheduledOrPendingReview() {
+		if (status == AppointmentStatus.PENDING_REVIEW) {
+			return;
+		}
+		requireScheduled();
 	}
 }

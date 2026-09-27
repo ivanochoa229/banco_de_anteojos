@@ -14,10 +14,17 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.font.PDType1Font;
+import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -114,17 +121,42 @@ class AppointmentE2ETest {
 
 	private void confirmAppointment(Long appointmentId) throws Exception {
 		MockMultipartFile file = new MockMultipartFile("file", "comprobante.pdf", "application/pdf",
-				new byte[] { 1, 2, 3 });
+				receiptPdf());
 		mockMvc.perform(multipart(HttpMethod.PUT, "/v1/me/appointments/" + appointmentId + "/receipt")
 						.file(file)
 						.header(HttpHeaders.AUTHORIZATION, applicantBearerToken(APPLICANT_ID)))
 				.andExpect(status().isOk());
 	}
 
+	private void approveAppointment(Long appointmentId) throws Exception {
+		mockMvc.perform(put("/v1/appointments/" + appointmentId + "/approval")
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isOk());
+	}
+
+	// El administrativo revisa el comprobante y no encuentra problemas: recién ahí queda agendado.
 	private Long createConfirmedAppointment() throws Exception {
 		Long appointmentId = createAppointment();
 		confirmAppointment(appointmentId);
+		approveAppointment(appointmentId);
 		return appointmentId;
+	}
+
+	private byte[] receiptPdf() throws IOException {
+		try (PDDocument document = new PDDocument()) {
+			PDPage page = new PDPage();
+			document.addPage(page);
+			try (PDPageContentStream stream = new PDPageContentStream(document, page)) {
+				stream.beginText();
+				stream.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA), 12);
+				stream.newLineAtOffset(50, 700);
+				stream.showText("Comprobante de pago - Bono contribución");
+				stream.endText();
+			}
+			ByteArrayOutputStream out = new ByteArrayOutputStream();
+			document.save(out);
+			return out.toByteArray();
+		}
 	}
 
 	private AppointmentStatus statusInDb(Long appointmentId) {
@@ -153,9 +185,39 @@ class AppointmentE2ETest {
 
 		confirmAppointment(appointmentId);
 
+		// Todavía no está aprobado: subir el comprobante solo lo deja pendiente de revisión.
+		assertThat(statusInDb(appointmentId)).isEqualTo(AppointmentStatus.PENDING_REVIEW);
+		verifyNoInteractions(notificationClient);
+	}
+
+	@Test
+	void Approve_Successful() throws Exception {
+		Long appointmentId = createAppointment();
+		confirmAppointment(appointmentId);
+
+		mockMvc.perform(put("/v1/appointments/" + appointmentId + "/approval")
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.status").value("SCHEDULED"));
+
 		assertThat(statusInDb(appointmentId)).isEqualTo(AppointmentStatus.SCHEDULED);
 		verify(notificationClient).sendAppointmentScheduled(eq("juana.perez@mail.com"), eq("Juana"),
 				eq(SCHEDULED_AT));
+	}
+
+	@Test
+	void Cancel_WhenPendingReview() throws Exception {
+		Long appointmentId = createAppointment();
+		confirmAppointment(appointmentId);
+
+		mockMvc.perform(put("/v1/appointments/" + appointmentId + "/cancellation")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"reason\": \"el comprobante no corresponde\"}")
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.status").value("CANCELLED"));
+
+		assertThat(statusInDb(appointmentId)).isEqualTo(AppointmentStatus.CANCELLED);
 	}
 
 	@Test

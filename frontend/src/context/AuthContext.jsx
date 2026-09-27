@@ -27,12 +27,14 @@ export function AuthProvider({ children }) {
     const { token: newToken } = await authApi.login(email, password)
     storeToken(newToken)
     setToken(newToken)
+    return decodeJwtPayload(newToken)?.role ?? null
   }, [])
 
   const registerApplicant = useCallback(async (data) => {
     const { token: newToken } = await authApi.registerApplicant(data)
     storeToken(newToken)
     setToken(newToken)
+    return decodeJwtPayload(newToken)?.role ?? null
   }, [])
 
   const value = useMemo(

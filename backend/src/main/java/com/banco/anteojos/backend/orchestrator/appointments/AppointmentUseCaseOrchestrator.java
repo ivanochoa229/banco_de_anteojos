@@ -25,9 +25,12 @@ public interface AppointmentUseCaseOrchestrator {
 
 	AppointmentResponseDto registerAttendance(Long appointmentId, boolean attended);
 
-	/** Confirma el turno (PENDING_PAYMENT → SCHEDULED) al subir el comprobante del bono contribución. */
+	/** Deja el comprobante cargado (PENDING_PAYMENT → PENDING_REVIEW), a la espera de revisión. */
 	AppointmentResponseDto confirmAppointment(Long applicantId, Long appointmentId,
 			AppointmentReceiptUploadRequestDto request);
+
+	/** El administrativo aprueba el comprobante revisado (PENDING_REVIEW → SCHEDULED). */
+	AppointmentResponseDto approve(Long appointmentId);
 
 	AppointmentReceiptResponseDto getReceipt(Long appointmentId);
 }

@@ -21,10 +21,10 @@ import com.banco.anteojos.backend.thirdPartyServiceComunication.notifications.No
 import lombok.RequiredArgsConstructor;
 
 /**
- * El turno nace PENDING_PAYMENT y recién dispara la notificación de RF-22 cuando se confirma con
- * el comprobante (confirmAppointment), no al crearlo. Reprogramación y cancelación siguen
- * disparando la suya después de persistir: el cliente de notificaciones es best effort y nunca
- * corta el caso de uso.
+ * El turno nace PENDING_PAYMENT, pasa a PENDING_REVIEW al subir el comprobante (confirmAppointment)
+ * y recién dispara la notificación de RF-22 cuando el administrativo lo aprueba tras revisarlo
+ * (approve), no antes. Reprogramación, cancelación y aprobación disparan la suya después de
+ * persistir: el cliente de notificaciones es best effort y nunca corta el caso de uso.
  */
 @Component
 @RequiredArgsConstructor
@@ -93,8 +93,13 @@ public class AppointmentUseCaseHandler implements AppointmentUseCaseOrchestrator
 		if (!appointmentService.getAppointment(appointmentId).applicantId().equals(applicantId)) {
 			throw new AppointmentNotFoundException();
 		}
-		AppointmentResponseDto appointment = appointmentService.confirmWithReceipt(appointmentId, request);
-		ApplicantResponseDto applicant = applicantService.getApplicant(applicantId);
+		return appointmentService.submitReceiptForReview(appointmentId, request);
+	}
+
+	@Override
+	public AppointmentResponseDto approve(Long appointmentId) {
+		AppointmentResponseDto appointment = appointmentService.approve(appointmentId);
+		ApplicantResponseDto applicant = applicantService.getApplicant(appointment.applicantId());
 		notificationClient.sendAppointmentScheduled(applicant.email(), applicant.firstName(),
 				appointment.scheduledAt());
 		return appointment;
