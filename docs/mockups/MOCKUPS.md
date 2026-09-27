@@ -127,11 +127,21 @@
 ### 23. Probador virtual
 ![Probador virtual](img/19-probador-virtual.png)
 
-> Esta captura muestra el **estado degradado real** (RNF-04): en el entorno de prueba, el detector
-> de rostros de MediaPipe no pudo inicializarse y el sistema lo informa sin romper el resto de la
-> aplicación, exactamente el comportamiento descrito en RF-17 y en el SRS. El flujo exitoso (foto →
-> detección de rostro → superposición del marco elegido → ajuste de tamaño/altura/rotación) está
-> documentado a partir del código fuente en "Casos de Uso Reales" (RU-16).
+> La primera vez que se generó esta captura, el detector de rostros de MediaPipe no cargaba
+> (`WebAssembly.instantiate(): expected magic word`): el plugin de Vite que copia el runtime wasm
+> de `node_modules` a `public/mediapipe/wasm` (`vite.config.js`) corre de forma asíncrona en
+> `buildStart`, y las primeras requests del dev server contra ese path pueden llegar antes de que
+> la copia termine — Vite responde esas requests con el fallback de SPA (`index.html`) en vez de
+> 404, y el navegador recibe HTML donde esperaba wasm. Es una condición de carrera del entorno de
+> desarrollo, no un problema del código de producción (`vite build` espera los hooks antes de
+> servir nada): confirmado reiniciando el dev server una vez que el wasm ya estaba copiado en
+> disco, momento en el que el detector cargó sin errores. La captura de arriba muestra ese estado ya
+> corregido — sin ninguna foto cargada, a propósito, para no usar la imagen de ninguna persona real
+> en la documentación — con el detector listo ("Sacar una foto"/"Elegir un archivo" habilitados, sin
+> ningún mensaje de error) y un marco con foto disponible para elegir (RF-19). El flujo completo con
+> una foto cargada (detección de rostro, RF-17, y superposición 2D del marco elegido, RF-18) se
+> verificó por lectura de código (`useFaceLandmarker`, `TryOnCanvas`, `computeFramePlacement`) y no
+> se capturó en pantalla en este documento.
 
 ### 24. Catálogo — Gestión (admin)
 ![Catálogo admin](img/21-catalogo-admin.png)

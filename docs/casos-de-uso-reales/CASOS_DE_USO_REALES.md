@@ -484,15 +484,20 @@
 
 | Acción de los actores | Respuesta del sistema |
 |---|---|
-| 1. El usuario hace clic en "Sacar una foto" o "Elegir un archivo". | 2. El sistema detecta el rostro en el propio navegador. |
-| 3. Elige un marco de "Marcos con foto" (solo aparecen los disponibles que ya tienen imagen cargada). | 4. El sistema superpone el marco en 2D sobre la foto y habilita el ajuste de Tamaño, Altura y Rotación. |
+| 1. El usuario hace clic en **"Sacar una foto"** (A) o **"Elegir un archivo"** (B). | 2. El sistema carga la foto y detecta el rostro en el propio navegador, sin mensaje de error si el detector inicializó bien (como en la captura, todavía sin foto). |
+| 3. Elige un marco de **"Marcos con foto"** (C, solo aparecen los disponibles que ya tienen imagen cargada). | 4. El sistema superpone el marco en 2D sobre la foto y habilita el ajuste de Tamaño, Altura y Rotación. |
 
 **Flujos alternativos**
 - **2a. El detector de rostros no pudo cargar** (dispositivo o red): el sistema muestra "El probador
-  no está disponible en este dispositivo" sin romper el resto de la aplicación — es exactamente el
-  estado capturado arriba, observado en el entorno de prueba.
+  no está disponible en este dispositivo" sin romper el resto de la aplicación.
 - **2b. No se detecta ningún rostro en la foto:** el sistema pide subir otra foto, de frente y con
   buena luz.
+
+> **Nota de fidelidad:** la captura muestra la pantalla lista para usarse (detector cargado, sin
+> foto todavía) — a propósito no se subió ninguna foto para no usar la imagen de una persona real en
+> la documentación. Los pasos 2 (detección de rostro, RF-17) y 4 (superposición 2D, RF-18) se
+> verificaron por lectura de código (`useFaceLandmarker`, `TryOnCanvas`, `computeFramePlacement`),
+> no por captura de pantalla.
 
 ---
 
