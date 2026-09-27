@@ -457,31 +457,50 @@
 ### Caso de uso UC-20b: Cargar comprobante de bono contribución
 **Actor:** Beneficiario
 **Precondiciones:** Turno en estado "pendiente de pago" (UC-20, alternativo 2a).
-**Postcondiciones:** Turno confirmado (o continúa pendiente).
+**Postcondiciones:** Turno pendiente de revisión (o continúa pendiente de pago).
 **Escenario de éxito:**
 
 1. El sistema muestra al beneficiario los datos de la cuenta para transferir el bono contribución.
 2. El beneficiario realiza la transferencia por fuera del sistema.
 3. El beneficiario sube el comprobante de la transferencia.
-4. El sistema valida que el archivo sea válido.
-5. El sistema cambia el turno a estado confirmado y dispara la notificación de confirmación (UC-22).
+4. El sistema valida que el archivo sea un PDF, JPG o PNG válido y, si es PDF, que su contenido
+   sea compatible con un comprobante de pago (detecta palabras clave como "comprobante", "recibo",
+   "monto", "transacción").
+5. El sistema cambia el turno a estado "pendiente de revisión" y continúa en UC-20c.
 
 **Escenarios alternativos:**
 
 *3a. El beneficiario no sube ningún comprobante.*
 1. El turno permanece en estado "pendiente de pago" indefinidamente, sin confirmarse ni notificarse.
 
-*4a. El archivo no es válido.*
+*4a. El archivo no es válido, o el PDF no parece un comprobante de pago.*
 1. El sistema notifica el error.
 2. Se vuelve al paso 3.
 
+### Caso de uso UC-20c: Revisar y aprobar comprobante de turno
+**Actor:** Operador
+**Precondiciones:** Turno en estado "pendiente de revisión" (UC-20b).
+**Postcondiciones:** Turno confirmado.
+**Escenario de éxito:**
+
+1. El operador abre el turno pendiente de revisión y consulta el comprobante cargado.
+2. El operador verifica que el comprobante corresponde al bono contribución del turno.
+3. El operador aprueba el turno.
+4. El sistema cambia el turno a estado confirmado y dispara la notificación de confirmación (UC-22).
+
+**Escenarios alternativos:**
+
+*3a. El comprobante tiene un problema (no corresponde, monto incorrecto, ilegible, etc.).*
+1. El operador cancela el turno en lugar de aprobarlo, con el motivo (UC-21, alternativo 1a).
+
 ### Caso de uso UC-21: Reprogramar o cancelar turno
 **Actor:** Operador, Beneficiario
-**Precondiciones:** Turno existente; pertenencia validada.
+**Precondiciones:** Turno existente — confirmado (para reprogramar o cancelar) o pendiente de
+revisión (solo para cancelar, si el comprobante tiene un problema); pertenencia validada.
 **Postcondiciones:** Turno actualizado.
 **Escenario de éxito (reprogramar):**
 
-1. El actor elige reprogramar un turno.
+1. El actor elige reprogramar un turno confirmado.
 2. El sistema muestra la disponibilidad de fechas.
 3. El actor selecciona una nueva fecha y hora.
 4. El sistema actualiza el turno conservando el estado confirmado y notifica el cambio (UC-22).
@@ -501,8 +520,9 @@
 2. Se vuelve al paso 2.
 
 ### Caso de uso UC-22: Notificar turno
-**Actor:** Sistema (disparado por UC-20b y UC-21)
-**Precondiciones:** Evento de turno ocurrido (confirmación, reprogramación o cancelación).
+**Actor:** Sistema (disparado por UC-20c y UC-21)
+**Precondiciones:** Evento de turno ocurrido (confirmación tras revisión, reprogramación o
+cancelación).
 **Postcondiciones:** Notificación entregada (best-effort).
 **Escenario de éxito:**
 
@@ -663,7 +683,8 @@
 ## 11. Notas de trazabilidad
 
 - Correspondencia 1 a 1 con los RF del SRS, salvo UC-20/UC-20b que desagregan RF-20 para reflejar el
-  flujo condicionado al bono contribución (decisión de diseño, no un requisito adicional).
+  flujo condicionado al bono contribución, y UC-20c que desagrega RF-21 para reflejar la revisión
+  humana del comprobante antes de confirmar el turno (decisiones de diseño, no requisitos adicionales).
 - UC-04, UC-05 y UC-14 se narran por separado por claridad, pero ocurren dentro de otro caso de uso
   (UC-03 y UC-15 respectivamente) — están marcados como "Sistema (disparado por ...)" en el actor.
 - Estos casos de uso son **esenciales**: describen la intención del actor y la respuesta del sistema

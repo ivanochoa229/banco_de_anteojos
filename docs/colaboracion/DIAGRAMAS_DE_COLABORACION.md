@@ -6,7 +6,7 @@
 > entre los que se comunican, y mensajes numerados sobre el enlace en el orden en que ocurren
 > (`1`, `2`, `2.1`, `3`, …). Son la contracara de los diagramas de secuencia de la Vista de Procesos
 > del Documento de Arquitectura (`docs/arquitectura/ARQUITECTURA.md`): mismas interacciones, foco en
-> **quién habla con quién** en lugar de en la línea de tiempo. Se eligieron siete escenarios
+> **quién habla con quién** en lugar de en la línea de tiempo. Se eligieron ocho escenarios
 > distintos a los de la Vista de Procesos (salvo la asignación de marco, que se repite por ser el
 > caso más representativo) para no duplicar contenido y cubrir más patrones arquitectónicos.
 
@@ -51,14 +51,15 @@ salen todos de `AssignmentUseCaseHandler`; `AssignmentServiceHandler` (mensaje `
 propio repositorio. Es la contraparte en colaboración del diagrama de secuencia de la sección 4.2
 del Documento de Arquitectura.
 
-## CD-5 — Confirmar turno con comprobante de bono contribución (UC-20b)
+## CD-5 — Cargar comprobante de bono contribución (UC-20b)
 
 ![CD-5](img/cd-05-confirmar-turno.png)
 
-El orchestrator de `appointments` coordina tres colaboradores tras la carga del comprobante:
-`AppointmentServiceHandler` (que sube el archivo a R2 y confirma el turno), `ApplicantService` (para
-obtener el email) y `NotificationClient` (best-effort: un fallo ahí no revierte la confirmación ya
-persistida).
+El beneficiario sube el comprobante desde el portal de autogestión: el orchestrator de
+`appointments` delega en un único colaborador, `AppointmentServiceHandler` (que sube el archivo a
+R2 y deja el turno en `PENDING_REVIEW`). A diferencia de la versión anterior de este flujo, subir el
+comprobante ya no confirma el turno ni dispara notificación — eso ahora es un paso aparte, a cargo
+de un operador (CD-8).
 
 ## CD-6 — Actualización de envío por webhook (UC-24)
 
@@ -78,12 +79,27 @@ Otro caso de orchestrator delgado (dominio único: `catalog`). La mutación de s
 si no alcanza el stock — nunca un `setStock(...)` directo, siguiendo la regla de "entidades sin
 setters" del backend.
 
+## CD-8 — Aprobar comprobante de turno (UC-20c)
+
+![CD-8](img/cd-08-aprobar-turno.png)
+
+El operador revisa el comprobante cargado en CD-5 y lo aprueba: recién acá el orchestrator de
+`appointments` coordina tres colaboradores, igual que hacía la versión anterior de CD-5 antes de
+separarse en dos casos de uso: `AppointmentServiceHandler` (que confirma el turno, `PENDING_REVIEW`
+→ `SCHEDULED`), `ApplicantService` (para obtener el email) y `NotificationClient` (best-effort: un
+fallo ahí no revierte la aprobación ya persistida).
+
 ---
 
 ## Notas de trazabilidad
 
-- CD-1, CD-3 y CD-7 ilustran el patrón de **orchestrator delgado / único dominio**.
-- CD-4 y CD-5 ilustran **composición cross-domain**, siempre concentrada en el orchestrator.
+- CD-1, CD-3, CD-5 y CD-7 ilustran el patrón de **orchestrator delgado / único dominio** (CD-3 y
+  CD-5 hablan además con un cliente de terceros, `R2StorageClient`, sin que eso las vuelva
+  cross-domain: siguen dentro de `applicants` y `appointments` respectivamente).
+- CD-4 y CD-8 ilustran **composición cross-domain**, siempre concentrada en el orchestrator.
+- CD-5 y CD-8 son las dos mitades de un mismo flujo, partido en dos casos de uso (UC-20b/UC-20c) a
+  propósito: cargar el comprobante ya no confirma el turno por sí solo, hace falta que un operador
+  lo revise y apruebe.
 - CD-2 y CD-6 ilustran los dos **puntos de entrada no convencionales** del sistema: login (primer
   contacto, sin pertenencia que validar) y el webhook (sin usuario autenticado en absoluto).
 - La corrección aplicada en CD-2 también se propagó al diagrama de secuencia equivalente en

@@ -32,10 +32,10 @@
 
 | Acción de los actores | Respuesta del sistema |
 |---|---|
-| 1. El usuario completa el campo **Email** (A). | |
+| 1. El usuario completa el campo **Correo electrónico** (A). | |
 | 2. Completa el campo **Contraseña** (B). | |
-| 3. Hace clic en **Ingresar** (C). | 4. El sistema valida las credenciales y redirige a la pantalla de inicio correspondiente a su rol. |
-| 5. *(Opcional)* El beneficiario sin cuenta hace clic en el enlace "¿Sos beneficiario? Registrate para pedir tu turno" (D). | 6. El sistema muestra el formulario de autoregistro (RF-20). |
+| 3. Hace clic en **Iniciar sesión** (C). | 4. El sistema valida las credenciales y redirige al portal correspondiente a su rol: `/solicitante` (Beneficiario), `/operador` (Operador) o `/admin` (Administrador). |
+| 5. *(Opcional)* El beneficiario sin cuenta hace clic en el enlace "¿Sos beneficiario? Registrate acá" (D). | 6. El sistema muestra el formulario de autoregistro (RF-20). |
 
 **Flujos alternativos**
 - **3a. Credenciales inválidas:** el sistema muestra el mensaje de error devuelto por la API sin
@@ -267,10 +267,10 @@
 |---|---|
 | **Caso de uso** | RU-09 — Gestionar turnos (agenda del staff) |
 | **Actores** | Operador |
-| **Propósito** | Registrar, reprogramar o cancelar turnos de entrega/retiro, y revisar los pagos pendientes de la autogestión. |
-| **Resumen** | El operador consulta la agenda de turnos, busca por beneficiario, registra un turno nuevo o modifica uno existente (reprogramar/cancelar), y revisa el comprobante de un turno pendiente de pago generado por autogestión. |
+| **Propósito** | Registrar turnos, revisar y aprobar el comprobante del bono contribución de la autogestión, reprogramar o cancelar turnos, y registrar la asistencia del día. |
+| **Resumen** | El operador consulta la agenda de turnos, busca por beneficiario, registra un turno nuevo, aprueba o rechaza el comprobante de un turno pendiente de revisión (autogestión), reprograma o cancela un turno confirmado, y marca si el beneficiario asistió o faltó. |
 | **Tipo** | Primario y real |
-| **Referencias cruzadas** | RF-20 (Registrar turnos), RF-21 (Gestionar turnos: reprogramación y cancelación), RF-22 (Notificaciones automáticas de turnos) |
+| **Referencias cruzadas** | RF-20 (Registrar turnos), RF-21 (Gestionar turnos: revisión, reprogramación y cancelación), RF-22 (Notificaciones automáticas de turnos) |
 | **Precondiciones** | El solicitante existe. |
 | **Postcondiciones** | El turno queda actualizado; los cambios de estado disparan la notificación correspondiente. |
 
@@ -282,11 +282,13 @@
 
 | Acción de los actores | Respuesta del sistema |
 |---|---|
-| 1. El operador busca con **Buscar por beneficiario…** (A). | 2. El sistema filtra la tabla de turnos (C) en vivo, mostrando fecha, hora, beneficiario y estado (D, badge). |
+| 1. El operador busca con **Buscar por beneficiario…** (A). | 2. El sistema filtra la tabla de turnos en vivo, mostrando fecha y hora, beneficiario, motivo del turno (atención general o retiro de un marco puntual) y estado (badge). |
 | 3. *(Alternativa)* Hace clic en **+ Registrar turno** (B) y carga fecha, hora y beneficiario. | |
-| 4. Para un turno existente, hace clic en **Reprogramar** (E) y elige nueva fecha/hora. | 5. El sistema actualiza el turno, que permanece `SCHEDULED`. |
-| 6. *(Alternativa)* Hace clic en **Cancelar** (F) y confirma el motivo. | 7. El sistema pasa el turno a `CANCELLED`. |
-| 8. Si el turno está en estado "Pendiente de pago" (D, autogestión), el operador hace clic en **Ver comprobante** (G). | 9. El sistema muestra el comprobante subido para que el operador lo revise y, si corresponde, confirme el turno manualmente. |
+| 4. Para un turno **Aceptado** (C), el operador hace clic en **Asistió** (D) o **Faltó** (E) el día del turno. | El sistema registra la asistencia (`COMPLETED`/`MISSED`), estado final para el panel de indicadores. |
+| 5. *(Alternativa)* Hace clic en **Reprogramar** (F) sobre un turno **Aceptado** y elige nueva fecha/hora. | El sistema actualiza el turno, que permanece `SCHEDULED`. |
+| 6. *(Alternativa)* Hace clic en **Cancelar** y confirma el motivo (disponible tanto en un turno **Aceptado** como en uno **Pendiente de revisión**, letra J). | El sistema pasa el turno a `CANCELLED`. |
+| 7. Para un turno **Pendiente de revisión** (G, autogestión), el operador abre el comprobante cargado (H) y lo revisa. | |
+| 8. Si el comprobante corresponde al bono contribución, hace clic en **Aprobar** (I). | 9. El sistema pasa el turno a `SCHEDULED` ("Aceptado") y dispara la notificación de confirmación. |
 
 ---
 
@@ -296,12 +298,12 @@
 |---|---|
 | **Caso de uso** | RU-10 — Autogestión del beneficiario: pedir turno y pagar el bono contribución |
 | **Actores** | Beneficiario |
-| **Propósito** | Permitir que el beneficiario saque su turno sin asistir presencialmente y confirme el pago del bono contribución. |
-| **Resumen** | El beneficiario elige una fecha disponible, transfiere el bono contribución a la cuenta de la fundación, sube el comprobante y el sistema confirma el turno; también puede ver su historial de turnos pasados. |
+| **Propósito** | Permitir que el beneficiario saque su turno sin asistir presencialmente y cargue el comprobante del bono contribución para que un operador lo revise. |
+| **Resumen** | El beneficiario elige una fecha disponible, transfiere el bono contribución a la cuenta de la fundación y sube el comprobante; el turno queda pendiente de revisión hasta que un operador lo aprueba (RU-09). También puede ver su historial de turnos pasados. |
 | **Tipo** | Primario y real |
-| **Referencias cruzadas** | RF-20 (Registrar turnos), RF-21 (Gestionar turnos); RNF-01 (Autenticación y autorización, rol APPLICANT) |
+| **Referencias cruzadas** | RF-20 (Registrar turnos), RF-21 (Gestionar turnos: revisión, reprogramación y cancelación); RNF-01 (Autenticación y autorización, rol APPLICANT) |
 | **Precondiciones** | El beneficiario tiene una cuenta (rol APPLICANT) y sesión iniciada. |
-| **Postcondiciones** | Turno confirmado y visible en la agenda del staff (RU-09) para revisión posterior del comprobante por un operador. |
+| **Postcondiciones** | Turno pendiente de revisión (o confirmado, si ya fue aprobado), visible en la agenda del staff (RU-09). |
 
 **Pantalla:** Autogestión — Mis turnos (Figura 12)
 
@@ -311,14 +313,19 @@
 
 | Acción de los actores | Respuesta del sistema |
 |---|---|
-| 1. El beneficiario elige una fecha disponible (paso 1 del indicador de progreso, A: "Elegir fecha"). | 2. El sistema crea el turno en estado `PENDIENTE DE PAGO` (B) y avanza al paso 2 ("Confirmar con bono contribución"). |
-| 3. El sistema muestra la indicación de transferencia (C) con los datos de la cuenta de la fundación. | |
-| 4. El beneficiario hace clic en el recuadro de **Comprobante de transferencia** (D), sube el archivo y hace clic en **Subir comprobante** (E). | 5. El sistema pasa el turno a `SCHEDULED` (paso 3, "Turno confirmado") y dispara la notificación de confirmación. |
-| 6. *(Opcional)* El beneficiario revisa su **Historial** (F) de turnos pasados (asistidos/cancelados). | |
+| 1. El beneficiario elige una fecha disponible (paso 1 del indicador de progreso, A: "Elegir fecha"). | 2. El sistema crea el turno en estado `PENDING_PAYMENT` y avanza al paso 2 ("Confirmar con bono contribución"), mostrando los datos de la cuenta de la fundación para transferir. |
+| 3. El beneficiario transfiere el bono contribución por fuera del sistema y sube el comprobante. | 4. El sistema valida el archivo y pasa el turno a `PENDING_REVIEW` (B, badge "Pendiente de revisión"), avanzando al paso 3 ("En revisión", A) — todavía no se notifica ni queda confirmado. |
+| | El panel muestra la nota de espera (C): un administrativo va a revisar el comprobante antes de confirmar el turno. |
+| 5. *(Cuando un operador aprueba el comprobante en RU-09)* | El turno pasa a `SCHEDULED` (paso 4, "Turno aceptado") y el sistema dispara la notificación de confirmación. |
+| 6. *(Opcional)* El beneficiario revisa su **Historial** (D) de turnos pasados (asistidos/cancelados). | |
 
 **Flujos alternativos**
-- **4a. El beneficiario no sube comprobante:** el turno permanece "Pendiente de pago" indefinidamente
+- **3a. El beneficiario no sube comprobante:** el turno permanece en `PENDING_PAYMENT` indefinidamente
   (no bloquea el resto de la app, pero no se confirma ni notifica).
+- **4a. El archivo no es válido, o el PDF no parece un comprobante de pago:** el sistema rechaza la
+  carga y el beneficiario puede reintentarla.
+- **5a. El operador encuentra un problema en el comprobante:** cancela el turno (RU-09) en lugar de
+  aprobarlo; el sistema lo pasa a `CANCELLED` y notifica al beneficiario.
 
 ---
 

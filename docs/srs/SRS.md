@@ -166,8 +166,8 @@ Agrupadas por módulo (correspondencia 1 a 1 con los dominios del backend):
   RENAPER y 17TRACK; ante indisponibilidad de RENAPER, el sistema depende de que el operador
   ejecute la validación presencial documentada como alternativa (RF-06).
 - Se asume que el monto del bono contribución y la validez del comprobante los verifica un humano
-  (operador), no el sistema — el sistema solo garantiza que no se confirme un turno sin comprobante
-  cargado.
+  (operador), no el sistema — el sistema solo garantiza que no se confirme un turno sin que el
+  operador haya revisado y aprobado el comprobante cargado.
 - Depende de que Cloudflare R2 y 17TRACK estén operativos para sus respectivas funciones; ambos son
   servicios externos fuera del control del equipo de desarrollo.
 
@@ -378,15 +378,22 @@ Cada requisito funcional se especifica con: descripción, entradas, proceso, sal
 - *Descripción*: permite registrar turnos de atención para los beneficiarios.
 - *Entradas*: solicitante, fecha/hora deseada.
 - *Proceso*: valida disponibilidad; en el flujo de autogestión, el turno nace en estado
-  `PENDING_PAYMENT` hasta que se cargue el comprobante del bono contribución.
+  `PENDING_PAYMENT` hasta que se cargue el comprobante del bono contribución, momento en el que pasa
+  a `PENDING_REVIEW` a la espera de la revisión del operador (RF-21).
 - *Salidas*: turno creado.
 - *Prioridad*: Alta.
 
-**RF-21 — Gestionar turnos (reprogramación y cancelación)**
-- *Descripción*: permite reprogramar y cancelar turnos.
+**RF-21 — Gestionar turnos (revisión, reprogramación y cancelación)**
+- *Descripción*: permite revisar y aprobar el comprobante del bono contribución, y reprogramar o
+  cancelar turnos.
 - *Entradas*: turno existente, nueva fecha/hora o motivo de cancelación.
-- *Proceso*: valida pertenencia del turno (el beneficiario solo puede gestionar los propios); cambia
-  fecha o estado a `CANCELLED`.
+- *Proceso*: el turno cargado con comprobante (`PENDING_REVIEW`) no queda confirmado
+  automáticamente: el operador lo revisa y recién ahí lo aprueba (`PENDING_REVIEW` → `SCHEDULED`,
+  dispara RF-22) o lo cancela si el comprobante tiene un problema. Un turno ya `SCHEDULED` se puede
+  reprogramar (conserva el estado) o cancelar; valida pertenencia del turno (el beneficiario solo
+  puede gestionar los propios). El sistema valida además que el archivo subido sea realmente un PDF,
+  JPG o PNG (por firma de bytes, no solo por el content-type declarado) y, si es PDF, que su texto
+  sea compatible con un comprobante de pago.
 - *Salidas*: turno actualizado.
 - *Prioridad*: Alta.
 
@@ -523,10 +530,11 @@ Edge, Safari).
   la que se validó RENAPER.
 - **CUIL derivado, no cargado**: el CUIL del solicitante no lo ingresa el operador; queda registrado
   automáticamente cuando una Certificación Negativa de ANSES válida lo confirma (RF-04).
-- **Turno de autogestión condicionado al pago**: un turno creado por autogestión nace
-  `PENDING_PAYMENT` y solo pasa a `SCHEDULED` (disparando la notificación de RF-22) cuando se sube
-  el comprobante del bono contribución; el monto no lo valida el sistema, lo revisa un operador
-  después.
+- **Turno de autogestión condicionado al pago y a su revisión**: un turno creado por autogestión
+  nace `PENDING_PAYMENT` y pasa a `PENDING_REVIEW` cuando se sube el comprobante del bono
+  contribución; recién pasa a `SCHEDULED` (disparando la notificación de RF-22) cuando un operador
+  revisa ese comprobante y lo aprueba — el monto y la validez del comprobante no los valida el
+  sistema, los revisa el operador antes de aprobar.
 - **Baja lógica, no borrado físico**: marcos descartados y productos discontinuados cambian de
   estado (`DISCARDED` / `DISCONTINUED`), nunca se eliminan de la base de datos, para preservar la
   trazabilidad histórica.
@@ -540,7 +548,8 @@ Edge, Safari).
 Ver sección 1.3. Se amplía con vocabulario de estados:
 
 - **Estados de `Frame`**: `AVAILABLE`, `ASSIGNED`, `AT_OPTICIAN`, `READY`, `DELIVERED`, `DISCARDED`.
-- **Estados de `Appointment`**: `PENDING_PAYMENT`, `SCHEDULED`, `COMPLETED`, `MISSED`, `CANCELLED`.
+- **Estados de `Appointment`**: `PENDING_PAYMENT`, `PENDING_REVIEW`, `SCHEDULED`, `COMPLETED`,
+  `MISSED`, `CANCELLED`.
 - **Estados de `Product`**: activo / `DISCONTINUED`.
 
 ### Apéndice B — Matriz de trazabilidad (resumen)

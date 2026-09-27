@@ -3,10 +3,11 @@
 ## Sistema Banco de Anteojos — Fundación Hacer Futuro
 
 > Modelo físico relacional (PostgreSQL), reconstruido a partir de las migraciones Flyway
-> (`backend/src/main/resources/db/migration/V1` a `V14`), que son la única fuente de verdad del
-> schema (Hibernate corre en modo `none`). A diferencia de la Vista Lógica del Documento de
-> Arquitectura —que modela conceptos de dominio—, este documento describe las **tablas, columnas,
-> tipos y restricciones reales** tal como existen en la base.
+> (`backend/src/main/resources/db/migration/V1` a `V16`; V15 solo carga un usuario semilla, no
+> altera el schema), que son la única fuente de verdad del schema (Hibernate corre en modo `none`).
+> A diferencia de la Vista Lógica del Documento de Arquitectura —que modela conceptos de dominio—,
+> este documento describe las **tablas, columnas, tipos y restricciones reales** tal como existen
+> en la base.
 
 ## 1. Convenciones del schema
 
@@ -142,7 +143,7 @@ Las 13 tablas del esquema en un único diagrama.
 > fuente de verdad de "dónde está el marco" es `frames.status`, no una máquina de estados
 > duplicada acá.
 
-### `appointments` — V10, alterada en V14
+### `appointments` — V10, alterada en V14 y V16
 
 | Columna | Tipo | Restricciones | Notas |
 |---|---|---|---|
@@ -150,7 +151,7 @@ Las 13 tablas del esquema en un único diagrama.
 | `applicant_id` | BIGINT | NOT NULL, FK → `applicants.id` | índice `idx_appointments_applicant_id` |
 | `assignment_id` | BIGINT | NULL, FK → `assignments.id` | turno de retiro de un par puntual; `NULL` = atención general |
 | `scheduled_at` | TIMESTAMP | NOT NULL | índice `idx_appointments_scheduled_at` (agenda por rango de fecha) |
-| `status` | VARCHAR(20) | NOT NULL, DEFAULT `PENDING_PAYMENT`, CHECK IN (`PENDING_PAYMENT`,`SCHEDULED`,`COMPLETED`,`MISSED`,`CANCELLED`) | el default cambió de `SCHEDULED` a `PENDING_PAYMENT` en V14 (bono contribución) |
+| `status` | VARCHAR(20) | NOT NULL, DEFAULT `PENDING_PAYMENT`, CHECK IN (`PENDING_PAYMENT`,`PENDING_REVIEW`,`SCHEDULED`,`COMPLETED`,`MISSED`,`CANCELLED`) | el default cambió de `SCHEDULED` a `PENDING_PAYMENT` en V14 (bono contribución); V16 agrega `PENDING_REVIEW` entre la carga del comprobante y su aprobación por un operador |
 | `notes` | VARCHAR(500) | NULL | |
 | `cancellation_reason` | VARCHAR(255) | NULL | |
 | `created_at` | TIMESTAMP | NOT NULL | |
@@ -262,6 +263,6 @@ viaja en un mismo paquete.
 - **CHECK explícito para vocabularios cerrados y propios** (`frames.status`, `appointments.status`,
   `products.status`) vs. **sin CHECK para vocabulario de un tercero** (`shipment_events.status`),
   porque ese valor lo define 17TRACK y puede agregar códigos sin previo aviso.
-- **Migraciones append-only**: los `ALTER TABLE` de V6, V9, V13 y V14 agregan columnas o
+- **Migraciones append-only**: los `ALTER TABLE` de V6, V9, V13, V14 y V16 agregan columnas o
   reemplazan un `CHECK` completo (`DROP CONSTRAINT` + `ADD CONSTRAINT`), nunca editan una migración
   ya aplicada — así el historial de schema es reproducible en cualquier ambiente.

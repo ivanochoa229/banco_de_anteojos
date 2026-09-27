@@ -24,7 +24,7 @@ queda relegada a una nota de texto).
 | `FrameType` | `FULL_RIM`, `SEMI_RIMLESS`, `RIMLESS` | `Frame.frameType` |
 | `FrameMaterial` | `ACETATE`, `METAL`, `TITANIUM`, `PLASTIC`, `OTHER` | `Frame.material` |
 | `FrameStatus` | `AVAILABLE`, `ASSIGNED`, `AT_OPTICIAN`, `READY`, `DELIVERED`, `DISCARDED` | `Frame.status` |
-| `AppointmentStatus` | `PENDING_PAYMENT`, `SCHEDULED`, `COMPLETED`, `MISSED`, `CANCELLED` | `Appointment.status` |
+| `AppointmentStatus` | `PENDING_PAYMENT`, `PENDING_REVIEW`, `SCHEDULED`, `COMPLETED`, `MISSED`, `CANCELLED` | `Appointment.status` |
 | `ShipmentStatus` | `PENDING`, `CANCELLED`, `REGISTERED`, `INFO_RECEIVED`, `IN_TRANSIT`, `AVAILABLE_FOR_PICKUP`, `OUT_FOR_DELIVERY`, `DELIVERED`, `DELIVERY_FAILURE`, `EXCEPTION`, `EXPIRED`, `NOT_FOUND` | `Shipment.status` |
 | `ProductStatus` | `ACTIVE`, `DISCONTINUED` | `Product.status` |
 
