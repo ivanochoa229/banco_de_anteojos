@@ -62,8 +62,14 @@ class AppointmentServiceHandlerTest {
 	}
 
 	private Appointment confirmedAppointment() {
+		Appointment appointment = pendingReviewAppointment();
+		appointment.approve();
+		return appointment;
+	}
+
+	private Appointment pendingReviewAppointment() {
 		Appointment appointment = appointment();
-		appointment.confirmWithReceipt("appointments/1/comprobante.pdf", "application/pdf", "comprobante.pdf");
+		appointment.submitReceiptForReview("appointments/1/comprobante.pdf", "application/pdf", "comprobante.pdf");
 		return appointment;
 	}
 
@@ -120,62 +126,88 @@ class AppointmentServiceHandlerTest {
 	}
 
 	@Test
-	void ConfirmWithReceipt_Successful() {
+	void SubmitReceiptForReview_Successful() {
 		mockFind(appointment());
 		byte[] content = receiptPdf();
 
-		AppointmentResponseDto response = appointmentServiceHandler.confirmWithReceipt(10L,
+		AppointmentResponseDto response = appointmentServiceHandler.submitReceiptForReview(10L,
 				new AppointmentReceiptUploadRequestDto(content, "application/pdf", "comprobante.pdf"));
 
-		assertThat(response.status()).isEqualTo("SCHEDULED");
+		assertThat(response.status()).isEqualTo("PENDING_REVIEW");
 		assertThat(response.receiptOriginalName()).isEqualTo("comprobante.pdf");
 		verify(r2StorageClient).upload(anyString(), any(byte[].class), any());
 	}
 
 	@Test
-	void ConfirmWithReceipt_WhenFileIsEmpty() {
+	void SubmitReceiptForReview_WhenFileIsEmpty() {
 		when(appointmentRepository.findById(10L)).thenReturn(Optional.of(appointment()));
 
-		assertThatThrownBy(() -> appointmentServiceHandler.confirmWithReceipt(10L,
+		assertThatThrownBy(() -> appointmentServiceHandler.submitReceiptForReview(10L,
 				new AppointmentReceiptUploadRequestDto(new byte[0], "application/pdf", "comprobante.pdf")))
 				.isInstanceOf(InvalidAppointmentReceiptException.class);
 	}
 
 	@Test
-	void ConfirmWithReceipt_WhenContentTypeNotAllowed() {
+	void SubmitReceiptForReview_WhenContentTypeNotAllowed() {
 		when(appointmentRepository.findById(10L)).thenReturn(Optional.of(appointment()));
 
-		assertThatThrownBy(() -> appointmentServiceHandler.confirmWithReceipt(10L,
+		assertThatThrownBy(() -> appointmentServiceHandler.submitReceiptForReview(10L,
 				new AppointmentReceiptUploadRequestDto(new byte[] { 1 }, "text/plain", "comprobante.txt")))
 				.isInstanceOf(InvalidAppointmentReceiptException.class);
 	}
 
 	@Test
-	void ConfirmWithReceipt_WhenAlreadyConfirmed() {
-		when(appointmentRepository.findById(10L)).thenReturn(Optional.of(confirmedAppointment()));
+	void SubmitReceiptForReview_WhenAlreadySubmitted() {
+		when(appointmentRepository.findById(10L)).thenReturn(Optional.of(pendingReviewAppointment()));
 
-		assertThatThrownBy(() -> appointmentServiceHandler.confirmWithReceipt(10L,
+		assertThatThrownBy(() -> appointmentServiceHandler.submitReceiptForReview(10L,
 				new AppointmentReceiptUploadRequestDto(receiptPdf(), "application/pdf", "otro.pdf")))
 				.isInstanceOf(InvalidAppointmentTransitionException.class);
 	}
 
 	@Test
-	void ConfirmWithReceipt_WhenContentDoesNotMatchDeclaredType() {
+	void SubmitReceiptForReview_WhenContentDoesNotMatchDeclaredType() {
 		when(appointmentRepository.findById(10L)).thenReturn(Optional.of(appointment()));
 
-		assertThatThrownBy(() -> appointmentServiceHandler.confirmWithReceipt(10L,
+		assertThatThrownBy(() -> appointmentServiceHandler.submitReceiptForReview(10L,
 				new AppointmentReceiptUploadRequestDto(new byte[] { 1, 2, 3 }, "application/pdf", "falso.pdf")))
 				.isInstanceOf(InvalidAppointmentReceiptException.class);
 	}
 
 	@Test
-	void ConfirmWithReceipt_WhenPdfHasNoReceiptLikeText() {
+	void SubmitReceiptForReview_WhenPdfHasNoReceiptLikeText() {
 		when(appointmentRepository.findById(10L)).thenReturn(Optional.of(appointment()));
 
-		assertThatThrownBy(() -> appointmentServiceHandler.confirmWithReceipt(10L,
+		assertThatThrownBy(() -> appointmentServiceHandler.submitReceiptForReview(10L,
 				new AppointmentReceiptUploadRequestDto(pdfWithText("una foto de unos anteojos"),
 						"application/pdf", "anteojos.pdf")))
 				.isInstanceOf(InvalidAppointmentReceiptException.class);
+	}
+
+	@Test
+	void Approve_Successful() {
+		mockFind(pendingReviewAppointment());
+
+		AppointmentResponseDto response = appointmentServiceHandler.approve(10L);
+
+		assertThat(response.status()).isEqualTo("SCHEDULED");
+	}
+
+	@Test
+	void Approve_WhenNotPendingReview() {
+		when(appointmentRepository.findById(10L)).thenReturn(Optional.of(appointment()));
+
+		assertThatThrownBy(() -> appointmentServiceHandler.approve(10L))
+				.isInstanceOf(InvalidAppointmentTransitionException.class);
+	}
+
+	@Test
+	void Cancel_WhenPendingReview() {
+		mockFind(pendingReviewAppointment());
+
+		AppointmentResponseDto response = appointmentServiceHandler.cancel(10L, "el comprobante no corresponde");
+
+		assertThat(response.status()).isEqualTo("CANCELLED");
 	}
 
 	@Test

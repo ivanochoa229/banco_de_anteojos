@@ -34,8 +34,11 @@ public interface AppointmentService {
 	/** Turnos en un estado final dentro del rango, para el panel de indicadores (RF-26). */
 	long countByStatus(AppointmentStatus status, LocalDateTime from, LocalDateTime to);
 
-	/** Confirma el turno (PENDING_PAYMENT → SCHEDULED) al subir el comprobante del bono contribución. */
-	AppointmentResponseDto confirmWithReceipt(Long appointmentId, AppointmentReceiptUploadRequestDto request);
+	/** Deja el comprobante cargado (PENDING_PAYMENT → PENDING_REVIEW), a la espera de revisión. */
+	AppointmentResponseDto submitReceiptForReview(Long appointmentId, AppointmentReceiptUploadRequestDto request);
+
+	/** El administrativo aprueba el comprobante revisado (PENDING_REVIEW → SCHEDULED). */
+	AppointmentResponseDto approve(Long appointmentId);
 
 	AppointmentReceiptResponseDto getReceipt(Long appointmentId);
 }

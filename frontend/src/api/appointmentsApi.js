@@ -12,6 +12,9 @@ export const appointmentsApi = {
     apiFetch(`/v1/appointments/${appointmentId}/schedule`, { method: 'PUT', body: { scheduledAt } }),
   cancel: (appointmentId, reason) =>
     apiFetch(`/v1/appointments/${appointmentId}/cancellation`, { method: 'PUT', body: { reason } }),
+  // El administrativo revisó el comprobante y no encontró problemas: recién acá queda aceptado.
+  approve: (appointmentId) =>
+    apiFetch(`/v1/appointments/${appointmentId}/approval`, { method: 'PUT' }),
   registerAttendance: (appointmentId, attended) =>
     apiFetch(`/v1/appointments/${appointmentId}/attendance`, { method: 'PUT', body: { attended } }),
   // Autogestión: el applicantId sale del JWT en el backend, no se manda acá.

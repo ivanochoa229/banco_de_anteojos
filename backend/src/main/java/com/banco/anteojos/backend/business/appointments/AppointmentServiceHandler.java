@@ -105,7 +105,8 @@ public class AppointmentServiceHandler implements AppointmentService {
 	}
 
 	@Override
-	public AppointmentResponseDto confirmWithReceipt(Long appointmentId, AppointmentReceiptUploadRequestDto request) {
+	public AppointmentResponseDto submitReceiptForReview(Long appointmentId,
+			AppointmentReceiptUploadRequestDto request) {
 		Appointment appointment = findAppointment(appointmentId);
 		String extension = validateFile(request);
 
@@ -114,8 +115,16 @@ public class AppointmentServiceHandler implements AppointmentService {
 		r2StorageClient.upload(key, request.content(), contentType);
 
 		// Exigir PENDING_PAYMENT acá adentro evita que una segunda subida pise el comprobante
-		// de un turno ya confirmado: el segundo intento falla con 409 antes de tocar nada.
-		appointment.confirmWithReceipt(key, contentType, request.originalName());
+		// de un turno que ya está en revisión o confirmado: el segundo intento falla con 409
+		// antes de tocar nada.
+		appointment.submitReceiptForReview(key, contentType, request.originalName());
+		return toResponse(appointmentRepository.save(appointment));
+	}
+
+	@Override
+	public AppointmentResponseDto approve(Long appointmentId) {
+		Appointment appointment = findAppointment(appointmentId);
+		appointment.approve();
 		return toResponse(appointmentRepository.save(appointment));
 	}
 

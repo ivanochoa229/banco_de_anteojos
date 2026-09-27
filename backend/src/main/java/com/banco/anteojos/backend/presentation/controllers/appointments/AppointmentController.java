@@ -59,6 +59,12 @@ public class AppointmentController {
 		return appointmentOrchestrator.cancel(appointmentId, request.reason());
 	}
 
+	/** El administrativo revisó el comprobante y no encontró problemas: aprueba el turno. */
+	@PutMapping("/{appointmentId}/approval")
+	public AppointmentResponseDto approve(@PathVariable Long appointmentId) {
+		return appointmentOrchestrator.approve(appointmentId);
+	}
+
 	/** El día del turno: asistió (COMPLETED) o faltó (MISSED). */
 	@PutMapping("/{appointmentId}/attendance")
 	public AppointmentResponseDto registerAttendance(@PathVariable Long appointmentId,

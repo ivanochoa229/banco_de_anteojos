@@ -56,8 +56,13 @@ export function AppointmentsAgendaPage() {
     onSuccess: invalidateAppointments,
   })
 
+  const approveMutation = useMutation({
+    mutationFn: ({ appointmentId }) => appointmentsApi.approve(appointmentId),
+    onSuccess: invalidateAppointments,
+  })
+
   function isRowPending(appointmentId) {
-    return [rescheduleMutation, cancelMutation, attendanceMutation].some(
+    return [rescheduleMutation, cancelMutation, attendanceMutation, approveMutation].some(
       (mutation) => mutation.isPending && mutation.variables.appointmentId === appointmentId,
     )
   }
@@ -66,7 +71,8 @@ export function AppointmentsAgendaPage() {
   const actionError =
     rescheduleMutation.error?.message ??
     cancelMutation.error?.message ??
-    attendanceMutation.error?.message
+    attendanceMutation.error?.message ??
+    approveMutation.error?.message
 
   return (
     <Layout>
@@ -74,8 +80,8 @@ export function AppointmentsAgendaPage() {
         <div>
           <h2 className="text-xl font-semibold text-slate-900">Turnos</h2>
           <p className="mt-1 text-sm text-slate-500">
-            La agenda de atención: reprogramá, cancelá o registrá la asistencia del día. Los
-            turnos se agendan desde la ficha del solicitante.
+            La agenda de atención: aprobá el comprobante subido, reprogramá, cancelá o registrá la
+            asistencia del día. Los turnos se agendan desde la ficha del solicitante.
           </p>
         </div>
         <div className="flex items-end gap-3">
@@ -184,6 +190,7 @@ export function AppointmentsAgendaPage() {
                           onAttendance={(attended) =>
                             attendanceMutation.mutate({ appointmentId: appointment.id, attended })
                           }
+                          onApprove={() => approveMutation.mutate({ appointmentId: appointment.id })}
                         />
                       </td>
                     </tr>

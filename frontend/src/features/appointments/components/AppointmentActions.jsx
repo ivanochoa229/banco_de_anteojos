@@ -3,17 +3,28 @@ import { Button } from '../../../components/Button'
 import { Input } from '../../../components/Input'
 
 /**
- * Acciones de un turno agendado: registrar la asistencia del día (asistió/faltó), reprogramar
- * o cancelar. Reprogramar y cancelar despliegan su mini-formulario en el lugar, igual que la
- * cancelación de una asignación: confirmar de un click sin dato de respaldo invita a errores.
+ * Acciones de un turno. En PENDING_REVIEW el administrativo revisó el comprobante: aprueba (queda
+ * SCHEDULED / aceptado) o cancela si tiene un problema. Ya SCHEDULED, registra la asistencia del
+ * día (asistió/faltó), reprograma o cancela. Reprogramar y cancelar despliegan su mini-formulario
+ * en el lugar, igual que la cancelación de una asignación: confirmar de un click sin dato de
+ * respaldo invita a errores.
  */
-export function AppointmentActions({ appointment, onReschedule, onCancel, onAttendance, isPending }) {
+export function AppointmentActions({
+  appointment,
+  onReschedule,
+  onCancel,
+  onAttendance,
+  onApprove,
+  isPending,
+}) {
   // 'idle' | 'rescheduling' | 'cancelling'
   const [mode, setMode] = useState('idle')
   const [newDate, setNewDate] = useState('')
   const [reason, setReason] = useState('')
 
-  if (appointment.status !== 'SCHEDULED') return <span className="text-sm text-slate-400">—</span>
+  if (appointment.status !== 'SCHEDULED' && appointment.status !== 'PENDING_REVIEW') {
+    return <span className="text-sm text-slate-400">—</span>
+  }
 
   if (mode === 'rescheduling') {
     return (
@@ -82,6 +93,28 @@ export function AppointmentActions({ appointment, onReschedule, onCancel, onAtte
           Volver
         </button>
       </form>
+    )
+  }
+
+  if (appointment.status === 'PENDING_REVIEW') {
+    return (
+      <div className="flex flex-wrap items-center gap-3">
+        <Button
+          onClick={onApprove}
+          disabled={isPending}
+          className="bg-green-700 px-3 py-2 text-sm hover:bg-green-800"
+        >
+          Aprobar
+        </Button>
+        <button
+          type="button"
+          onClick={() => setMode('cancelling')}
+          disabled={isPending}
+          className="text-sm font-medium text-red-700 hover:underline disabled:opacity-60"
+        >
+          Cancelar
+        </button>
+      </div>
     )
   }
 

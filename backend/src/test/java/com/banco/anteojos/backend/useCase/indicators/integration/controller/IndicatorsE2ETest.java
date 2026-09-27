@@ -7,11 +7,18 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.font.PDType1Font;
+import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -155,13 +162,35 @@ class IndicatorsE2ETest {
 		return ((Number) JsonPath.read(response, "$.id")).longValue();
 	}
 
+	// El comprobante queda pendiente de revisión al subirlo: hace falta aprobarlo para que el
+	// turno llegue a SCHEDULED y pueda registrarse la asistencia.
 	private void confirmAppointment(Long appointmentId) throws Exception {
 		MockMultipartFile file = new MockMultipartFile("file", "comprobante.pdf", "application/pdf",
-				new byte[] { 1, 2, 3 });
+				receiptPdf());
 		mockMvc.perform(multipart(HttpMethod.PUT, "/v1/me/appointments/" + appointmentId + "/receipt")
 						.file(file)
 						.header(HttpHeaders.AUTHORIZATION, applicantBearerToken()))
 				.andExpect(status().isOk());
+		mockMvc.perform(put("/v1/appointments/" + appointmentId + "/approval")
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isOk());
+	}
+
+	private byte[] receiptPdf() throws IOException {
+		try (PDDocument document = new PDDocument()) {
+			PDPage page = new PDPage();
+			document.addPage(page);
+			try (PDPageContentStream stream = new PDPageContentStream(document, page)) {
+				stream.beginText();
+				stream.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA), 12);
+				stream.newLineAtOffset(50, 700);
+				stream.showText("Comprobante de pago - Bono contribución");
+				stream.endText();
+			}
+			ByteArrayOutputStream out = new ByteArrayOutputStream();
+			document.save(out);
+			return out.toByteArray();
+		}
 	}
 
 	private void registerAttendance(Long appointmentId, boolean attended) throws Exception {

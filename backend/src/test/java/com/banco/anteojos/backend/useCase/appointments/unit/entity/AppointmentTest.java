@@ -22,10 +22,17 @@ class AppointmentTest {
 	}
 
 	// La mayoría de las transiciones (reprogramar, cancelar, asistencia) exigen un turno ya
-	// confirmado: este helper lo deja en ese estado sin repetir el confirmWithReceipt en cada test.
+	// aprobado: este helper lo deja en ese estado sin repetir el submit+approve en cada test.
 	private Appointment confirmedAppointment() {
 		Appointment appointment = appointment();
-		appointment.confirmWithReceipt("appointments/1/comprobante.pdf", "application/pdf", "comprobante.pdf");
+		appointment.submitReceiptForReview("appointments/1/comprobante.pdf", "application/pdf", "comprobante.pdf");
+		appointment.approve();
+		return appointment;
+	}
+
+	private Appointment pendingReviewAppointment() {
+		Appointment appointment = appointment();
+		appointment.submitReceiptForReview("appointments/1/comprobante.pdf", "application/pdf", "comprobante.pdf");
 		return appointment;
 	}
 
@@ -53,24 +60,52 @@ class AppointmentTest {
 	}
 
 	@Test
-	void ConfirmWithReceipt_Successful() {
+	void SubmitReceiptForReview_Successful() {
 		Appointment appointment = appointment();
 
-		appointment.confirmWithReceipt("appointments/1/comprobante.pdf", "application/pdf", "comprobante.pdf");
+		appointment.submitReceiptForReview("appointments/1/comprobante.pdf", "application/pdf", "comprobante.pdf");
 
-		assertThat(appointment.getStatus()).isEqualTo(AppointmentStatus.SCHEDULED);
+		assertThat(appointment.getStatus()).isEqualTo(AppointmentStatus.PENDING_REVIEW);
 		assertThat(appointment.getReceiptKey()).isEqualTo("appointments/1/comprobante.pdf");
 		assertThat(appointment.getReceiptContentType()).isEqualTo("application/pdf");
 		assertThat(appointment.getReceiptOriginalName()).isEqualTo("comprobante.pdf");
 	}
 
 	@Test
-	void ConfirmWithReceipt_WhenAlreadyConfirmed() {
-		Appointment appointment = confirmedAppointment();
+	void SubmitReceiptForReview_WhenAlreadySubmitted() {
+		Appointment appointment = pendingReviewAppointment();
 
-		assertThatThrownBy(() -> appointment.confirmWithReceipt("otra-key", "application/pdf", "otro.pdf"))
+		assertThatThrownBy(() -> appointment.submitReceiptForReview("otra-key", "application/pdf", "otro.pdf"))
 				.isInstanceOf(InvalidAppointmentTransitionException.class)
-				.hasMessageContaining("ya está confirmado");
+				.hasMessageContaining("ya tiene un comprobante cargado");
+	}
+
+	@Test
+	void Approve_Successful() {
+		Appointment appointment = pendingReviewAppointment();
+
+		appointment.approve();
+
+		assertThat(appointment.getStatus()).isEqualTo(AppointmentStatus.SCHEDULED);
+	}
+
+	@Test
+	void Approve_WhenNotPendingReview() {
+		Appointment appointment = appointment();
+
+		assertThatThrownBy(appointment::approve)
+				.isInstanceOf(InvalidAppointmentTransitionException.class)
+				.hasMessageContaining("pendiente de revisión");
+	}
+
+	@Test
+	void Cancel_WhenPendingReview() {
+		Appointment appointment = pendingReviewAppointment();
+
+		appointment.cancel("el comprobante no corresponde");
+
+		assertThat(appointment.getStatus()).isEqualTo(AppointmentStatus.CANCELLED);
+		assertThat(appointment.getCancellationReason()).isEqualTo("el comprobante no corresponde");
 	}
 
 	@Test
