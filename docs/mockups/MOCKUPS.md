@@ -2,90 +2,179 @@
 
 ## Sistema Banco de Anteojos — Fundación Hacer Futuro
 
-> Wireframes de fidelidad media: labels, navegación y textos de UI reales; los datos mostrados
-> (nombres, DNI, montos) son ilustrativos. Complementan el Modelo de Casos de Uso
-> (`docs/casos-de-uso/CASOS_DE_USO.md`); el detalle de interacción concreta con cada pantalla se
-> desarrolla en el entregable "Casos de Uso Reales".
+> **Capturas reales del frontend implementado** (React + Tailwind), no wireframes de diseño: se
+> generaron levantando el backend y el frontend de este mismo repositorio (rama `main`) contra una
+> base de datos con datos de prueba, y navegando cada pantalla como cada rol la ve realmente. El
+> catálogo cubre las pantallas de los 8 módulos del sistema más autenticación, autogestión del
+> beneficiario y los tres paneles de inicio por rol.
+>
+> Las especificaciones de interacción de cada pantalla (campos, botones, pasos) están en el
+> entregable "Casos de Uso Reales", que reutiliza estas mismas capturas anotadas con letras.
 
-## Convenciones
+---
 
-- **Navegación lateral** (Operador/Administrador): refleja los módulos del backend uno a uno. El
-  Administrador ve además "Indicadores" y "Usuarios".
-- **Portal de autogestión** (Beneficiario): navegación superior simplificada, sin acceso a datos de
-  otros beneficiarios.
-- **Catálogo público**: sin barra lateral ni sesión iniciada; accesible para cualquier visitante.
-- **Badges de estado**: verde = OK/vigente/completo, amarillo = atención/vencido/en curso, rojo =
-  pendiente/bloqueante, azul = informativo.
-- Las áreas con textura rayada representan imágenes o gráficos (fotos de marcos, gráficos del panel
-  de impacto, previsualización del probador virtual).
+## Índice de pantallas
 
-## Pantallas
-
-| # | Pantalla | Rol | Casos de uso |
+| # | Pantalla | Rol(es) | Ruta real |
 |---|---|---|---|
-| 1 | Inicio de sesión | Todos | RNF-01 |
-| 2 | Inicio (panel del Operador) | Operador | — |
-| 3 | Solicitantes — Listado | Operador | UC-08 |
-| 4 | Solicitantes — Alta / Detalle y validación | Operador | UC-01, UC-02, UC-06, UC-03, UC-04, UC-05, UC-07 |
-| 5 | Donantes — Listado | Operador | UC-12 |
-| 6 | Donantes — Registrar recepción de marcos | Operador | UC-09, UC-10, UC-11 |
-| 7 | Inventario de marcos | Operador | UC-13 |
-| 8 | Asignación — Match y asignar marco | Operador | UC-14, UC-15 |
-| 9 | Trazabilidad de la asignación | Operador | UC-16 |
-| 10 | Probador virtual | Beneficiario / Operador | UC-17, UC-18, UC-19 |
-| 11 | Turnos — Agenda del staff | Operador | UC-20, UC-21, UC-22 |
-| 12 | Autogestión — Mis turnos | Beneficiario | UC-20, UC-20b, UC-21 |
-| 13 | Logística — Envíos entre sucursales | Operador | UC-23, UC-24, UC-25 |
-| 14 | Panel de indicadores de impacto | Administrador | UC-26, UC-27 |
-| 15 | Catálogo público de anteojos de sol | Comprador | UC-28 |
-| 16 | Catálogo — Gestión de stock y ventas | Administrador | UC-29, UC-30 |
+| 1 | Inicio de sesión | Todos | `/login` |
+| 2 | Registro de beneficiario (autogestión) | Beneficiario | `/register` |
+| 3 | Landing institucional pública | Público | `/` |
+| 4 | Inicio — panel del Operador | Operador | `/operador` |
+| 5 | Inicio — panel del Administrador | Administrador | `/admin` |
+| 6 | Solicitantes — Listado | Operador, Administrador | `/operador/solicitantes` |
+| 7 | Solicitante — Editar datos personales | Operador, Administrador | `/operador/solicitantes/:id/edit` |
+| 8 | Solicitante — Recetas | Operador, Administrador | `/operador/solicitantes/:id/prescriptions` |
+| 9 | Solicitante — Certificación ANSES | Operador, Administrador | `/operador/solicitantes/:id/anses-certificate` |
+| 9b | Solicitante — Certificación ANSES (vencida) | Operador, Administrador | ídem |
+| 10 | Donantes — Listado | Operador, Administrador | `/operador/donantes` |
+| 11 | Donante — Marcos donados | Operador, Administrador | `/operador/donantes/:id/frames` |
+| 12 | Inventario de marcos | Operador, Administrador | `/operador/marcos` |
+| 13 | Asignaciones — Cola | Operador, Administrador | `/operador/asignaciones` |
+| 14 | Asignar un marco (nueva asignación) | Operador, Administrador | `/operador/solicitantes/:id/assignments/new` |
+| 15 | Asignación — Detalle y trazabilidad | Operador, Administrador | `/operador/asignaciones/:id` |
+| 16 | Turnos — Agenda del staff | Operador, Administrador | `/operador/turnos` |
+| 17 | Agendar un turno (staff) | Operador, Administrador | `/operador/solicitantes/:id/appointments/new` |
+| 18 | Envíos — Listado | Operador, Administrador | `/operador/envios` |
+| 19 | Armar un paquete de envío | Operador, Administrador | `/operador/envios/new` |
+| 20 | Envío — Detalle | Operador, Administrador | `/operador/envios/:id` |
+| 21 | Panel de indicadores de impacto | Operador, Administrador | `/operador/indicadores` |
+| 22 | Catálogo de venta (staff) | Operador | `/operador/catalogo` |
+| 23 | Probador virtual | Operador, Beneficiario | `/operador/probador`, `/solicitante/probador` |
+| 24 | Catálogo — Gestión (admin) | Administrador | `/admin/catalogo` |
+| 25 | Catálogo — Nuevo producto | Administrador | `/admin/catalogo/new` |
+| 26 | Catálogo — Editar producto | Administrador | `/admin/catalogo/:id/edit` |
+| 27 | Autogestión — Inicio del beneficiario | Beneficiario | `/solicitante` |
+| 28 | Autogestión — Mis turnos | Beneficiario | `/solicitante/mis-turnos` |
+| 29 | Autogestión — Estado de mi marco | Beneficiario | `/solicitante/mi-marco` |
+| 30 | Autogestión — Catálogo de sol | Beneficiario | `/solicitante/catalogo` |
+
+> El backend expone además rutas "planas" de compatibilidad (`/applicants`, `/donors`, `/frames`,
+> `/assignments`, `/appointments`, `/shipments`, `/catalog`, `/indicators`, `/try-on`) que apuntan a
+> las mismas pantallas — no se documentan aparte porque no cambian la interfaz, solo el prefijo.
 
 ---
 
 ### 1. Inicio de sesión
 ![Login](img/00-login.png)
 
-### 2. Inicio (panel del Operador)
-![Home operador](img/01-home-operador.png)
+### 2. Registro de beneficiario (autogestión)
+![Registro](img/00b-register.png)
 
-### 3. Solicitantes — Listado
+### 3. Landing institucional pública
+![Landing pública](img/00c-landing-publica.png)
+
+### 4. Inicio — panel del Operador
+![Inicio operador](img/01-operador-dashboard.png)
+
+### 5. Inicio — panel del Administrador
+![Inicio administrador](img/20-admin-dashboard.png)
+
+### 6. Solicitantes — Listado
 ![Solicitantes listado](img/02-solicitantes-listado.png)
 
-### 4. Solicitantes — Alta / Detalle y validación
-![Solicitantes detalle](img/03-solicitantes-detalle.png)
+### 7. Solicitante — Editar datos personales
+![Solicitante editar](img/03-solicitante-editar.png)
 
-### 5. Donantes — Listado
-![Donantes listado](img/04-donantes-listado.png)
+### 8. Solicitante — Recetas
+![Solicitante recetas](img/04-solicitante-recetas.png)
 
-### 6. Donantes — Registrar recepción de marcos
-![Donantes recepción](img/05-donantes-recepcion.png)
+### 9. Solicitante — Certificación ANSES
+![Solicitante ANSES](img/05-solicitante-anses.png)
 
-### 7. Inventario de marcos
-![Inventario](img/06-inventario.png)
+### 9b. Solicitante — Certificación ANSES (vencida)
+![Solicitante ANSES vencida](img/05b-solicitante-anses-vencido.png)
 
-### 8. Asignación — Match y asignar marco
-![Asignación](img/07-asignacion.png)
+### 10. Donantes — Listado
+![Donantes listado](img/06-donantes-listado.png)
 
-### 9. Trazabilidad de la asignación
-![Trazabilidad](img/08-trazabilidad.png)
+### 11. Donante — Marcos donados
+![Donante marcos](img/07-donante-marcos.png)
 
-### 10. Probador virtual
-![Probador virtual](img/09-probador-virtual.png)
+### 12. Inventario de marcos
+![Inventario](img/08-marcos-inventario.png)
 
-### 11. Turnos — Agenda del staff
-![Turnos agenda](img/10-turnos-agenda.png)
+### 13. Asignaciones — Cola
+![Asignaciones cola](img/09-asignaciones-cola.png)
 
-### 12. Autogestión — Mis turnos
-![Autogestión turnos](img/11-autogestion-turnos.png)
+### 14. Asignar un marco (nueva asignación)
+![Asignación nueva](img/10-asignacion-nueva.png)
 
-### 13. Logística — Envíos entre sucursales
-![Envíos](img/12-envios.png)
+### 15. Asignación — Detalle y trazabilidad
+![Asignación detalle](img/11-asignacion-detalle.png)
 
-### 14. Panel de indicadores de impacto
-![Indicadores](img/13-indicadores.png)
+### 16. Turnos — Agenda del staff
+![Turnos agenda](img/12-turnos-agenda.png)
 
-### 15. Catálogo público de anteojos de sol
-![Catálogo público](img/14-catalogo-publico.png)
+### 17. Agendar un turno (staff)
+![Turno nuevo](img/13-turno-nuevo.png)
 
-### 16. Catálogo — Gestión de stock y ventas
-![Catálogo gestión](img/15-catalogo-gestion.png)
+### 18. Envíos — Listado
+![Envíos listado](img/14-envios-listado.png)
+
+### 19. Armar un paquete de envío
+![Envío nuevo](img/15-envio-nuevo.png)
+
+### 20. Envío — Detalle
+![Envío detalle](img/16-envio-detalle.png)
+
+### 21. Panel de indicadores de impacto
+![Indicadores](img/17-indicadores.png)
+
+### 22. Catálogo de venta (staff)
+![Catálogo operador](img/18-catalogo-operador.png)
+
+### 23. Probador virtual
+![Probador virtual](img/19-probador-virtual.png)
+
+> Esta captura muestra el **estado degradado real** (RNF-04): en el entorno de prueba, el detector
+> de rostros de MediaPipe no pudo inicializarse y el sistema lo informa sin romper el resto de la
+> aplicación, exactamente el comportamiento descrito en RF-17 y en el SRS. El flujo exitoso (foto →
+> detección de rostro → superposición del marco elegido → ajuste de tamaño/altura/rotación) está
+> documentado a partir del código fuente en "Casos de Uso Reales" (RU-16).
+
+### 24. Catálogo — Gestión (admin)
+![Catálogo admin](img/21-catalogo-admin.png)
+
+### 25. Catálogo — Nuevo producto
+![Producto nuevo](img/22-producto-nuevo.png)
+
+### 26. Catálogo — Editar producto
+![Producto editar](img/23-producto-editar.png)
+
+### 27. Autogestión — Inicio del beneficiario
+![Solicitante dashboard](img/24-solicitante-dashboard.png)
+
+### 28. Autogestión — Mis turnos
+![Mis turnos](img/25-mis-turnos.png)
+
+### 29. Autogestión — Estado de mi marco
+![Mi marco](img/26-mi-marco.png)
+
+### 30. Autogestión — Catálogo de sol
+![Catálogo solicitante](img/27-catalogo-solicitante.png)
+
+---
+
+## Notas de trazabilidad
+
+- Todas las capturas son del **frontend real** de este repositorio (rama `main`), no recreaciones:
+  se generaron corriendo `./mvnw spring-boot:run` (backend) y `npm run dev` (frontend) contra una
+  base de datos PostgreSQL local sembrada con datos de prueba, y navegando autenticado con un token
+  real por rol (`ADMIN`, `OPERATOR`, `APPLICANT`).
+- Algunas pantallas del listado de solicitantes NO tienen buscador ni filtro por estado en la
+  implementación actual (a diferencia de una versión anterior de este documento, que sí los
+  mostraba): la búsqueda es un placeholder para una mejora futura, no una funcionalidad existente.
+- La validación de identidad contra RENAPER (RF-02) y la validación presencial alternativa (RF-06)
+  **no tienen interfaz en el frontend actual**: el campo `identityValidated` existe en el modelo de
+  datos pero no hay ningún botón ni endpoint que lo cambie de `false` a `true`. La pantalla "Editar
+  solicitante" (#7) refleja esto: solo tiene el formulario de datos personales.
+- Los badges de estado usan la terminología real de la UI, que no siempre coincide palabra por
+  palabra con el nombre del estado interno: un turno `SCHEDULED` se muestra como **"Aceptado"**, no
+  "Confirmado"; `MISSED` se muestra como **"Ausente"**; los marcos usan "Aro completo" / "Medio aro"
+  / "Al aire" para `FULL_RIM` / `SEMI_RIMLESS` / `RIMLESS`, y "Fuera de circulación" para
+  `DISCARDED`.
+- El catálogo de venta tiene tres vistas distintas según quién lo mira: gestión completa para
+  Administrador (alta/edición/baja de productos + venta), venta solamente para Operador, y consulta
+  desde el portal de autogestión para el Beneficiario — las tres reutilizan el mismo componente de
+  listado con permisos distintos.
