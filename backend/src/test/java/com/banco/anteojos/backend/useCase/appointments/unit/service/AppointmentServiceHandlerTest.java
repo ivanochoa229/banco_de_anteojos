@@ -7,11 +7,19 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
+import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -64,6 +72,29 @@ class AppointmentServiceHandlerTest {
 		when(appointmentRepository.save(any(Appointment.class))).thenAnswer(inv -> inv.getArgument(0));
 	}
 
+	private byte[] receiptPdf() {
+		return pdfWithText("Comprobante de pago - Bono contribución");
+	}
+
+	private byte[] pdfWithText(String text) {
+		try (PDDocument document = new PDDocument()) {
+			PDPage page = new PDPage();
+			document.addPage(page);
+			try (PDPageContentStream stream = new PDPageContentStream(document, page)) {
+				stream.beginText();
+				stream.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA), 12);
+				stream.newLineAtOffset(50, 700);
+				stream.showText(text);
+				stream.endText();
+			}
+			ByteArrayOutputStream out = new ByteArrayOutputStream();
+			document.save(out);
+			return out.toByteArray();
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
+	}
+
 	@Test
 	void CreateAppointment_Successful() {
 		when(appointmentRepository.save(any(Appointment.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -91,7 +122,7 @@ class AppointmentServiceHandlerTest {
 	@Test
 	void ConfirmWithReceipt_Successful() {
 		mockFind(appointment());
-		byte[] content = "%PDF-1.4 contenido de prueba".getBytes();
+		byte[] content = receiptPdf();
 
 		AppointmentResponseDto response = appointmentServiceHandler.confirmWithReceipt(10L,
 				new AppointmentReceiptUploadRequestDto(content, "application/pdf", "comprobante.pdf"));
@@ -124,7 +155,7 @@ class AppointmentServiceHandlerTest {
 		when(appointmentRepository.findById(10L)).thenReturn(Optional.of(confirmedAppointment()));
 
 		assertThatThrownBy(() -> appointmentServiceHandler.confirmWithReceipt(10L,
-				new AppointmentReceiptUploadRequestDto("%PDF-1.4".getBytes(), "application/pdf", "otro.pdf")))
+				new AppointmentReceiptUploadRequestDto(receiptPdf(), "application/pdf", "otro.pdf")))
 				.isInstanceOf(InvalidAppointmentTransitionException.class);
 	}
 
@@ -134,6 +165,16 @@ class AppointmentServiceHandlerTest {
 
 		assertThatThrownBy(() -> appointmentServiceHandler.confirmWithReceipt(10L,
 				new AppointmentReceiptUploadRequestDto(new byte[] { 1, 2, 3 }, "application/pdf", "falso.pdf")))
+				.isInstanceOf(InvalidAppointmentReceiptException.class);
+	}
+
+	@Test
+	void ConfirmWithReceipt_WhenPdfHasNoReceiptLikeText() {
+		when(appointmentRepository.findById(10L)).thenReturn(Optional.of(appointment()));
+
+		assertThatThrownBy(() -> appointmentServiceHandler.confirmWithReceipt(10L,
+				new AppointmentReceiptUploadRequestDto(pdfWithText("una foto de unos anteojos"),
+						"application/pdf", "anteojos.pdf")))
 				.isInstanceOf(InvalidAppointmentReceiptException.class);
 	}
 

@@ -1,11 +1,16 @@
 package com.banco.anteojos.backend.business.appointments;
 
+import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
+import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.text.PDFTextStripper;
 import org.springframework.stereotype.Service;
 
 import com.banco.anteojos.backend.business.appointments.dto.request.AppointmentCreationRequestDto;
@@ -37,6 +42,12 @@ public class AppointmentServiceHandler implements AppointmentService {
 	private static final byte[] JPEG_SIGNATURE = { (byte) 0xFF, (byte) 0xD8, (byte) 0xFF };
 	private static final byte[] PNG_SIGNATURE =
 			{ (byte) 0x89, 'P', 'N', 'G', '\r', '\n', 0x1A, '\n' };
+
+	// Solo para PDF: la foto no da texto para chequear (queda a criterio del operador, que ve
+	// el comprobante antes del turno, igual que la validación final de RENAPER/ANSES).
+	private static final Pattern RECEIPT_KEYWORDS = Pattern.compile(
+			"comprobante|recibo|bono|contribuci[oó]n|transacci[oó]n|pago|monto|total",
+			Pattern.CASE_INSENSITIVE);
 
 	private final AppointmentPostgresSqlRepository appointmentRepository;
 	private final R2StorageClient r2StorageClient;
@@ -132,7 +143,22 @@ public class AppointmentServiceHandler implements AppointmentService {
 		if (!matchesSignature(request.content(), extension)) {
 			throw new InvalidAppointmentReceiptException("El archivo no es un PDF, JPG o PNG válido");
 		}
+		if (extension.equals("pdf")) {
+			requireReceiptLikeText(request.content());
+		}
 		return extension;
+	}
+
+	private void requireReceiptLikeText(byte[] content) {
+		String text;
+		try (PDDocument document = Loader.loadPDF(content)) {
+			text = new PDFTextStripper().getText(document);
+		} catch (IOException e) {
+			throw new InvalidAppointmentReceiptException("El PDF no se pudo leer");
+		}
+		if (!RECEIPT_KEYWORDS.matcher(text).find()) {
+			throw new InvalidAppointmentReceiptException("El PDF no parece ser un comprobante de pago");
+		}
 	}
 
 	private boolean matchesSignature(byte[] content, String extension) {
