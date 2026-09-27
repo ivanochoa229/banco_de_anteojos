@@ -9,6 +9,8 @@ public interface SecurityService {
 
 	void createInitialAdmin(String email, String password);
 
+	void createInitialOperator(String email, String password);
+
 	/** Crea el login del solicitante y devuelve el token, igual que login: registro = alta + sesión. */
 	LoginResponseDto registerApplicantUser(String name, String email, String rawPassword, Long applicantId);
 }

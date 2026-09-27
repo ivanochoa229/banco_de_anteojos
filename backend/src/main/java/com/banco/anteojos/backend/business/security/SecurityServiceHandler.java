@@ -44,6 +44,17 @@ public class SecurityServiceHandler implements SecurityService {
 	}
 
 	@Override
+	public void createInitialOperator(String email, String password) {
+		String normalizedEmail = email.trim().toLowerCase();
+		User operator = userRepository.findByEmail(normalizedEmail)
+				.orElseGet(() -> new User("Operador Hacer Futuro", normalizedEmail, passwordEncoder.encode(password), Role.OPERATOR));
+		operator.setPasswordHash(passwordEncoder.encode(password));
+		operator.setActive(true);
+		userRepository.save(operator);
+		log.info("Operador inicial asegurado con email {}", normalizedEmail);
+	}
+
+	@Override
 	public LoginResponseDto registerApplicantUser(String name, String email, String rawPassword, Long applicantId) {
 		String normalizedEmail = email.trim().toLowerCase();
 		if (userRepository.findByEmail(normalizedEmail).isPresent()) {
