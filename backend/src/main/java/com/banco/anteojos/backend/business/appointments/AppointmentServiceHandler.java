@@ -33,6 +33,11 @@ public class AppointmentServiceHandler implements AppointmentService {
 			"image/jpeg", "jpg",
 			"image/png", "png");
 
+	private static final byte[] PDF_SIGNATURE = { '%', 'P', 'D', 'F', '-' };
+	private static final byte[] JPEG_SIGNATURE = { (byte) 0xFF, (byte) 0xD8, (byte) 0xFF };
+	private static final byte[] PNG_SIGNATURE =
+			{ (byte) 0x89, 'P', 'N', 'G', '\r', '\n', 0x1A, '\n' };
+
 	private final AppointmentPostgresSqlRepository appointmentRepository;
 	private final R2StorageClient r2StorageClient;
 
@@ -122,7 +127,33 @@ public class AppointmentServiceHandler implements AppointmentService {
 		if (extension == null) {
 			throw new InvalidAppointmentReceiptException("El archivo debe ser PDF, JPG o PNG");
 		}
+		// El content-type lo declara el navegador; validamos los bytes reales para que un
+		// archivo renombrado (ej. .exe pasado como .pdf) no pase el filtro.
+		if (!matchesSignature(request.content(), extension)) {
+			throw new InvalidAppointmentReceiptException("El archivo no es un PDF, JPG o PNG válido");
+		}
 		return extension;
+	}
+
+	private boolean matchesSignature(byte[] content, String extension) {
+		return switch (extension) {
+			case "pdf" -> startsWith(content, PDF_SIGNATURE);
+			case "jpg" -> startsWith(content, JPEG_SIGNATURE);
+			case "png" -> startsWith(content, PNG_SIGNATURE);
+			default -> false;
+		};
+	}
+
+	private boolean startsWith(byte[] content, byte[] signature) {
+		if (content.length < signature.length) {
+			return false;
+		}
+		for (int i = 0; i < signature.length; i++) {
+			if (content[i] != signature[i]) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	// El navegador puede mandar parámetros ("image/jpeg; charset=..."): queda solo el tipo.

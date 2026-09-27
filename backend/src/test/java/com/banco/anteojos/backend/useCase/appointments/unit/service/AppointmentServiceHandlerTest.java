@@ -91,7 +91,7 @@ class AppointmentServiceHandlerTest {
 	@Test
 	void ConfirmWithReceipt_Successful() {
 		mockFind(appointment());
-		byte[] content = { 1, 2, 3 };
+		byte[] content = "%PDF-1.4 contenido de prueba".getBytes();
 
 		AppointmentResponseDto response = appointmentServiceHandler.confirmWithReceipt(10L,
 				new AppointmentReceiptUploadRequestDto(content, "application/pdf", "comprobante.pdf"));
@@ -124,8 +124,17 @@ class AppointmentServiceHandlerTest {
 		when(appointmentRepository.findById(10L)).thenReturn(Optional.of(confirmedAppointment()));
 
 		assertThatThrownBy(() -> appointmentServiceHandler.confirmWithReceipt(10L,
-				new AppointmentReceiptUploadRequestDto(new byte[] { 1 }, "application/pdf", "otro.pdf")))
+				new AppointmentReceiptUploadRequestDto("%PDF-1.4".getBytes(), "application/pdf", "otro.pdf")))
 				.isInstanceOf(InvalidAppointmentTransitionException.class);
+	}
+
+	@Test
+	void ConfirmWithReceipt_WhenContentDoesNotMatchDeclaredType() {
+		when(appointmentRepository.findById(10L)).thenReturn(Optional.of(appointment()));
+
+		assertThatThrownBy(() -> appointmentServiceHandler.confirmWithReceipt(10L,
+				new AppointmentReceiptUploadRequestDto(new byte[] { 1, 2, 3 }, "application/pdf", "falso.pdf")))
+				.isInstanceOf(InvalidAppointmentReceiptException.class);
 	}
 
 	@Test
