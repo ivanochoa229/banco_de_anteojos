@@ -17,6 +17,8 @@ public interface AppointmentPostgresSqlRepository extends JpaRepository<Appointm
 
 	List<Appointment> findAllByOrderByScheduledAtDesc();
 
+	List<Appointment> findByScheduledAtGreaterThanEqualOrderByScheduledAtAsc(LocalDateTime from);
+
 	/** La agenda de un día: [inicio del día, inicio del día siguiente). */
 	@Query("SELECT a FROM Appointment a WHERE a.scheduledAt >= :from AND a.scheduledAt < :to "
 			+ "ORDER BY a.scheduledAt ASC")

@@ -56,8 +56,25 @@ public class AppointmentDay {
 	}
 
 	/**
-	 * Con turnos ya dados solo se puede tocar el cupo, y nunca por debajo de la última franja
-	 * tomada: mover la fecha, el inicio o la duración le cambiaría la hora a gente ya citada.
+	 * El personal carga inicio, fin y duración; la cantidad son los turnos enteros que entran en el
+	 * rango. Si no divide exacto, el sobrante del final queda sin turno (ej. 09:00 a 13:00 cada 25
+	 * minutos da 9 turnos y el último termina 12:45).
+	 */
+	public static int slotCountBetween(LocalTime startTime, LocalTime endTime, int slotDurationMinutes) {
+		if (!endTime.isAfter(startTime)) {
+			throw new InvalidAppointmentDayException("La hora de fin tiene que ser posterior a la de inicio");
+		}
+		int count = (endTime.toSecondOfDay() - startTime.toSecondOfDay()) / 60 / slotDurationMinutes;
+		if (count == 0) {
+			throw new InvalidAppointmentDayException(
+					"Entre el inicio y el fin no entra ni un turno de %d minutos".formatted(slotDurationMinutes));
+		}
+		return count;
+	}
+
+	/**
+	 * Con turnos ya dados solo se puede mover la hora de fin (el cupo), y nunca antes de la última
+	 * franja tomada: mover la fecha, el inicio o la duración le cambiaría la hora a gente ya citada.
 	 */
 	public void reconfigure(LocalDate newDate, LocalTime newStartTime, int newSlotDurationMinutes,
 			int newSlotCount, Collection<LocalDateTime> bookedSlots) {
@@ -67,13 +84,13 @@ public class AppointmentDay {
 					|| newSlotDurationMinutes != slotDurationMinutes;
 			if (scheduleChanged) {
 				throw new InvalidAppointmentDayException(
-						"El día ya tiene turnos dados: solo se puede cambiar la cantidad de turnos");
+						"El día ya tiene turnos dados: solo se puede cambiar la hora de fin");
 			}
 			int lastBookedSlot = slotTimes().indexOf(bookedSlots.stream().max(LocalDateTime::compareTo).get());
 			if (newSlotCount <= lastBookedSlot) {
 				throw new InvalidAppointmentDayException(
-						"No se puede bajar el cupo a %d: el turno de las %s ya está dado"
-								.formatted(newSlotCount, slotTimes().get(lastBookedSlot).toLocalTime()));
+						"No se puede adelantar el fin: el turno de las %s ya está dado"
+								.formatted(slotTimes().get(lastBookedSlot).toLocalTime()));
 			}
 		}
 		this.date = newDate;

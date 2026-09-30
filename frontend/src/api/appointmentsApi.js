@@ -1,8 +1,13 @@
 import { apiFetch } from '../lib/apiClient'
 
 export const appointmentsApi = {
-  // Con date (YYYY-MM-DD) trae la agenda de ese día; sin ella, todos los turnos.
-  list: (date) => apiFetch(date ? `/v1/appointments?date=${date}` : '/v1/appointments'),
+  // Con date (YYYY-MM-DD) trae la agenda de ese día; con from, de ese día en adelante; sin
+  // ninguno, todos los turnos.
+  list: ({ date, from } = {}) => {
+    if (date) return apiFetch(`/v1/appointments?date=${date}`)
+    if (from) return apiFetch(`/v1/appointments?from=${from}`)
+    return apiFetch('/v1/appointments')
+  },
   // El turno se crea colgando del beneficiario, igual que en el backend.
   listByApplicant: (applicantId) => apiFetch(`/v1/applicants/${applicantId}/appointments`),
   create: (applicantId, data) =>

@@ -32,6 +32,20 @@ class AppointmentDayTest {
 	}
 
 	@Test
+	void SlotCountBetween_Successful() {
+		assertThat(AppointmentDay.slotCountBetween(LocalTime.of(9, 0), LocalTime.of(13, 0), 15)).isEqualTo(16);
+		// Lo que no llega a un turno entero al final queda sin usar.
+		assertThat(AppointmentDay.slotCountBetween(LocalTime.of(9, 0), LocalTime.of(13, 0), 25)).isEqualTo(9);
+	}
+
+	@Test
+	void SlotCountBetween_WhenEndIsNotAfterStart() {
+		assertThatThrownBy(() -> AppointmentDay.slotCountBetween(LocalTime.of(9, 0), LocalTime.of(9, 0), 15))
+				.isInstanceOf(InvalidAppointmentDayException.class)
+				.hasMessageContaining("posterior");
+	}
+
+	@Test
 	void Create_WhenSlotsGoPastMidnight() {
 		assertThatThrownBy(() -> new AppointmentDay(DATE, LocalTime.of(23, 0), 30, 3))
 				.isInstanceOf(InvalidAppointmentDayException.class)
@@ -92,7 +106,7 @@ class AppointmentDayTest {
 
 		assertThatThrownBy(() -> day.reconfigure(DATE, LocalTime.of(10, 0), 15, 4, List.of(DATE.atTime(9, 0))))
 				.isInstanceOf(InvalidAppointmentDayException.class)
-				.hasMessageContaining("solo se puede cambiar la cantidad de turnos");
+				.hasMessageContaining("solo se puede cambiar la hora de fin");
 	}
 
 	@Test

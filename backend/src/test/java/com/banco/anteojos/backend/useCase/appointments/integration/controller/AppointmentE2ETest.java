@@ -43,6 +43,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.banco.anteojos.backend.business.applicants.entities.Applicant;
 import com.banco.anteojos.backend.business.applicants.entities.Prescription;
+import com.banco.anteojos.backend.business.appointments.entities.Appointment;
 import com.banco.anteojos.backend.business.appointments.entities.AppointmentDay;
 import com.banco.anteojos.backend.business.appointments.entities.AppointmentStatus;
 import com.banco.anteojos.backend.business.assignments.entities.Assignment;
@@ -444,6 +445,19 @@ class AppointmentE2ETest {
 						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.length()").value(2));
+	}
+
+	@Test
+	void ListAppointments_FromToday() throws Exception {
+		createAppointment();
+		// Un turno ya pasado, anterior a los días de atención: la agenda de "próximos" no lo trae.
+		appointmentRepository.save(new Appointment(APPLICANT_ID, null, null, LocalDateTime.now().minusDays(2), null));
+
+		mockMvc.perform(get("/v1/appointments?from=" + LocalDate.now())
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.length()").value(1))
+				.andExpect(jsonPath("$[0].scheduledAt").value(SCHEDULED_AT.toString()));
 	}
 
 	@Test

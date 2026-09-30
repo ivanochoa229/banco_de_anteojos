@@ -14,7 +14,7 @@ public interface AppointmentUseCaseOrchestrator {
 
 	List<AppointmentResponseDto> listAppointmentsByApplicant(Long applicantId);
 
-	List<AppointmentResponseDto> listAppointments(LocalDate date);
+	List<AppointmentResponseDto> listAppointments(LocalDate date, LocalDate from);
 
 	AppointmentResponseDto getAppointment(Long appointmentId);
 

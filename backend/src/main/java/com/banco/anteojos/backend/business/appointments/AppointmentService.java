@@ -21,8 +21,11 @@ public interface AppointmentService {
 
 	AppointmentResponseDto getAppointment(Long appointmentId);
 
-	/** Con {@code date} devuelve la agenda de ese día; sin ella, todos los turnos. */
-	List<AppointmentResponseDto> listAppointments(LocalDate date);
+	/**
+	 * Con {@code date} devuelve la agenda de ese día; con {@code from}, los turnos de ese día en
+	 * adelante (lo que queda por atender); sin ninguno, todos los turnos.
+	 */
+	List<AppointmentResponseDto> listAppointments(LocalDate date, LocalDate from);
 
 	List<AppointmentResponseDto> listAppointmentsByApplicant(Long applicantId);
 

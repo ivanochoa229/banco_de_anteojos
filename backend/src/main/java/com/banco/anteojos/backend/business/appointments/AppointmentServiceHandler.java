@@ -71,10 +71,16 @@ public class AppointmentServiceHandler implements AppointmentService {
 	}
 
 	@Override
-	public List<AppointmentResponseDto> listAppointments(LocalDate date) {
-		List<Appointment> appointments = date == null
-				? appointmentRepository.findAllByOrderByScheduledAtDesc()
-				: appointmentRepository.findByDay(date.atStartOfDay(), date.plusDays(1).atStartOfDay());
+	public List<AppointmentResponseDto> listAppointments(LocalDate date, LocalDate from) {
+		List<Appointment> appointments;
+		if (date != null) {
+			appointments = appointmentRepository.findByDay(date.atStartOfDay(), date.plusDays(1).atStartOfDay());
+		} else if (from != null) {
+			appointments = appointmentRepository.findByScheduledAtGreaterThanEqualOrderByScheduledAtAsc(
+					from.atStartOfDay());
+		} else {
+			appointments = appointmentRepository.findAllByOrderByScheduledAtDesc();
+		}
 		return appointments.stream().map(this::toResponse).toList();
 	}
 

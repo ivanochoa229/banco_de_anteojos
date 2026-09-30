@@ -14,22 +14,31 @@ import { AppointmentReceiptLink } from '../components/AppointmentReceiptLink'
 import { AppointmentStatusBadge } from '../components/AppointmentStatusBadge'
 
 const SCOPE_OPTIONS = [
+  { value: 'upcoming', label: 'Próximos' },
   { value: 'day', label: 'Por día' },
   { value: 'all', label: 'Todos' },
 ]
 
+// Por defecto la agenda muestra lo que queda por atender: de hoy en adelante y sin cancelados.
+// Hoy entero (no desde ahora) para poder registrar la asistencia de los turnos de la mañana.
+function queryFor(scope, date) {
+  if (scope === 'day') return { date }
+  if (scope === 'upcoming') return { from: todayIsoDate() }
+  return {}
+}
+
 export function AppointmentsAgendaPage() {
-  const [scope, setScope] = useState('day')
+  const [scope, setScope] = useState('upcoming')
   const [date, setDate] = useState(todayIsoDate())
   const queryClient = useQueryClient()
   const { role } = useAuth()
   const portalPrefix = role === 'ADMIN' ? '/admin' : '/operador'
 
-  const filterDate = scope === 'day' ? date : null
+  const filters = queryFor(scope, date)
 
   const appointmentsQuery = useQuery({
-    queryKey: ['appointments', filterDate ?? 'all'],
-    queryFn: () => appointmentsApi.list(filterDate),
+    queryKey: ['appointments', scope, filters],
+    queryFn: () => appointmentsApi.list(filters),
   })
 
   // El turno solo trae ids; el nombre del beneficiario sale de esta lista, chica y cacheada.
@@ -76,7 +85,9 @@ export function AppointmentsAgendaPage() {
     )
   }
 
-  const appointments = appointmentsQuery.data ?? []
+  const appointments = (appointmentsQuery.data ?? []).filter(
+    (appointment) => scope !== 'upcoming' || appointment.status !== 'CANCELLED',
+  )
   const actionError =
     rescheduleMutation.error?.message ??
     cancelMutation.error?.message ??
@@ -136,7 +147,9 @@ export function AppointmentsAgendaPage() {
           <p className="rounded-lg border border-dashed border-slate-300 bg-white px-6 py-10 text-center text-slate-500">
             {scope === 'day'
               ? 'No hay turnos para este día.'
-              : 'Todavía no se agendó ningún turno. Se agendan desde la ficha del solicitante.'}
+              : scope === 'upcoming'
+                ? 'No hay turnos agendados de hoy en adelante.'
+                : 'Todavía no se agendó ningún turno. Se agendan desde la ficha del solicitante.'}
           </p>
         )}
         {appointments.length > 0 && (

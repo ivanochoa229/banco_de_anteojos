@@ -44,7 +44,7 @@ public class AppointmentDayServiceHandler implements AppointmentDayService {
 			throw new InvalidAppointmentDayException("Ya hay un día de atención cargado para esa fecha");
 		}
 		AppointmentDay day = appointmentDayRepository.save(new AppointmentDay(request.date(), request.startTime(),
-				request.slotDurationMinutes(), request.slotCount()));
+				request.slotDurationMinutes(), slotCount(request)));
 		return toResponse(day, List.of(), LocalDateTime.now());
 	}
 
@@ -56,7 +56,7 @@ public class AppointmentDayServiceHandler implements AppointmentDayService {
 		}
 		List<LocalDateTime> bookedSlots = bookedSlots(List.of(appointmentDayId))
 				.getOrDefault(appointmentDayId, List.of());
-		day.reconfigure(request.date(), request.startTime(), request.slotDurationMinutes(), request.slotCount(),
+		day.reconfigure(request.date(), request.startTime(), request.slotDurationMinutes(), slotCount(request),
 				bookedSlots);
 		return toResponse(appointmentDayRepository.save(day), bookedSlots, LocalDateTime.now());
 	}
@@ -69,6 +69,11 @@ public class AppointmentDayServiceHandler implements AppointmentDayService {
 					"El día tiene turnos activos: cancelalos o reprogramalos antes de borrarlo");
 		}
 		appointmentDayRepository.delete(day);
+	}
+
+	private int slotCount(AppointmentDayRequestDto request) {
+		return AppointmentDay.slotCountBetween(request.startTime(), request.endTime(),
+				request.slotDurationMinutes());
 	}
 
 	private AppointmentDay lockDay(Long appointmentDayId) {

@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -67,10 +68,12 @@ class AppointmentDayE2ETest {
 				new User("Beneficiario Test", "beneficiario.test@mail.com", "hash", Role.APPLICANT, APPLICANT_ID));
 	}
 
+	// Turnos de 15 minutos: el fin se arma para que entren exactamente slotCount.
 	private String dayBody(LocalDate date, String startTime, int slotCount) {
+		LocalTime endTime = LocalTime.parse(startTime).plusMinutes(15L * slotCount);
 		return """
-				{"date": "%s", "startTime": "%s", "slotDurationMinutes": 15, "slotCount": %d}
-				""".formatted(date, startTime, slotCount);
+				{"date": "%s", "startTime": "%s", "endTime": "%s", "slotDurationMinutes": 15}
+				""".formatted(date, startTime, endTime);
 	}
 
 	private Long createDay(int slotCount) throws Exception {
@@ -103,6 +106,7 @@ class AppointmentDayE2ETest {
 				.andExpect(jsonPath("$.date").value(DATE.toString()))
 				.andExpect(jsonPath("$.startTime").value("09:00:00"))
 				.andExpect(jsonPath("$.endTime").value("13:00:00"))
+				.andExpect(jsonPath("$.slotCount").value(16))
 				.andExpect(jsonPath("$.availableCount").value(16));
 
 		assertThat(appointmentDayRepository.count()).isEqualTo(1);
@@ -201,7 +205,8 @@ class AppointmentDayE2ETest {
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(dayBody(DATE, "09:00", 1))
 						.header(HttpHeaders.AUTHORIZATION, operatorToken()))
-				.andExpect(status().isConflict());
+				.andExpect(status().isConflict())
+				.andExpect(jsonPath("$.message").value("No se puede adelantar el fin: el turno de las 09:15 ya está dado"));
 
 		assertThat(appointmentDayRepository.findById(dayId).orElseThrow().getSlotCount()).isEqualTo(4);
 	}

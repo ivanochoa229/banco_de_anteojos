@@ -365,15 +365,24 @@ class AppointmentServiceHandlerTest {
 		when(appointmentRepository.findByDay(date.atStartOfDay(), date.plusDays(1).atStartOfDay()))
 				.thenReturn(List.of(appointment()));
 
-		assertThat(appointmentServiceHandler.listAppointments(date)).hasSize(1);
+		assertThat(appointmentServiceHandler.listAppointments(date, null)).hasSize(1);
 		verify(appointmentRepository).findByDay(date.atStartOfDay(), date.plusDays(1).atStartOfDay());
+	}
+
+	@Test
+	void ListAppointments_WhenFromIsGiven() {
+		LocalDate from = LocalDate.now();
+		when(appointmentRepository.findByScheduledAtGreaterThanEqualOrderByScheduledAtAsc(from.atStartOfDay()))
+				.thenReturn(List.of(appointment()));
+
+		assertThat(appointmentServiceHandler.listAppointments(null, from)).hasSize(1);
 	}
 
 	@Test
 	void ListAppointments_WhenAll() {
 		when(appointmentRepository.findAllByOrderByScheduledAtDesc()).thenReturn(List.of(appointment()));
 
-		assertThat(appointmentServiceHandler.listAppointments(null)).hasSize(1);
+		assertThat(appointmentServiceHandler.listAppointments(null, null)).hasSize(1);
 	}
 
 	@Test

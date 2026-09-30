@@ -56,8 +56,8 @@ public class AppointmentUseCaseHandler implements AppointmentUseCaseOrchestrator
 	}
 
 	@Override
-	public List<AppointmentResponseDto> listAppointments(LocalDate date) {
-		return appointmentService.listAppointments(date);
+	public List<AppointmentResponseDto> listAppointments(LocalDate date, LocalDate from) {
+		return appointmentService.listAppointments(date, from);
 	}
 
 	@Override

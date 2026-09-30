@@ -8,15 +8,16 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 
-/** Alta y edición de un día de atención: fecha, hora del primer turno, duración y cupo. */
+/**
+ * Alta y edición de un día de atención: fecha, rango horario y duración de cada turno. La cantidad
+ * de turnos no se carga: sale de cuántos turnos enteros entran entre el inicio y el fin.
+ */
 public record AppointmentDayRequestDto(
 		@NotNull(message = "la fecha es obligatoria")
 		@FutureOrPresent(message = "el día de atención no puede estar en el pasado") LocalDate date,
 		@NotNull(message = "la hora de inicio es obligatoria") LocalTime startTime,
+		@NotNull(message = "la hora de fin es obligatoria") LocalTime endTime,
 		@NotNull(message = "la duración de cada turno es obligatoria")
 		@Min(value = 5, message = "cada turno tiene que durar al menos 5 minutos")
-		@Max(value = 240, message = "cada turno puede durar como máximo 240 minutos") Integer slotDurationMinutes,
-		@NotNull(message = "la cantidad de turnos es obligatoria")
-		@Min(value = 1, message = "tiene que haber al menos un turno")
-		@Max(value = 200, message = "no puede haber más de 200 turnos en un día") Integer slotCount) {
+		@Max(value = 240, message = "cada turno puede durar como máximo 240 minutos") Integer slotDurationMinutes) {
 }

@@ -2,23 +2,26 @@ import { useState } from 'react'
 import { Alert } from '../../../components/Alert'
 import { Button } from '../../../components/Button'
 import { Input } from '../../../components/Input'
+import { TimeSelect } from '../../../components/TimeSelect'
 import { todayIsoDate } from '../../../lib/dates'
 
-const EMPTY_VALUES = { date: '', startTime: '09:00', slotDurationMinutes: '15', slotCount: '16' }
+const EMPTY_VALUES = { date: '', startTime: '09:00', endTime: '13:00', slotDurationMinutes: '15' }
 
-// "HH:MM" + minutos → "HH:MM", o null si se pasa de medianoche (el backend lo rechaza igual).
-function endTimeOf(startTime, totalMinutes) {
-  if (!startTime || !Number.isFinite(totalMinutes)) return null
-  const [hours, minutes] = startTime.split(':').map(Number)
-  const end = hours * 60 + minutes + totalMinutes
-  if (end > 24 * 60) return null
+function toMinutes(time) {
+  const [hours, minutes] = time.split(':').map(Number)
+  return hours * 60 + minutes
+}
+
+function toTime(totalMinutes) {
   const pad = (value) => String(value).padStart(2, '0')
-  return `${pad(Math.floor(end / 60) % 24)}:${pad(end % 60)}`
+  return `${pad(Math.floor(totalMinutes / 60))}:${pad(totalMinutes % 60)}`
 }
 
 /**
- * Alta y edición de un día de atención. Con turnos ya dados (`isBooked`) solo se puede tocar la
- * cantidad: mover fecha, inicio o duración le cambiaría la hora a gente ya citada.
+ * Alta y edición de un día de atención: inicio, fin y duración de cada turno. La cantidad la
+ * calcula el backend (turnos enteros que entran en el rango); acá se muestra la misma cuenta como
+ * vista previa. Con turnos ya dados (`isBooked`) solo se puede mover el fin: cambiar fecha, inicio
+ * o duración le cambiaría la hora a gente ya citada.
  */
 export function AppointmentDayForm({
   initialDay,
@@ -34,8 +37,8 @@ export function AppointmentDayForm({
       ? {
           date: initialDay.date,
           startTime: initialDay.startTime.slice(0, 5),
+          endTime: initialDay.endTime.slice(0, 5),
           slotDurationMinutes: String(initialDay.slotDurationMinutes),
-          slotCount: String(initialDay.slotCount),
         }
       : EMPTY_VALUES,
   )
@@ -45,9 +48,15 @@ export function AppointmentDayForm({
     return (event) => setValues((current) => ({ ...current, [name]: event.target.value }))
   }
 
+  function setTime(name) {
+    return (time) => setValues((current) => ({ ...current, [name]: time }))
+  }
+
   const duration = Number(values.slotDurationMinutes)
-  const count = Number(values.slotCount)
-  const endTime = endTimeOf(values.startTime, duration * count)
+  const validDuration = Number.isInteger(duration) && duration >= 5 && duration <= 240
+  const rangeMinutes = toMinutes(values.endTime) - toMinutes(values.startTime)
+  const slotCount = validDuration && rangeMinutes > 0 ? Math.floor(rangeMinutes / duration) : 0
+  const lastSlotEnd = toTime(toMinutes(values.startTime) + slotCount * duration)
 
   function handleSubmit(event) {
     event.preventDefault()
@@ -58,15 +67,11 @@ export function AppointmentDayForm({
         : !isBooked && values.date < todayIsoDate()
           ? 'La fecha no puede estar en el pasado'
           : null,
-      startTime: !values.startTime ? 'Elegí la hora de inicio' : null,
-      slotDurationMinutes:
-        !Number.isInteger(duration) || duration < 5 || duration > 240
-          ? 'Entre 5 y 240 minutos'
-          : null,
-      slotCount: !Number.isInteger(count) || count < 1 || count > 200 ? 'Entre 1 y 200 turnos' : null,
+      endTime: rangeMinutes <= 0 ? 'Tiene que ser posterior a la hora de inicio' : null,
+      slotDurationMinutes: !validDuration ? 'Entre 5 y 240 minutos' : null,
     }
-    if (!errors.startTime && !errors.slotDurationMinutes && !errors.slotCount && !endTime) {
-      errors.slotCount = 'Los turnos no pueden pasar de la medianoche'
+    if (!errors.endTime && !errors.slotDurationMinutes && slotCount === 0) {
+      errors.endTime = `No entra ni un turno de ${duration} minutos`
     }
     setFieldErrors(errors)
     if (Object.values(errors).some(Boolean)) return
@@ -74,9 +79,20 @@ export function AppointmentDayForm({
     onSubmit({
       date: values.date,
       startTime: values.startTime,
+      endTime: values.endTime,
       slotDurationMinutes: duration,
-      slotCount: count,
     })
+  }
+
+  let preview = 'Completá los datos para ver cuántos turnos entran.'
+  if (slotCount > 0) {
+    preview = `${slotCount} ${slotCount === 1 ? 'turno' : 'turnos'} de ${duration} min, de ${
+      values.startTime
+    } a ${lastSlotEnd}.`
+    // Si no divide exacto, que quede claro que el último turno termina antes del fin cargado.
+    if (lastSlotEnd !== values.endTime) {
+      preview += ` De ${lastSlotEnd} a ${values.endTime} no entra otro turno.`
+    }
   }
 
   return (
@@ -92,14 +108,19 @@ export function AppointmentDayForm({
           onChange={setField('date')}
           error={fieldErrors.date}
         />
-        <Input
+        <TimeSelect
           id="startTime"
-          label="Primer turno"
-          type="time"
+          label="Hora de inicio"
           disabled={isBooked}
           value={values.startTime}
-          onChange={setField('startTime')}
-          error={fieldErrors.startTime}
+          onChange={setTime('startTime')}
+        />
+        <TimeSelect
+          id="endTime"
+          label="Hora de fin"
+          value={values.endTime}
+          onChange={setTime('endTime')}
+          error={fieldErrors.endTime}
         />
         <Input
           id="slotDurationMinutes"
@@ -112,24 +133,12 @@ export function AppointmentDayForm({
           onChange={setField('slotDurationMinutes')}
           error={fieldErrors.slotDurationMinutes}
         />
-        <Input
-          id="slotCount"
-          label="Cantidad de turnos"
-          type="number"
-          min={1}
-          max={200}
-          value={values.slotCount}
-          onChange={setField('slotCount')}
-          error={fieldErrors.slotCount}
-        />
       </div>
 
       <p className="text-sm text-slate-500">
-        {endTime
-          ? `Se atiende de ${values.startTime} a ${endTime}.`
-          : 'Completá los datos para ver el horario.'}
+        {preview}
         {isBooked &&
-          ' Este día ya tiene turnos dados: solo se puede cambiar la cantidad (sin dejar afuera a nadie).'}
+          ' Este día ya tiene turnos dados: solo se puede cambiar la hora de fin (sin dejar afuera a nadie).'}
       </p>
 
       {submitError && <Alert>{submitError}</Alert>}

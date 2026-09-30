@@ -53,8 +53,10 @@ class AppointmentDayServiceHandlerTest {
 		return day;
 	}
 
+	// Turnos de 15 minutos desde las 9:00: el fin se arma para que entren exactamente slotCount.
 	private AppointmentDayRequestDto request(LocalDate date, int slotCount) {
-		return new AppointmentDayRequestDto(date, LocalTime.of(9, 0), 15, slotCount);
+		return new AppointmentDayRequestDto(date, LocalTime.of(9, 0), LocalTime.of(9, 0).plusMinutes(15L * slotCount),
+				15);
 	}
 
 	private Appointment bookedAt(Long dayId, int hour, int minute) {
@@ -71,6 +73,35 @@ class AppointmentDayServiceHandlerTest {
 		assertThat(response.endTime()).isEqualTo(LocalTime.of(10, 0));
 		assertThat(response.bookedCount()).isZero();
 		assertThat(response.availableCount()).isEqualTo(4);
+	}
+
+	@Test
+	void CreateDay_WhenRangeDoesNotDivideEvenly() {
+		when(appointmentDayRepository.save(any(AppointmentDay.class))).thenAnswer(inv -> inv.getArgument(0));
+
+		// 09:00 a 13:00 cada 25 minutos: entran 9 turnos y el último termina 12:45.
+		AppointmentDayResponseDto response = appointmentDayServiceHandler.createDay(
+				new AppointmentDayRequestDto(DATE, LocalTime.of(9, 0), LocalTime.of(13, 0), 25));
+
+		assertThat(response.slotCount()).isEqualTo(9);
+		assertThat(response.endTime()).isEqualTo(LocalTime.of(12, 45));
+	}
+
+	@Test
+	void CreateDay_WhenEndIsBeforeStart() {
+		assertThatThrownBy(() -> appointmentDayServiceHandler.createDay(
+				new AppointmentDayRequestDto(DATE, LocalTime.of(13, 0), LocalTime.of(9, 0), 15)))
+				.isInstanceOf(InvalidAppointmentDayException.class)
+				.hasMessage("La hora de fin tiene que ser posterior a la de inicio");
+		verify(appointmentDayRepository, never()).save(any(AppointmentDay.class));
+	}
+
+	@Test
+	void CreateDay_WhenNoSlotFits() {
+		assertThatThrownBy(() -> appointmentDayServiceHandler.createDay(
+				new AppointmentDayRequestDto(DATE, LocalTime.of(9, 0), LocalTime.of(9, 10), 15)))
+				.isInstanceOf(InvalidAppointmentDayException.class)
+				.hasMessageContaining("no entra ni un turno");
 	}
 
 	@Test

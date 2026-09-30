@@ -34,11 +34,15 @@ public class AppointmentController {
 
 	private final AppointmentUseCaseOrchestrator appointmentOrchestrator;
 
-	/** Con {@code ?date=} devuelve la agenda de ese día ordenada por hora. */
+	/**
+	 * Con {@code ?date=} devuelve la agenda de ese día; con {@code ?from=}, los turnos de ese día en
+	 * adelante. Ambos ordenados por hora.
+	 */
 	@GetMapping
 	public List<AppointmentResponseDto> list(
-			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-		return appointmentOrchestrator.listAppointments(date);
+			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from) {
+		return appointmentOrchestrator.listAppointments(date, from);
 	}
 
 	@GetMapping("/{appointmentId}")
