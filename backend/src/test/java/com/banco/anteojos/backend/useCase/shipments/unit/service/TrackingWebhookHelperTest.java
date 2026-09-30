@@ -80,6 +80,29 @@ class TrackingWebhookHelperTest {
 	}
 
 	@Test
+	void Parse_WhenStatusIsExpired() {
+		String body = "{\"event\":\"TRACKING_UPDATED\",\"data\":{\"number\":\"VC0087654321\","
+				+ "\"track_info\":{\"latest_status\":{\"status\":\"Expired\"}}}}";
+
+		TrackingUpdate update = helper.parse(body).orElseThrow();
+
+		assertThat(update.trackingNumber()).isEqualTo("VC0087654321");
+		assertThat(update.rawStatus()).isEqualTo("Expired");
+	}
+
+	@Test
+	void Parse_WhenStatusIsNotFound() {
+		// 17TRACK manda NotFound cuando el carrier todavía no tiene información del número.
+		String body = "{\"event\":\"TRACKING_UPDATED\",\"data\":{\"number\":\"VC0011122233\","
+				+ "\"track_info\":{\"latest_status\":{\"status\":\"NotFound\"}}}}";
+
+		TrackingUpdate update = helper.parse(body).orElseThrow();
+
+		assertThat(update.trackingNumber()).isEqualTo("VC0011122233");
+		assertThat(update.rawStatus()).isEqualTo("NotFound");
+	}
+
+	@Test
 	void Parse_WhenEventIsNotATrackingUpdate() {
 		Optional<TrackingUpdate> update =
 				helper.parse("{\"event\":\"TRACKING_STOPPED\",\"data\":{\"number\":\"VC99\"}}");
