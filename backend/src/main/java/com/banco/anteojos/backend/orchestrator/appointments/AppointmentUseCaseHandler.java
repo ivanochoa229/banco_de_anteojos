@@ -1,10 +1,10 @@
 package com.banco.anteojos.backend.orchestrator.appointments;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.banco.anteojos.backend.business.applicants.ApplicantService;
 import com.banco.anteojos.backend.business.applicants.dto.response.ApplicantResponseDto;
@@ -35,7 +35,9 @@ public class AppointmentUseCaseHandler implements AppointmentUseCaseOrchestrator
 	private final AssignmentService assignmentService;
 	private final NotificationClient notificationClient;
 
+	// Transaccional por el lock del día que toma el service al reservar la franja.
 	@Override
+	@Transactional
 	public AppointmentResponseDto createAppointment(Long applicantId, AppointmentCreationRequestDto request) {
 		// Pertenencia primero: que la asignación a retirar sea de este beneficiario. 404 y no
 		// 403 para no revelar de quién es la asignación ajena.
@@ -64,8 +66,9 @@ public class AppointmentUseCaseHandler implements AppointmentUseCaseOrchestrator
 	}
 
 	@Override
-	public AppointmentResponseDto reschedule(Long appointmentId, LocalDateTime newScheduledAt) {
-		AppointmentResponseDto appointment = appointmentService.reschedule(appointmentId, newScheduledAt);
+	@Transactional
+	public AppointmentResponseDto reschedule(Long appointmentId, Long newAppointmentDayId) {
+		AppointmentResponseDto appointment = appointmentService.reschedule(appointmentId, newAppointmentDayId);
 		ApplicantResponseDto applicant = applicantService.getApplicant(appointment.applicantId());
 		notificationClient.sendAppointmentRescheduled(applicant.email(), applicant.firstName(),
 				appointment.scheduledAt());

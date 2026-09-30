@@ -5,8 +5,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
+import java.time.LocalDate;
+import java.time.LocalTime;
 
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -18,6 +18,8 @@ import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.banco.anteojos.backend.business.appointments.entities.AppointmentDay;
+import com.banco.anteojos.backend.persistence.appointments.AppointmentDayPostgresSqlRepository;
 import com.jayway.jsonpath.JsonPath;
 
 // Verifica que /v1/me/** aísla por token: nunca por un id que mande el cliente. El caso que
@@ -32,6 +34,9 @@ class SelfControllerE2ETest {
 
 	@Autowired
 	private MockMvc mockMvc;
+
+	@Autowired
+	private AppointmentDayPostgresSqlRepository appointmentDayRepository;
 
 	private String registerApplicant(String dni, String email) throws Exception {
 		String body = mockMvc.perform(post("/v1/auth/register")
@@ -50,13 +55,14 @@ class SelfControllerE2ETest {
 		String tokenA = registerApplicant("30444555", "solicitanteA@mail.com");
 		String tokenB = registerApplicant("30555666", "solicitanteB@mail.com");
 
-		String scheduledAt = LocalDateTime.now().plusDays(3).format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+		Long dayId = appointmentDayRepository
+				.save(new AppointmentDay(LocalDate.now().plusDays(3), LocalTime.of(9, 0), 15, 4)).getId();
 		mockMvc.perform(post("/v1/me/appointments")
 						.header("Authorization", "Bearer " + tokenA)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
-								{"scheduledAt": "%s"}
-								""".formatted(scheduledAt)))
+								{"appointmentDayId": %d}
+								""".formatted(dayId)))
 				.andExpect(status().isCreated());
 
 		mockMvc.perform(get("/v1/me/appointments").header("Authorization", "Bearer " + tokenA))

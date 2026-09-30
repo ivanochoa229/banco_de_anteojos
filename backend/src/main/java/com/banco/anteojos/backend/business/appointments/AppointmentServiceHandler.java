@@ -18,10 +18,14 @@ import com.banco.anteojos.backend.business.appointments.dto.request.AppointmentR
 import com.banco.anteojos.backend.business.appointments.dto.response.AppointmentReceiptResponseDto;
 import com.banco.anteojos.backend.business.appointments.dto.response.AppointmentResponseDto;
 import com.banco.anteojos.backend.business.appointments.entities.Appointment;
+import com.banco.anteojos.backend.business.appointments.entities.AppointmentDay;
 import com.banco.anteojos.backend.business.appointments.entities.AppointmentStatus;
+import com.banco.anteojos.backend.business.appointments.exception.AppointmentDayNotFoundException;
+import com.banco.anteojos.backend.business.appointments.exception.AppointmentDayUnavailableException;
 import com.banco.anteojos.backend.business.appointments.exception.AppointmentNotFoundException;
 import com.banco.anteojos.backend.business.appointments.exception.AppointmentReceiptNotFoundException;
 import com.banco.anteojos.backend.business.appointments.exception.InvalidAppointmentReceiptException;
+import com.banco.anteojos.backend.persistence.appointments.AppointmentDayPostgresSqlRepository;
 import com.banco.anteojos.backend.persistence.appointments.AppointmentPostgresSqlRepository;
 import com.banco.anteojos.backend.thirdPartyServiceComunication.storage.PresignedUrl;
 import com.banco.anteojos.backend.thirdPartyServiceComunication.storage.R2StorageClient;
@@ -50,12 +54,14 @@ public class AppointmentServiceHandler implements AppointmentService {
 			Pattern.CASE_INSENSITIVE);
 
 	private final AppointmentPostgresSqlRepository appointmentRepository;
+	private final AppointmentDayPostgresSqlRepository appointmentDayRepository;
 	private final R2StorageClient r2StorageClient;
 
 	@Override
 	public AppointmentResponseDto createAppointment(Long applicantId, AppointmentCreationRequestDto request) {
+		AppointmentDay day = lockDay(request.appointmentDayId());
 		Appointment appointment = appointmentRepository.save(new Appointment(applicantId,
-				request.assignmentId(), request.scheduledAt(), request.notes()));
+				request.assignmentId(), day.getId(), firstAvailableSlot(day), request.notes()));
 		return toResponse(appointment);
 	}
 
@@ -79,9 +85,13 @@ public class AppointmentServiceHandler implements AppointmentService {
 	}
 
 	@Override
-	public AppointmentResponseDto reschedule(Long appointmentId, LocalDateTime newScheduledAt) {
+	public AppointmentResponseDto reschedule(Long appointmentId, Long newAppointmentDayId) {
 		Appointment appointment = findAppointment(appointmentId);
-		appointment.reschedule(newScheduledAt);
+		if (newAppointmentDayId.equals(appointment.getAppointmentDayId())) {
+			throw new AppointmentDayUnavailableException("El turno ya está agendado en ese día");
+		}
+		AppointmentDay day = lockDay(newAppointmentDayId);
+		appointment.reschedule(day.getId(), firstAvailableSlot(day));
 		return toResponse(appointmentRepository.save(appointment));
 	}
 
@@ -199,13 +209,28 @@ public class AppointmentServiceHandler implements AppointmentService {
 		return contentType.split(";")[0].trim().toLowerCase();
 	}
 
+	// Requiere transacción abierta (la abre el orchestrator): el lock dura hasta el commit.
+	private AppointmentDay lockDay(Long appointmentDayId) {
+		return appointmentDayRepository.findByIdForUpdate(appointmentDayId)
+				.orElseThrow(AppointmentDayNotFoundException::new);
+	}
+
+	private LocalDateTime firstAvailableSlot(AppointmentDay day) {
+		List<LocalDateTime> bookedSlots = appointmentRepository
+				.findByAppointmentDayIdInAndStatusNot(List.of(day.getId()), AppointmentStatus.CANCELLED).stream()
+				.map(Appointment::getScheduledAt).toList();
+		LocalDateTime now = LocalDateTime.now();
+		return day.firstAvailableSlot(bookedSlots, now).orElseThrow(() -> new AppointmentDayUnavailableException(
+				day.hasPassed(now) ? "Ese día de atención ya pasó" : "No quedan turnos libres para ese día"));
+	}
+
 	private Appointment findAppointment(Long appointmentId) {
 		return appointmentRepository.findById(appointmentId).orElseThrow(AppointmentNotFoundException::new);
 	}
 
 	private AppointmentResponseDto toResponse(Appointment appointment) {
 		return new AppointmentResponseDto(appointment.getId(), appointment.getApplicantId(),
-				appointment.getAssignmentId(), appointment.getScheduledAt(),
+				appointment.getAssignmentId(), appointment.getAppointmentDayId(), appointment.getScheduledAt(),
 				appointment.getStatus().name(), appointment.getNotes(),
 				appointment.getCancellationReason(), appointment.getCreatedAt(),
 				appointment.getReceiptOriginalName());

@@ -36,12 +36,14 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.banco.anteojos.backend.business.applicants.entities.Prescription;
+import com.banco.anteojos.backend.business.appointments.entities.AppointmentDay;
 import com.banco.anteojos.backend.business.security.JwtService;
 import com.banco.anteojos.backend.business.security.entities.Role;
 import com.banco.anteojos.backend.business.security.entities.User;
 import com.banco.anteojos.backend.business.shipments.entities.Shipment;
 import com.banco.anteojos.backend.business.shipments.entities.ShipmentStatus;
 import com.banco.anteojos.backend.persistence.applicants.PrescriptionPostgresSqlRepository;
+import com.banco.anteojos.backend.persistence.appointments.AppointmentDayPostgresSqlRepository;
 import com.banco.anteojos.backend.persistence.shipments.ShipmentPostgresSqlRepository;
 import com.banco.anteojos.backend.thirdPartyServiceComunication.notifications.NotificationClient;
 import com.banco.anteojos.backend.thirdPartyServiceComunication.storage.R2StorageClient;
@@ -83,6 +85,9 @@ class IndicatorsE2ETest {
 
 	@Autowired
 	private ShipmentPostgresSqlRepository shipmentRepository;
+
+	@Autowired
+	private AppointmentDayPostgresSqlRepository appointmentDayRepository;
 
 	@Autowired
 	private JdbcTemplate jdbcTemplate;
@@ -150,12 +155,16 @@ class IndicatorsE2ETest {
 		return assignmentId;
 	}
 
+	// Un día de atención por turno, arrancando a esa hora: el turno cae en su primera franja.
+	// Franja de 1 minuto para que, si el test corre cerca de medianoche, no pase al día siguiente.
 	private Long createAppointment(LocalDateTime scheduledAt) throws Exception {
+		Long dayId = appointmentDayRepository.save(new AppointmentDay(scheduledAt.toLocalDate(),
+				scheduledAt.toLocalTime(), 1, 1)).getId();
 		String response = mockMvc.perform(post("/v1/applicants/" + APPLICANT_ID + "/appointments")
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
-								{"scheduledAt": "%s"}
-								""".formatted(scheduledAt))
+								{"appointmentDayId": %d}
+								""".formatted(dayId))
 						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
 				.andExpect(status().isCreated())
 				.andReturn().getResponse().getContentAsString();

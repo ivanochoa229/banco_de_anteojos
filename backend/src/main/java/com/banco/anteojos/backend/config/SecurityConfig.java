@@ -49,6 +49,7 @@ public class SecurityConfig {
 						.requestMatchers("/v1/frames/**").hasAnyRole("ADMIN", "OPERATOR")
 						.requestMatchers("/v1/assignments/**").hasAnyRole("ADMIN", "OPERATOR")
 						.requestMatchers("/v1/appointments/**").hasAnyRole("ADMIN", "OPERATOR")
+						.requestMatchers("/v1/appointment-days/**").hasAnyRole("ADMIN", "OPERATOR")
 						// Público a propósito: 17TRACK no puede mandar JWT; lo autentica la
 						// firma del push (ver ShipmentWebhookController).
 						.requestMatchers(HttpMethod.POST, "/v1/shipments/webhook").permitAll()

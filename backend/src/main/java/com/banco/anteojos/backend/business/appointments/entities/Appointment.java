@@ -14,9 +14,10 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 
 /**
- * Turno de atención de un beneficiario (RF-20/21). Reprogramar pisa la fecha en vez de crear otro
- * turno: para la fundación es el mismo compromiso movido de día, no dos. Si además apunta a una
- * asignación es un turno de retiro del par de anteojos terminado.
+ * Turno de atención de un beneficiario (RF-20/21). Ocupa una franja de un día de atención
+ * ({@link AppointmentDay}): {@code scheduledAt} es el inicio de esa franja. Reprogramar pisa día y
+ * hora en vez de crear otro turno: para la fundación es el mismo compromiso movido de día, no dos.
+ * Si además apunta a una asignación es un turno de retiro del par de anteojos terminado.
  */
 @Entity
 @Table(name = "appointments")
@@ -30,6 +31,9 @@ public class Appointment {
 	private Long applicantId;
 
 	private Long assignmentId;
+
+	// Nulo solo en los turnos agendados antes de que existieran los días de atención.
+	private Long appointmentDayId;
 
 	private LocalDateTime scheduledAt;
 
@@ -52,9 +56,11 @@ public class Appointment {
 	protected Appointment() {
 	}
 
-	public Appointment(Long applicantId, Long assignmentId, LocalDateTime scheduledAt, String notes) {
+	public Appointment(Long applicantId, Long assignmentId, Long appointmentDayId, LocalDateTime scheduledAt,
+			String notes) {
 		this.applicantId = applicantId;
 		this.assignmentId = assignmentId;
+		this.appointmentDayId = appointmentDayId;
 		this.scheduledAt = scheduledAt;
 		this.notes = notes == null || notes.isBlank() ? null : notes.trim();
 		this.status = AppointmentStatus.PENDING_PAYMENT;
@@ -80,8 +86,9 @@ public class Appointment {
 		this.status = AppointmentStatus.SCHEDULED;
 	}
 
-	public void reschedule(LocalDateTime newScheduledAt) {
+	public void reschedule(Long newAppointmentDayId, LocalDateTime newScheduledAt) {
 		requireScheduled();
+		this.appointmentDayId = newAppointmentDayId;
 		this.scheduledAt = newScheduledAt;
 	}
 

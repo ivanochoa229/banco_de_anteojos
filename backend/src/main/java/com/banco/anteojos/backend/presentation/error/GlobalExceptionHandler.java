@@ -17,8 +17,11 @@ import com.banco.anteojos.backend.business.applicants.exception.InvalidAnsesCert
 import com.banco.anteojos.backend.business.applicants.exception.InvalidPrescriptionFileException;
 import com.banco.anteojos.backend.business.applicants.exception.PrescriptionFileNotFoundException;
 import com.banco.anteojos.backend.business.applicants.exception.PrescriptionNotFoundException;
+import com.banco.anteojos.backend.business.appointments.exception.AppointmentDayNotFoundException;
+import com.banco.anteojos.backend.business.appointments.exception.AppointmentDayUnavailableException;
 import com.banco.anteojos.backend.business.appointments.exception.AppointmentNotFoundException;
 import com.banco.anteojos.backend.business.appointments.exception.AppointmentReceiptNotFoundException;
+import com.banco.anteojos.backend.business.appointments.exception.InvalidAppointmentDayException;
 import com.banco.anteojos.backend.business.appointments.exception.InvalidAppointmentReceiptException;
 import com.banco.anteojos.backend.business.appointments.exception.InvalidAppointmentTransitionException;
 import com.banco.anteojos.backend.business.assignments.exception.AssignmentNotFoundException;
@@ -134,10 +137,12 @@ public class GlobalExceptionHandler {
 	}
 
 	// 409 y no 400: el request está bien formado, lo que no encaja es el momento del circuito
-	// en el que está el marco o la asignación, o el estado del turno, del envío o del producto.
+	// en el que está el marco o la asignación, o el estado del turno, del envío o del producto,
+	// o el cupo y los turnos ya dados de un día de atención.
 	@ExceptionHandler({ InvalidAssignmentTransitionException.class, InvalidFrameTransitionException.class,
 			InvalidAppointmentTransitionException.class, InvalidShipmentTransitionException.class,
-			InvalidProductTransitionException.class, InsufficientStockException.class })
+			InvalidProductTransitionException.class, InsufficientStockException.class,
+			InvalidAppointmentDayException.class, AppointmentDayUnavailableException.class })
 	@ResponseStatus(HttpStatus.CONFLICT)
 	public ErrorResponseDto invalidTransition(RuntimeException e, HttpServletRequest request) {
 		return ErrorResponseDto.of(HttpStatus.CONFLICT, e.getMessage(), request.getRequestURI());
@@ -164,6 +169,12 @@ public class GlobalExceptionHandler {
 	@ExceptionHandler(AppointmentNotFoundException.class)
 	@ResponseStatus(HttpStatus.NOT_FOUND)
 	public ErrorResponseDto appointmentNotFound(AppointmentNotFoundException e, HttpServletRequest request) {
+		return ErrorResponseDto.of(HttpStatus.NOT_FOUND, e.getMessage(), request.getRequestURI());
+	}
+
+	@ExceptionHandler(AppointmentDayNotFoundException.class)
+	@ResponseStatus(HttpStatus.NOT_FOUND)
+	public ErrorResponseDto appointmentDayNotFound(AppointmentDayNotFoundException e, HttpServletRequest request) {
 		return ErrorResponseDto.of(HttpStatus.NOT_FOUND, e.getMessage(), request.getRequestURI());
 	}
 
