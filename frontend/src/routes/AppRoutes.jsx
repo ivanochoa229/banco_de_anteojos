@@ -7,6 +7,7 @@ import { ApplicantEditPage } from '../features/applicants/pages/ApplicantEditPag
 import { ApplicantPrescriptionsPage } from '../features/applicants/pages/ApplicantPrescriptionsPage'
 import { ApplicantsListPage } from '../features/applicants/pages/ApplicantsListPage'
 import { AppointmentCreatePage } from '../features/appointments/pages/AppointmentCreatePage'
+import { AppointmentDaysPage } from '../features/appointments/pages/AppointmentDaysPage'
 import { AppointmentsAgendaPage } from '../features/appointments/pages/AppointmentsAgendaPage'
 import { MyAppointmentsPage } from '../features/appointments/pages/MyAppointmentsPage'
 import { AssignmentCreatePage } from '../features/assignments/pages/AssignmentCreatePage'
@@ -110,6 +111,7 @@ export function AppRoutes() {
             element={<AssignmentDetailPage />}
           />
           <Route path="/operador/turnos" element={<AppointmentsAgendaPage />} />
+          <Route path="/operador/dias-de-atencion" element={<AppointmentDaysPage />} />
           <Route path="/operador/donantes" element={<DonorsListPage />} />
           <Route path="/operador/donantes/new" element={<DonorCreatePage />} />
           <Route path="/operador/donantes/:donorId/frames" element={<DonorFramesPage />} />
@@ -153,6 +155,7 @@ export function AppRoutes() {
           <Route path="/admin/asignaciones" element={<AssignmentsQueuePage />} />
           <Route path="/admin/asignaciones/:assignmentId" element={<AssignmentDetailPage />} />
           <Route path="/admin/turnos" element={<AppointmentsAgendaPage />} />
+          <Route path="/admin/dias-de-atencion" element={<AppointmentDaysPage />} />
           <Route path="/admin/donantes" element={<DonorsListPage />} />
           <Route path="/admin/donantes/new" element={<DonorCreatePage />} />
           <Route path="/admin/donantes/:donorId/frames" element={<DonorFramesPage />} />

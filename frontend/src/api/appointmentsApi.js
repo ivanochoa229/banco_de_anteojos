@@ -7,9 +7,12 @@ export const appointmentsApi = {
   listByApplicant: (applicantId) => apiFetch(`/v1/applicants/${applicantId}/appointments`),
   create: (applicantId, data) =>
     apiFetch(`/v1/applicants/${applicantId}/appointments`, { method: 'POST', body: data }),
-  // Reprogramar pisa la fecha del mismo turno, no crea otro.
-  reschedule: (appointmentId, scheduledAt) =>
-    apiFetch(`/v1/appointments/${appointmentId}/schedule`, { method: 'PUT', body: { scheduledAt } }),
+  // Reprogramar mueve el mismo turno a otro día de atención; la hora la asigna el backend.
+  reschedule: (appointmentId, appointmentDayId) =>
+    apiFetch(`/v1/appointments/${appointmentId}/schedule`, {
+      method: 'PUT',
+      body: { appointmentDayId },
+    }),
   cancel: (appointmentId, reason) =>
     apiFetch(`/v1/appointments/${appointmentId}/cancellation`, { method: 'PUT', body: { reason } }),
   // El administrativo revisó el comprobante y no encontró problemas: recién acá queda aceptado.
@@ -28,4 +31,13 @@ export const appointmentsApi = {
   },
   // Staff: URL firmada para revisar el comprobante offline.
   getReceipt: (appointmentId) => apiFetch(`/v1/appointments/${appointmentId}/receipt`),
+  // Días de atención (staff): de hoy en adelante, con franjas tomadas y libres.
+  listDays: () => apiFetch('/v1/appointment-days'),
+  createDay: (data) => apiFetch('/v1/appointment-days', { method: 'POST', body: data }),
+  updateDay: (appointmentDayId, data) =>
+    apiFetch(`/v1/appointment-days/${appointmentDayId}`, { method: 'PUT', body: data }),
+  deleteDay: (appointmentDayId) =>
+    apiFetch(`/v1/appointment-days/${appointmentDayId}`, { method: 'DELETE' }),
+  // Autogestión: solo los días por venir que todavía tienen lugar.
+  listBookableDays: () => apiFetch('/v1/me/appointment-days'),
 }

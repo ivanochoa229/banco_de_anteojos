@@ -1,3 +1,5 @@
+import { formatDate, formatTime, formatWeekday } from '../../lib/dates'
+
 // A diferencia de las asignaciones, el turno sí tiene columna de estado en el backend:
 // estos labels son la única traducción a UI para que todas las pantallas coincidan.
 
@@ -20,4 +22,12 @@ export const APPOINTMENT_STATUS_STYLES = {
   COMPLETED: 'bg-green-50 text-green-700',
   MISSED: 'bg-red-50 text-red-700',
   CANCELLED: 'bg-slate-100 text-slate-600',
+}
+
+// "Viernes 10/10/2026 · 09:00 a 13:00 · 5 turnos libres": para elegir el día al pedir o mover un turno.
+export function appointmentDayLabel(day) {
+  const free = day.availableCount === 1 ? '1 turno libre' : `${day.availableCount} turnos libres`
+  return `${formatWeekday(day.date)} ${formatDate(day.date)} · ${formatTime(day.startTime)} a ${formatTime(
+    day.endTime,
+  )} · ${free}`
 }

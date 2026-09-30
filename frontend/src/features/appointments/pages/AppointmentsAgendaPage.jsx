@@ -7,6 +7,7 @@ import { Alert } from '../../../components/Alert'
 import { Input } from '../../../components/Input'
 import { Layout } from '../../../components/Layout'
 import { Select } from '../../../components/Select'
+import { useAuth } from '../../../context/useAuth'
 import { formatDateTime, todayIsoDate } from '../../../lib/dates'
 import { AppointmentActions } from '../components/AppointmentActions'
 import { AppointmentReceiptLink } from '../components/AppointmentReceiptLink'
@@ -21,6 +22,8 @@ export function AppointmentsAgendaPage() {
   const [scope, setScope] = useState('day')
   const [date, setDate] = useState(todayIsoDate())
   const queryClient = useQueryClient()
+  const { role } = useAuth()
+  const portalPrefix = role === 'ADMIN' ? '/admin' : '/operador'
 
   const filterDate = scope === 'day' ? date : null
 
@@ -35,13 +38,19 @@ export function AppointmentsAgendaPage() {
     (applicantsQuery.data ?? []).map((applicant) => [applicant.id, applicant]),
   )
 
+  // Para reprogramar: solo los días que todavía tienen lugar.
+  const daysQuery = useQuery({ queryKey: ['appointment-days'], queryFn: appointmentsApi.listDays })
+  const bookableDays = (daysQuery.data ?? []).filter((day) => day.availableCount > 0)
+
+  // Reprogramar o cancelar mueve el cupo de los días además de la agenda.
   function invalidateAppointments() {
     queryClient.invalidateQueries({ queryKey: ['appointments'] })
+    queryClient.invalidateQueries({ queryKey: ['appointment-days'] })
   }
 
   const rescheduleMutation = useMutation({
-    mutationFn: ({ appointmentId, scheduledAt }) =>
-      appointmentsApi.reschedule(appointmentId, scheduledAt),
+    mutationFn: ({ appointmentId, appointmentDayId }) =>
+      appointmentsApi.reschedule(appointmentId, appointmentDayId),
     onSuccess: invalidateAppointments,
   })
 
@@ -84,7 +93,13 @@ export function AppointmentsAgendaPage() {
             asistencia del día. Los turnos se agendan desde la ficha del solicitante.
           </p>
         </div>
-        <div className="flex items-end gap-3">
+        <div className="flex flex-wrap items-end gap-3">
+          <Link
+            to={`${portalPrefix}/dias-de-atencion`}
+            className="rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-700 hover:border-orange-300 hover:text-orange-700"
+          >
+            Días de atención
+          </Link>
           <div className="w-36">
             <Select
               id="scope"
@@ -180,9 +195,10 @@ export function AppointmentsAgendaPage() {
                       <td className="px-4 py-3">
                         <AppointmentActions
                           appointment={appointment}
+                          days={bookableDays}
                           isPending={isRowPending(appointment.id)}
-                          onReschedule={(scheduledAt) =>
-                            rescheduleMutation.mutate({ appointmentId: appointment.id, scheduledAt })
+                          onReschedule={(appointmentDayId) =>
+                            rescheduleMutation.mutate({ appointmentId: appointment.id, appointmentDayId })
                           }
                           onCancel={(reason) =>
                             cancelMutation.mutate({ appointmentId: appointment.id, reason })

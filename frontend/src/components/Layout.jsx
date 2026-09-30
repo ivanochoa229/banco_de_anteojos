@@ -21,7 +21,7 @@ const OPERATOR_NAV_ROW_1 = [
 ]
 
 const OPERATOR_NAV_ROW_2 = [
-  { to: '/operador/turnos', label: 'Agenda de Turnos', matchPrefix: ['/operador/turnos', '/appointments'] },
+  { to: '/operador/turnos', label: 'Agenda de Turnos', matchPrefix: ['/operador/turnos', '/operador/dias-de-atencion', '/appointments'] },
   { to: '/operador/envios', label: 'Envíos (Vía Cargo)', matchPrefix: ['/operador/envios', '/shipments'] },
   { to: '/operador/probador', label: 'Probador Virtual', matchPrefix: ['/operador/probador', '/try-on'] },
   { to: '/operador/catalogo', label: 'Catálogo de Sol', matchPrefix: ['/operador/catalogo', '/catalog'] },
@@ -37,7 +37,7 @@ const ADMIN_NAV_ROW_1 = [
 ]
 
 const ADMIN_NAV_ROW_2 = [
-  { to: '/admin/turnos', label: 'Agenda de Turnos', matchPrefix: ['/admin/turnos', '/appointments'] },
+  { to: '/admin/turnos', label: 'Agenda de Turnos', matchPrefix: ['/admin/turnos', '/admin/dias-de-atencion', '/appointments'] },
   { to: '/admin/envios', label: 'Envíos (Vía Cargo)', matchPrefix: ['/admin/envios', '/shipments'] },
   { to: '/admin/catalogo', label: 'Catálogo de Sol', matchPrefix: ['/admin/catalogo', '/catalog'] },
   { to: '/admin/probador', label: 'Probador Virtual', matchPrefix: ['/admin/probador', '/try-on'] },

@@ -115,7 +115,8 @@ export function PublicFooter() {
             </p>
             <p className="text-slate-300">
               <span className="font-semibold text-white block">Horario de Atención:</span>
-              Lunes a Viernes de 10:00 a 13:00 hs (con turno previo)
+              Viernes habilitados por la fundación, con turno previo. Las fechas disponibles se ven al
+              pedir el turno.
             </p>
             <p>
               <span className="font-semibold text-white block">WhatsApp Institucional:</span>

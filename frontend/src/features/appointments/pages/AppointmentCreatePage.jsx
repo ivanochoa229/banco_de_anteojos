@@ -29,11 +29,15 @@ export function AppointmentCreatePage() {
     queryFn: () => assignmentsApi.listByApplicant(applicantId),
   })
 
+  const daysQuery = useQuery({ queryKey: ['appointment-days'], queryFn: appointmentsApi.listDays })
+
   const createMutation = useMutation({
     mutationFn: (data) => appointmentsApi.create(applicantId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['applicants', applicantId, 'appointments'] })
       queryClient.invalidateQueries({ queryKey: ['appointments'] })
+      // El cupo del día cambió.
+      queryClient.invalidateQueries({ queryKey: ['appointment-days'] })
     },
   })
 
@@ -114,7 +118,10 @@ export function AppointmentCreatePage() {
               turno quede atado a ese retiro.
             </p>
             <div className="mt-3 rounded-lg border border-slate-200 bg-white p-6">
+              {daysQuery.isError && <Alert>{daysQuery.error.message}</Alert>}
               <AppointmentForm
+                days={(daysQuery.data ?? []).filter((day) => day.availableCount > 0)}
+                isLoadingDays={daysQuery.isPending}
                 assignmentOptions={liveAssignments.map((assignment) => ({
                   value: assignment.id,
                   label: `${formatDateTime(assignment.assignedAt)} · ${

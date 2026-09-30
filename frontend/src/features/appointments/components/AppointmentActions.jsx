@@ -1,16 +1,20 @@
 import { useState } from 'react'
 import { Button } from '../../../components/Button'
 import { Input } from '../../../components/Input'
+import { Select } from '../../../components/Select'
+import { appointmentDayLabel } from '../labels'
 
 /**
  * Acciones de un turno. En PENDING_REVIEW el administrativo revisó el comprobante: aprueba (queda
  * SCHEDULED / aceptado) o cancela si tiene un problema. Ya SCHEDULED, registra la asistencia del
- * día (asistió/faltó), reprograma o cancela. Reprogramar y cancelar despliegan su mini-formulario
+ * día (asistió/faltó), reprograma a otro día de atención (`days`, ya filtrado a los que tienen
+ * lugar) o cancela. Reprogramar y cancelar despliegan su mini-formulario
  * en el lugar, igual que la cancelación de una asignación: confirmar de un click sin dato de
  * respaldo invita a errores.
  */
 export function AppointmentActions({
   appointment,
+  days,
   onReschedule,
   onCancel,
   onAttendance,
@@ -19,7 +23,7 @@ export function AppointmentActions({
 }) {
   // 'idle' | 'rescheduling' | 'cancelling'
   const [mode, setMode] = useState('idle')
-  const [newDate, setNewDate] = useState('')
+  const [newDayId, setNewDayId] = useState('')
   const [reason, setReason] = useState('')
 
   if (appointment.status !== 'SCHEDULED' && appointment.status !== 'PENDING_REVIEW') {
@@ -27,25 +31,32 @@ export function AppointmentActions({
   }
 
   if (mode === 'rescheduling') {
+    // Moverlo al mismo día no tiene sentido: el backend lo rechaza.
+    const otherDays = days.filter((day) => day.id !== appointment.appointmentDayId)
     return (
       <form
         onSubmit={(event) => {
           event.preventDefault()
-          if (newDate) onReschedule(newDate)
+          if (newDayId) onReschedule(Number(newDayId))
         }}
         className="flex flex-wrap items-end gap-2"
       >
-        <div className="w-56">
-          <Input
-            id={`new-date-${appointment.id}`}
-            label="Nueva fecha y hora"
-            type="datetime-local"
-            required
-            value={newDate}
-            onChange={(event) => setNewDate(event.target.value)}
-          />
+        <div className="w-80">
+          {otherDays.length === 0 ? (
+            <p className="text-sm text-slate-500">No hay otro día de atención con lugar.</p>
+          ) : (
+            <Select
+              id={`new-day-${appointment.id}`}
+              label="Nuevo día"
+              required
+              placeholder="Elegí un día"
+              options={otherDays.map((day) => ({ value: day.id, label: appointmentDayLabel(day) }))}
+              value={newDayId}
+              onChange={(event) => setNewDayId(event.target.value)}
+            />
+          )}
         </div>
-        <Button type="submit" disabled={isPending} className="px-3 py-2 text-sm">
+        <Button type="submit" disabled={isPending || !newDayId} className="px-3 py-2 text-sm">
           {isPending ? 'Reprogramando…' : 'Confirmar'}
         </Button>
         <button
