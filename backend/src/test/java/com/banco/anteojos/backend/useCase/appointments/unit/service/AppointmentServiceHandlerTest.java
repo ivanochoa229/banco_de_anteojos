@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -12,6 +13,8 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
@@ -26,6 +29,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import com.banco.anteojos.backend.business.appointments.AppointmentServiceHandler;
 import com.banco.anteojos.backend.business.appointments.dto.request.AppointmentCreationRequestDto;
@@ -33,11 +37,15 @@ import com.banco.anteojos.backend.business.appointments.dto.request.AppointmentR
 import com.banco.anteojos.backend.business.appointments.dto.response.AppointmentReceiptResponseDto;
 import com.banco.anteojos.backend.business.appointments.dto.response.AppointmentResponseDto;
 import com.banco.anteojos.backend.business.appointments.entities.Appointment;
+import com.banco.anteojos.backend.business.appointments.entities.AppointmentDay;
 import com.banco.anteojos.backend.business.appointments.entities.AppointmentStatus;
+import com.banco.anteojos.backend.business.appointments.exception.AppointmentDayNotFoundException;
+import com.banco.anteojos.backend.business.appointments.exception.AppointmentDayUnavailableException;
 import com.banco.anteojos.backend.business.appointments.exception.AppointmentNotFoundException;
 import com.banco.anteojos.backend.business.appointments.exception.AppointmentReceiptNotFoundException;
 import com.banco.anteojos.backend.business.appointments.exception.InvalidAppointmentReceiptException;
 import com.banco.anteojos.backend.business.appointments.exception.InvalidAppointmentTransitionException;
+import com.banco.anteojos.backend.persistence.appointments.AppointmentDayPostgresSqlRepository;
 import com.banco.anteojos.backend.persistence.appointments.AppointmentPostgresSqlRepository;
 import com.banco.anteojos.backend.thirdPartyServiceComunication.storage.PresignedUrl;
 import com.banco.anteojos.backend.thirdPartyServiceComunication.storage.R2StorageClient;
@@ -52,13 +60,31 @@ class AppointmentServiceHandlerTest {
 	private AppointmentPostgresSqlRepository appointmentRepository;
 
 	@Mock
+	private AppointmentDayPostgresSqlRepository appointmentDayRepository;
+
+	@Mock
 	private R2StorageClient r2StorageClient;
 
 	@InjectMocks
 	private AppointmentServiceHandler appointmentServiceHandler;
 
 	private Appointment appointment() {
-		return new Appointment(1L, null, SCHEDULED_AT, null);
+		return new Appointment(1L, null, 5L, SCHEDULED_AT, null);
+	}
+
+	// El id lo pone la base; la reserva lo necesita para buscar las franjas tomadas del día.
+	private AppointmentDay day(Long id, LocalDate date) {
+		AppointmentDay day = new AppointmentDay(date, LocalTime.of(9, 0), 15, 3);
+		ReflectionTestUtils.setField(day, "id", id);
+		when(appointmentDayRepository.findByIdForUpdate(id)).thenReturn(Optional.of(day));
+		return day;
+	}
+
+	private void mockBookedSlots(Long dayId, LocalDateTime... slots) {
+		List<Appointment> booked = Arrays.stream(slots)
+				.map(slot -> new Appointment(2L, null, dayId, slot, null)).toList();
+		when(appointmentRepository.findByAppointmentDayIdInAndStatusNot(List.of(dayId), AppointmentStatus.CANCELLED))
+				.thenReturn(booked);
 	}
 
 	private Appointment confirmedAppointment() {
@@ -103,18 +129,70 @@ class AppointmentServiceHandlerTest {
 
 	@Test
 	void CreateAppointment_Successful() {
+		LocalDate date = LocalDate.now().plusDays(7);
+		day(7L, date);
+		mockBookedSlots(7L, date.atTime(9, 0));
 		when(appointmentRepository.save(any(Appointment.class))).thenAnswer(inv -> inv.getArgument(0));
 
 		AppointmentResponseDto response = appointmentServiceHandler.createAppointment(1L,
-				new AppointmentCreationRequestDto(SCHEDULED_AT, 9L, "retiro de anteojos"));
+				new AppointmentCreationRequestDto(7L, 9L, "retiro de anteojos"));
 
 		assertThat(response.applicantId()).isEqualTo(1L);
 		assertThat(response.assignmentId()).isEqualTo(9L);
-		assertThat(response.scheduledAt()).isEqualTo(SCHEDULED_AT);
+		assertThat(response.appointmentDayId()).isEqualTo(7L);
+		// La de las 9:00 ya está tomada: le toca la franja siguiente.
+		assertThat(response.scheduledAt()).isEqualTo(date.atTime(9, 15));
 		// Nace sin confirmar: recién queda SCHEDULED con el comprobante.
 		assertThat(response.status()).isEqualTo("PENDING_PAYMENT");
 		assertThat(response.notes()).isEqualTo("retiro de anteojos");
 		assertThat(response.createdAt()).isNotNull();
+	}
+
+	@Test
+	void CreateAppointment_WhenCancelledFreedTheSlot() {
+		LocalDate date = LocalDate.now().plusDays(7);
+		day(7L, date);
+		// El repositorio ya excluye los cancelados: la franja de las 9:00 figura libre.
+		mockBookedSlots(7L);
+		when(appointmentRepository.save(any(Appointment.class))).thenAnswer(inv -> inv.getArgument(0));
+
+		AppointmentResponseDto response = appointmentServiceHandler.createAppointment(1L,
+				new AppointmentCreationRequestDto(7L, null, null));
+
+		assertThat(response.scheduledAt()).isEqualTo(date.atTime(9, 0));
+	}
+
+	@Test
+	void CreateAppointment_WhenDayIsFull() {
+		LocalDate date = LocalDate.now().plusDays(7);
+		day(7L, date);
+		mockBookedSlots(7L, date.atTime(9, 0), date.atTime(9, 15), date.atTime(9, 30));
+
+		assertThatThrownBy(() -> appointmentServiceHandler.createAppointment(1L,
+				new AppointmentCreationRequestDto(7L, null, null)))
+				.isInstanceOf(AppointmentDayUnavailableException.class)
+				.hasMessage("No quedan turnos libres para ese día");
+		verify(appointmentRepository, never()).save(any(Appointment.class));
+	}
+
+	@Test
+	void CreateAppointment_WhenDayHasPassed() {
+		day(7L, LocalDate.now().minusDays(1));
+		mockBookedSlots(7L);
+
+		assertThatThrownBy(() -> appointmentServiceHandler.createAppointment(1L,
+				new AppointmentCreationRequestDto(7L, null, null)))
+				.isInstanceOf(AppointmentDayUnavailableException.class)
+				.hasMessage("Ese día de atención ya pasó");
+	}
+
+	@Test
+	void CreateAppointment_WhenDayNotFound() {
+		when(appointmentDayRepository.findByIdForUpdate(99L)).thenReturn(Optional.empty());
+
+		assertThatThrownBy(() -> appointmentServiceHandler.createAppointment(1L,
+				new AppointmentCreationRequestDto(99L, null, null)))
+				.isInstanceOf(AppointmentDayNotFoundException.class);
 	}
 
 	@Test
@@ -235,13 +313,26 @@ class AppointmentServiceHandlerTest {
 	@Test
 	void Reschedule_Successful() {
 		mockFind(confirmedAppointment());
-		LocalDateTime newDate = SCHEDULED_AT.plusDays(2);
+		LocalDate date = LocalDate.now().plusDays(14);
+		day(8L, date);
+		mockBookedSlots(8L);
 
-		AppointmentResponseDto response = appointmentServiceHandler.reschedule(10L, newDate);
+		AppointmentResponseDto response = appointmentServiceHandler.reschedule(10L, 8L);
 
-		assertThat(response.scheduledAt()).isEqualTo(newDate);
+		assertThat(response.appointmentDayId()).isEqualTo(8L);
+		assertThat(response.scheduledAt()).isEqualTo(date.atTime(9, 0));
 		assertThat(response.status()).isEqualTo("SCHEDULED");
 		verify(appointmentRepository).save(any(Appointment.class));
+	}
+
+	@Test
+	void Reschedule_WhenSameDay() {
+		when(appointmentRepository.findById(10L)).thenReturn(Optional.of(confirmedAppointment()));
+
+		// El turno ya está en el día 5: moverlo ahí mismo solo le cambiaría la hora sin motivo.
+		assertThatThrownBy(() -> appointmentServiceHandler.reschedule(10L, 5L))
+				.isInstanceOf(AppointmentDayUnavailableException.class)
+				.hasMessage("El turno ya está agendado en ese día");
 	}
 
 	@Test
@@ -274,15 +365,24 @@ class AppointmentServiceHandlerTest {
 		when(appointmentRepository.findByDay(date.atStartOfDay(), date.plusDays(1).atStartOfDay()))
 				.thenReturn(List.of(appointment()));
 
-		assertThat(appointmentServiceHandler.listAppointments(date)).hasSize(1);
+		assertThat(appointmentServiceHandler.listAppointments(date, null)).hasSize(1);
 		verify(appointmentRepository).findByDay(date.atStartOfDay(), date.plusDays(1).atStartOfDay());
+	}
+
+	@Test
+	void ListAppointments_WhenFromIsGiven() {
+		LocalDate from = LocalDate.now();
+		when(appointmentRepository.findByScheduledAtGreaterThanEqualOrderByScheduledAtAsc(from.atStartOfDay()))
+				.thenReturn(List.of(appointment()));
+
+		assertThat(appointmentServiceHandler.listAppointments(null, from)).hasSize(1);
 	}
 
 	@Test
 	void ListAppointments_WhenAll() {
 		when(appointmentRepository.findAllByOrderByScheduledAtDesc()).thenReturn(List.of(appointment()));
 
-		assertThat(appointmentServiceHandler.listAppointments(null)).hasSize(1);
+		assertThat(appointmentServiceHandler.listAppointments(null, null)).hasSize(1);
 	}
 
 	@Test

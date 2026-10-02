@@ -14,18 +14,23 @@ public interface AppointmentService {
 
 	/**
 	 * La pertenencia de la asignación (si viene) ya la validó el orchestrator contra el dominio
-	 * assignments: acá solo se persiste el turno.
+	 * assignments. Acá se toma la primera franja libre del día elegido, con el día bloqueado para
+	 * que dos reservas simultáneas no se lleven la misma: requiere transacción abierta.
 	 */
 	AppointmentResponseDto createAppointment(Long applicantId, AppointmentCreationRequestDto request);
 
 	AppointmentResponseDto getAppointment(Long appointmentId);
 
-	/** Con {@code date} devuelve la agenda de ese día; sin ella, todos los turnos. */
-	List<AppointmentResponseDto> listAppointments(LocalDate date);
+	/**
+	 * Con {@code date} devuelve la agenda de ese día; con {@code from}, los turnos de ese día en
+	 * adelante (lo que queda por atender); sin ninguno, todos los turnos.
+	 */
+	List<AppointmentResponseDto> listAppointments(LocalDate date, LocalDate from);
 
 	List<AppointmentResponseDto> listAppointmentsByApplicant(Long applicantId);
 
-	AppointmentResponseDto reschedule(Long appointmentId, LocalDateTime newScheduledAt);
+	/** Mueve el turno a la primera franja libre de otro día. Requiere transacción abierta. */
+	AppointmentResponseDto reschedule(Long appointmentId, Long newAppointmentDayId);
 
 	AppointmentResponseDto cancel(Long appointmentId, String reason);
 

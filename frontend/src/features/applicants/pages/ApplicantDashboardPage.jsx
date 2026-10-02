@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { assignmentsApi } from '../../../api/assignmentsApi'
 import { appointmentsApi } from '../../../api/appointmentsApi'
 import { Layout } from '../../../components/Layout'
+import { formatDateTime, formatWeekday } from '../../../lib/dates'
 import { AssignmentStageBadge } from '../../assignments/components/AssignmentStageBadge'
 import { AppointmentStatusBadge } from '../../appointments/components/AppointmentStatusBadge'
 
@@ -20,9 +21,17 @@ export function ApplicantDashboardPage() {
   const assignments = assignmentsQuery.data ?? []
   const appointments = appointmentsQuery.data ?? []
   const latestAssignment = assignments.length > 0 ? assignments[0] : null
-  const upcomingAppointment = appointments.find(
-    (a) => a.status === 'SCHEDULED' || a.status === 'RESCHEDULED',
-  )
+  // El más próximo de los que siguen en pie: pendientes de pago o de revisión también cuentan,
+  // porque el lugar en el día de atención ya está reservado. La lista viene de la más nueva a la
+  // más vieja, así que el último que pasa el filtro es el más cercano.
+  const now = new Date()
+  const upcomingAppointment = appointments
+    .filter(
+      (a) =>
+        ['PENDING_PAYMENT', 'PENDING_REVIEW', 'SCHEDULED'].includes(a.status) &&
+        new Date(a.scheduledAt) > now,
+    )
+    .at(-1)
 
   return (
     <Layout>
@@ -104,10 +113,16 @@ export function ApplicantDashboardPage() {
               <div>
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-semibold text-slate-700">
-                    {upcomingAppointment.date} a las {upcomingAppointment.time?.substring(0, 5)} hs
+                    {formatWeekday(upcomingAppointment.scheduledAt.split('T')[0])}{' '}
+                    {formatDateTime(upcomingAppointment.scheduledAt)} hs
                   </span>
                   <AppointmentStatusBadge status={upcomingAppointment.status} />
                 </div>
+                {upcomingAppointment.status === 'PENDING_PAYMENT' && (
+                  <p className="mt-2 text-xs font-semibold text-amber-700">
+                    Falta subir el comprobante del bono contribución para confirmarlo.
+                  </p>
+                )}
                 <p className="mt-2 text-xs text-slate-500">
                   Sede: Chacabuco 27, 1° Piso · San Miguel de Tucumán
                 </p>
@@ -116,7 +131,7 @@ export function ApplicantDashboardPage() {
                     to="/solicitante/mis-turnos"
                     className="inline-flex items-center gap-1 text-xs font-bold text-orange-600 hover:text-orange-700 hover:underline"
                   >
-                    <span>Ver o reprogramar turno</span>
+                    <span>Ver mis turnos</span>
                     <span>→</span>
                   </Link>
                 </div>
@@ -158,7 +173,7 @@ export function ApplicantDashboardPage() {
                 Mis Turnos
               </h4>
               <p className="mt-1 text-xs text-slate-500 leading-relaxed">
-                Revisá tus turnos agendados o solicitá una nueva fecha de atención.
+                Revisá tus turnos o pedí uno nuevo en los días de atención disponibles.
               </p>
             </div>
             <span className="mt-4 text-xs font-bold text-orange-600 group-hover:translate-x-1 transition inline-flex items-center gap-1">

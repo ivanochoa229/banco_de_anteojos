@@ -1,7 +1,6 @@
 package com.banco.anteojos.backend.orchestrator.appointments;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
 
 import com.banco.anteojos.backend.business.appointments.dto.request.AppointmentCreationRequestDto;
@@ -15,11 +14,11 @@ public interface AppointmentUseCaseOrchestrator {
 
 	List<AppointmentResponseDto> listAppointmentsByApplicant(Long applicantId);
 
-	List<AppointmentResponseDto> listAppointments(LocalDate date);
+	List<AppointmentResponseDto> listAppointments(LocalDate date, LocalDate from);
 
 	AppointmentResponseDto getAppointment(Long appointmentId);
 
-	AppointmentResponseDto reschedule(Long appointmentId, LocalDateTime newScheduledAt);
+	AppointmentResponseDto reschedule(Long appointmentId, Long newAppointmentDayId);
 
 	AppointmentResponseDto cancel(Long appointmentId, String reason);
 

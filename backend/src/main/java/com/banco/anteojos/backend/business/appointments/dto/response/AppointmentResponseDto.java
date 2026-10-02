@@ -6,6 +6,7 @@ public record AppointmentResponseDto(
 		Long id,
 		Long applicantId,
 		Long assignmentId,
+		Long appointmentDayId,
 		LocalDateTime scheduledAt,
 		String status,
 		String notes,

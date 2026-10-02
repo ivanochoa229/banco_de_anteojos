@@ -43,3 +43,19 @@ export function formatDateTime(isoDateTime) {
   const hoursAndMinutes = time.slice(0, 5)
   return hoursAndMinutes ? `${formatDate(date)} ${hoursAndMinutes}` : formatDate(date)
 }
+
+// LocalTime del backend ("09:00:00") → "09:00".
+export function formatTime(isoTime) {
+  if (!isoTime) return '—'
+  return isoTime.slice(0, 5)
+}
+
+const WEEKDAY_LABELS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
+
+// Se arma la fecha con componentes locales: new Date('YYYY-MM-DD') la toma como UTC y en ART
+// caería en el día anterior.
+export function formatWeekday(isoDate) {
+  if (!isoDate) return '—'
+  const [year, month, day] = isoDate.split('-').map(Number)
+  return WEEKDAY_LABELS[new Date(year, month - 1, day).getDay()]
+}

@@ -80,7 +80,7 @@ const ADMIN_SHORTCUTS = [
   {
     to: '/admin/turnos',
     title: 'Agenda de Turnos',
-    description: 'Gestión integral de turnos de entrega, revisión oftalmológica y tasa de asistencia.',
+    description: 'Días de atención y su cupo, turnos de entrega, revisión oftalmológica y tasa de asistencia.',
     iconKey: 'appointments',
   },
   {

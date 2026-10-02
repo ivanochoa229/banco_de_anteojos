@@ -82,7 +82,7 @@ const OPERATOR_SHORTCUTS = [
   {
     to: '/operador/turnos',
     title: 'Agenda de Turnos',
-    description: 'Control de asistencia del día, asignación de nuevos turnos, cancelaciones y reprogramación.',
+    description: 'Días de atención y su cupo, asistencia del día, nuevos turnos, cancelaciones y reprogramación.',
     iconKey: 'appointments',
   },
   {

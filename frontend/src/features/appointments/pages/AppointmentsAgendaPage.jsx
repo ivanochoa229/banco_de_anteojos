@@ -7,26 +7,38 @@ import { Alert } from '../../../components/Alert'
 import { Input } from '../../../components/Input'
 import { Layout } from '../../../components/Layout'
 import { Select } from '../../../components/Select'
+import { useAuth } from '../../../context/useAuth'
 import { formatDateTime, todayIsoDate } from '../../../lib/dates'
 import { AppointmentActions } from '../components/AppointmentActions'
 import { AppointmentReceiptLink } from '../components/AppointmentReceiptLink'
 import { AppointmentStatusBadge } from '../components/AppointmentStatusBadge'
 
 const SCOPE_OPTIONS = [
+  { value: 'upcoming', label: 'Próximos' },
   { value: 'day', label: 'Por día' },
   { value: 'all', label: 'Todos' },
 ]
 
+// Por defecto la agenda muestra lo que queda por atender: de hoy en adelante y sin cancelados.
+// Hoy entero (no desde ahora) para poder registrar la asistencia de los turnos de la mañana.
+function queryFor(scope, date) {
+  if (scope === 'day') return { date }
+  if (scope === 'upcoming') return { from: todayIsoDate() }
+  return {}
+}
+
 export function AppointmentsAgendaPage() {
-  const [scope, setScope] = useState('day')
+  const [scope, setScope] = useState('upcoming')
   const [date, setDate] = useState(todayIsoDate())
   const queryClient = useQueryClient()
+  const { role } = useAuth()
+  const portalPrefix = role === 'ADMIN' ? '/admin' : '/operador'
 
-  const filterDate = scope === 'day' ? date : null
+  const filters = queryFor(scope, date)
 
   const appointmentsQuery = useQuery({
-    queryKey: ['appointments', filterDate ?? 'all'],
-    queryFn: () => appointmentsApi.list(filterDate),
+    queryKey: ['appointments', scope, filters],
+    queryFn: () => appointmentsApi.list(filters),
   })
 
   // El turno solo trae ids; el nombre del beneficiario sale de esta lista, chica y cacheada.
@@ -35,13 +47,19 @@ export function AppointmentsAgendaPage() {
     (applicantsQuery.data ?? []).map((applicant) => [applicant.id, applicant]),
   )
 
+  // Para reprogramar: solo los días que todavía tienen lugar.
+  const daysQuery = useQuery({ queryKey: ['appointment-days'], queryFn: appointmentsApi.listDays })
+  const bookableDays = (daysQuery.data ?? []).filter((day) => day.availableCount > 0)
+
+  // Reprogramar o cancelar mueve el cupo de los días además de la agenda.
   function invalidateAppointments() {
     queryClient.invalidateQueries({ queryKey: ['appointments'] })
+    queryClient.invalidateQueries({ queryKey: ['appointment-days'] })
   }
 
   const rescheduleMutation = useMutation({
-    mutationFn: ({ appointmentId, scheduledAt }) =>
-      appointmentsApi.reschedule(appointmentId, scheduledAt),
+    mutationFn: ({ appointmentId, appointmentDayId }) =>
+      appointmentsApi.reschedule(appointmentId, appointmentDayId),
     onSuccess: invalidateAppointments,
   })
 
@@ -67,7 +85,9 @@ export function AppointmentsAgendaPage() {
     )
   }
 
-  const appointments = appointmentsQuery.data ?? []
+  const appointments = (appointmentsQuery.data ?? []).filter(
+    (appointment) => scope !== 'upcoming' || appointment.status !== 'CANCELLED',
+  )
   const actionError =
     rescheduleMutation.error?.message ??
     cancelMutation.error?.message ??
@@ -84,7 +104,13 @@ export function AppointmentsAgendaPage() {
             asistencia del día. Los turnos se agendan desde la ficha del solicitante.
           </p>
         </div>
-        <div className="flex items-end gap-3">
+        <div className="flex flex-wrap items-end gap-3">
+          <Link
+            to={`${portalPrefix}/dias-de-atencion`}
+            className="rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-700 hover:border-orange-300 hover:text-orange-700"
+          >
+            Días de atención
+          </Link>
           <div className="w-36">
             <Select
               id="scope"
@@ -121,7 +147,9 @@ export function AppointmentsAgendaPage() {
           <p className="rounded-lg border border-dashed border-slate-300 bg-white px-6 py-10 text-center text-slate-500">
             {scope === 'day'
               ? 'No hay turnos para este día.'
-              : 'Todavía no se agendó ningún turno. Se agendan desde la ficha del solicitante.'}
+              : scope === 'upcoming'
+                ? 'No hay turnos agendados de hoy en adelante.'
+                : 'Todavía no se agendó ningún turno. Se agendan desde la ficha del solicitante.'}
           </p>
         )}
         {appointments.length > 0 && (
@@ -180,9 +208,10 @@ export function AppointmentsAgendaPage() {
                       <td className="px-4 py-3">
                         <AppointmentActions
                           appointment={appointment}
+                          days={bookableDays}
                           isPending={isRowPending(appointment.id)}
-                          onReschedule={(scheduledAt) =>
-                            rescheduleMutation.mutate({ appointmentId: appointment.id, scheduledAt })
+                          onReschedule={(appointmentDayId) =>
+                            rescheduleMutation.mutate({ appointmentId: appointment.id, appointmentDayId })
                           }
                           onCancel={(reason) =>
                             cancelMutation.mutate({ appointmentId: appointment.id, reason })
