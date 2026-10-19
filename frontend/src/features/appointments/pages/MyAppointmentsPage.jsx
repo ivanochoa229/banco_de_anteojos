@@ -23,9 +23,17 @@ export function MyAppointmentsPage() {
     queryFn: assignmentsApi.listMine,
   })
 
+  const daysQuery = useQuery({
+    queryKey: ['me', 'appointment-days'],
+    queryFn: appointmentsApi.listBookableDays,
+  })
+
   const createMutation = useMutation({
     mutationFn: (data) => appointmentsApi.createMine(data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['me', 'appointments'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['me', 'appointments'] })
+      queryClient.invalidateQueries({ queryKey: ['me', 'appointment-days'] })
+    },
   })
 
   const appointments = appointmentsQuery.data ?? []
@@ -38,7 +46,8 @@ export function MyAppointmentsPage() {
     <Layout>
       <h2 className="text-xl font-semibold text-slate-900">Mis turnos</h2>
       <p className="mt-1 text-sm text-slate-500">
-        Pedí un turno de atención, o de retiro si ya tenés un par de anteojos listo.
+        Pedí un turno de atención, o de retiro si ya tenés un par de anteojos listo. La fundación
+        atiende solo algunos días: elegí uno de los disponibles.
       </p>
 
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -48,7 +57,10 @@ export function MyAppointmentsPage() {
           </h3>
           <div className="mt-3 rounded-lg border border-slate-200 bg-white p-6">
             {assignmentsQuery.isError && <Alert>{assignmentsQuery.error.message}</Alert>}
+            {daysQuery.isError && <Alert>{daysQuery.error.message}</Alert>}
             <AppointmentForm
+              days={daysQuery.data ?? []}
+              isLoadingDays={daysQuery.isPending}
               assignmentOptions={liveAssignments.map((assignment) => ({
                 value: assignment.id,
                 label: `${formatDateTime(assignment.assignedAt)} · ${
@@ -60,7 +72,10 @@ export function MyAppointmentsPage() {
               submitError={createMutation.error?.message}
             />
             {createMutation.isSuccess && (
-              <p className="mt-4 text-sm text-green-700">Turno agendado con éxito.</p>
+              <p className="mt-4 text-sm text-green-700">
+                Turno reservado para el {formatDateTime(createMutation.data.scheduledAt)}. Subí el
+                comprobante del bono contribución para confirmarlo.
+              </p>
             )}
           </div>
         </section>

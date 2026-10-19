@@ -1,11 +1,16 @@
 package com.banco.anteojos.backend.business.appointments;
 
+import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
+import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.text.PDFTextStripper;
 import org.springframework.stereotype.Service;
 
 import com.banco.anteojos.backend.business.appointments.dto.request.AppointmentCreationRequestDto;
@@ -13,10 +18,14 @@ import com.banco.anteojos.backend.business.appointments.dto.request.AppointmentR
 import com.banco.anteojos.backend.business.appointments.dto.response.AppointmentReceiptResponseDto;
 import com.banco.anteojos.backend.business.appointments.dto.response.AppointmentResponseDto;
 import com.banco.anteojos.backend.business.appointments.entities.Appointment;
+import com.banco.anteojos.backend.business.appointments.entities.AppointmentDay;
 import com.banco.anteojos.backend.business.appointments.entities.AppointmentStatus;
+import com.banco.anteojos.backend.business.appointments.exception.AppointmentDayNotFoundException;
+import com.banco.anteojos.backend.business.appointments.exception.AppointmentDayUnavailableException;
 import com.banco.anteojos.backend.business.appointments.exception.AppointmentNotFoundException;
 import com.banco.anteojos.backend.business.appointments.exception.AppointmentReceiptNotFoundException;
 import com.banco.anteojos.backend.business.appointments.exception.InvalidAppointmentReceiptException;
+import com.banco.anteojos.backend.persistence.appointments.AppointmentDayPostgresSqlRepository;
 import com.banco.anteojos.backend.persistence.appointments.AppointmentPostgresSqlRepository;
 import com.banco.anteojos.backend.thirdPartyServiceComunication.storage.PresignedUrl;
 import com.banco.anteojos.backend.thirdPartyServiceComunication.storage.R2StorageClient;
@@ -33,13 +42,26 @@ public class AppointmentServiceHandler implements AppointmentService {
 			"image/jpeg", "jpg",
 			"image/png", "png");
 
+	private static final byte[] PDF_SIGNATURE = { '%', 'P', 'D', 'F', '-' };
+	private static final byte[] JPEG_SIGNATURE = { (byte) 0xFF, (byte) 0xD8, (byte) 0xFF };
+	private static final byte[] PNG_SIGNATURE =
+			{ (byte) 0x89, 'P', 'N', 'G', '\r', '\n', 0x1A, '\n' };
+
+	// Solo para PDF: la foto no da texto para chequear (queda a criterio del operador, que ve
+	// el comprobante antes del turno, igual que la validación final de RENAPER/ANSES).
+	private static final Pattern RECEIPT_KEYWORDS = Pattern.compile(
+			"comprobante|recibo|bono|contribuci[oó]n|transacci[oó]n|pago|monto|total",
+			Pattern.CASE_INSENSITIVE);
+
 	private final AppointmentPostgresSqlRepository appointmentRepository;
+	private final AppointmentDayPostgresSqlRepository appointmentDayRepository;
 	private final R2StorageClient r2StorageClient;
 
 	@Override
 	public AppointmentResponseDto createAppointment(Long applicantId, AppointmentCreationRequestDto request) {
+		AppointmentDay day = lockDay(request.appointmentDayId());
 		Appointment appointment = appointmentRepository.save(new Appointment(applicantId,
-				request.assignmentId(), request.scheduledAt(), request.notes()));
+				request.assignmentId(), day.getId(), firstAvailableSlot(day), request.notes()));
 		return toResponse(appointment);
 	}
 
@@ -49,10 +71,16 @@ public class AppointmentServiceHandler implements AppointmentService {
 	}
 
 	@Override
-	public List<AppointmentResponseDto> listAppointments(LocalDate date) {
-		List<Appointment> appointments = date == null
-				? appointmentRepository.findAllByOrderByScheduledAtDesc()
-				: appointmentRepository.findByDay(date.atStartOfDay(), date.plusDays(1).atStartOfDay());
+	public List<AppointmentResponseDto> listAppointments(LocalDate date, LocalDate from) {
+		List<Appointment> appointments;
+		if (date != null) {
+			appointments = appointmentRepository.findByDay(date.atStartOfDay(), date.plusDays(1).atStartOfDay());
+		} else if (from != null) {
+			appointments = appointmentRepository.findByScheduledAtGreaterThanEqualOrderByScheduledAtAsc(
+					from.atStartOfDay());
+		} else {
+			appointments = appointmentRepository.findAllByOrderByScheduledAtDesc();
+		}
 		return appointments.stream().map(this::toResponse).toList();
 	}
 
@@ -63,9 +91,13 @@ public class AppointmentServiceHandler implements AppointmentService {
 	}
 
 	@Override
-	public AppointmentResponseDto reschedule(Long appointmentId, LocalDateTime newScheduledAt) {
+	public AppointmentResponseDto reschedule(Long appointmentId, Long newAppointmentDayId) {
 		Appointment appointment = findAppointment(appointmentId);
-		appointment.reschedule(newScheduledAt);
+		if (newAppointmentDayId.equals(appointment.getAppointmentDayId())) {
+			throw new AppointmentDayUnavailableException("El turno ya está agendado en ese día");
+		}
+		AppointmentDay day = lockDay(newAppointmentDayId);
+		appointment.reschedule(day.getId(), firstAvailableSlot(day));
 		return toResponse(appointmentRepository.save(appointment));
 	}
 
@@ -89,7 +121,8 @@ public class AppointmentServiceHandler implements AppointmentService {
 	}
 
 	@Override
-	public AppointmentResponseDto confirmWithReceipt(Long appointmentId, AppointmentReceiptUploadRequestDto request) {
+	public AppointmentResponseDto submitReceiptForReview(Long appointmentId,
+			AppointmentReceiptUploadRequestDto request) {
 		Appointment appointment = findAppointment(appointmentId);
 		String extension = validateFile(request);
 
@@ -98,8 +131,16 @@ public class AppointmentServiceHandler implements AppointmentService {
 		r2StorageClient.upload(key, request.content(), contentType);
 
 		// Exigir PENDING_PAYMENT acá adentro evita que una segunda subida pise el comprobante
-		// de un turno ya confirmado: el segundo intento falla con 409 antes de tocar nada.
-		appointment.confirmWithReceipt(key, contentType, request.originalName());
+		// de un turno que ya está en revisión o confirmado: el segundo intento falla con 409
+		// antes de tocar nada.
+		appointment.submitReceiptForReview(key, contentType, request.originalName());
+		return toResponse(appointmentRepository.save(appointment));
+	}
+
+	@Override
+	public AppointmentResponseDto approve(Long appointmentId) {
+		Appointment appointment = findAppointment(appointmentId);
+		appointment.approve();
 		return toResponse(appointmentRepository.save(appointment));
 	}
 
@@ -122,7 +163,48 @@ public class AppointmentServiceHandler implements AppointmentService {
 		if (extension == null) {
 			throw new InvalidAppointmentReceiptException("El archivo debe ser PDF, JPG o PNG");
 		}
+		// El content-type lo declara el navegador; validamos los bytes reales para que un
+		// archivo renombrado (ej. .exe pasado como .pdf) no pase el filtro.
+		if (!matchesSignature(request.content(), extension)) {
+			throw new InvalidAppointmentReceiptException("El archivo no es un PDF, JPG o PNG válido");
+		}
+		if (extension.equals("pdf")) {
+			requireReceiptLikeText(request.content());
+		}
 		return extension;
+	}
+
+	private void requireReceiptLikeText(byte[] content) {
+		String text;
+		try (PDDocument document = Loader.loadPDF(content)) {
+			text = new PDFTextStripper().getText(document);
+		} catch (IOException e) {
+			throw new InvalidAppointmentReceiptException("El PDF no se pudo leer");
+		}
+		if (!RECEIPT_KEYWORDS.matcher(text).find()) {
+			throw new InvalidAppointmentReceiptException("El PDF no parece ser un comprobante de pago");
+		}
+	}
+
+	private boolean matchesSignature(byte[] content, String extension) {
+		return switch (extension) {
+			case "pdf" -> startsWith(content, PDF_SIGNATURE);
+			case "jpg" -> startsWith(content, JPEG_SIGNATURE);
+			case "png" -> startsWith(content, PNG_SIGNATURE);
+			default -> false;
+		};
+	}
+
+	private boolean startsWith(byte[] content, byte[] signature) {
+		if (content.length < signature.length) {
+			return false;
+		}
+		for (int i = 0; i < signature.length; i++) {
+			if (content[i] != signature[i]) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	// El navegador puede mandar parámetros ("image/jpeg; charset=..."): queda solo el tipo.
@@ -133,13 +215,28 @@ public class AppointmentServiceHandler implements AppointmentService {
 		return contentType.split(";")[0].trim().toLowerCase();
 	}
 
+	// Requiere transacción abierta (la abre el orchestrator): el lock dura hasta el commit.
+	private AppointmentDay lockDay(Long appointmentDayId) {
+		return appointmentDayRepository.findByIdForUpdate(appointmentDayId)
+				.orElseThrow(AppointmentDayNotFoundException::new);
+	}
+
+	private LocalDateTime firstAvailableSlot(AppointmentDay day) {
+		List<LocalDateTime> bookedSlots = appointmentRepository
+				.findByAppointmentDayIdInAndStatusNot(List.of(day.getId()), AppointmentStatus.CANCELLED).stream()
+				.map(Appointment::getScheduledAt).toList();
+		LocalDateTime now = LocalDateTime.now();
+		return day.firstAvailableSlot(bookedSlots, now).orElseThrow(() -> new AppointmentDayUnavailableException(
+				day.hasPassed(now) ? "Ese día de atención ya pasó" : "No quedan turnos libres para ese día"));
+	}
+
 	private Appointment findAppointment(Long appointmentId) {
 		return appointmentRepository.findById(appointmentId).orElseThrow(AppointmentNotFoundException::new);
 	}
 
 	private AppointmentResponseDto toResponse(Appointment appointment) {
 		return new AppointmentResponseDto(appointment.getId(), appointment.getApplicantId(),
-				appointment.getAssignmentId(), appointment.getScheduledAt(),
+				appointment.getAssignmentId(), appointment.getAppointmentDayId(), appointment.getScheduledAt(),
 				appointment.getStatus().name(), appointment.getNotes(),
 				appointment.getCancellationReason(), appointment.getCreatedAt(),
 				appointment.getReceiptOriginalName());

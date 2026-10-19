@@ -18,8 +18,8 @@ function validateFile(file) {
 
 /**
  * El turno queda pendiente hasta subir el comprobante de la transferencia del bono contribución
- * (evita que agenden turnos sin intención de venir). El monto no lo valida el sistema: lo revisa
- * un operador después, como pasa hoy con la receta o el certificado ANSES.
+ * (evita que agenden turnos sin intención de venir). Subirlo no confirma el turno todavía: queda
+ * pendiente de revisión, un administrativo lo revisa y recién ahí lo aprueba o lo cancela.
  */
 export function AppointmentReceiptUpload({ appointmentId }) {
   const queryClient = useQueryClient()
@@ -48,7 +48,8 @@ export function AppointmentReceiptUpload({ appointmentId }) {
       <p className="font-medium text-amber-800">Falta confirmar con el comprobante del bono contribución</p>
       <p className="mt-1 text-amber-700">
         Transferí a alias <span className="font-semibold">{BANK_ACCOUNT.alias}</span> (CBU{' '}
-        {BANK_ACCOUNT.cbu}, {BANK_ACCOUNT.titular}) y subí el comprobante para confirmar el turno.
+        {BANK_ACCOUNT.cbu}, {BANK_ACCOUNT.titular}) y subí el comprobante. Un administrativo lo
+        va a revisar antes de confirmar el turno.
       </p>
 
       <input

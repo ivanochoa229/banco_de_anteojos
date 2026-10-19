@@ -1,7 +1,6 @@
 package com.banco.anteojos.backend.orchestrator.appointments;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
 
 import com.banco.anteojos.backend.business.appointments.dto.request.AppointmentCreationRequestDto;
@@ -15,19 +14,22 @@ public interface AppointmentUseCaseOrchestrator {
 
 	List<AppointmentResponseDto> listAppointmentsByApplicant(Long applicantId);
 
-	List<AppointmentResponseDto> listAppointments(LocalDate date);
+	List<AppointmentResponseDto> listAppointments(LocalDate date, LocalDate from);
 
 	AppointmentResponseDto getAppointment(Long appointmentId);
 
-	AppointmentResponseDto reschedule(Long appointmentId, LocalDateTime newScheduledAt);
+	AppointmentResponseDto reschedule(Long appointmentId, Long newAppointmentDayId);
 
 	AppointmentResponseDto cancel(Long appointmentId, String reason);
 
 	AppointmentResponseDto registerAttendance(Long appointmentId, boolean attended);
 
-	/** Confirma el turno (PENDING_PAYMENT → SCHEDULED) al subir el comprobante del bono contribución. */
+	/** Deja el comprobante cargado (PENDING_PAYMENT → PENDING_REVIEW), a la espera de revisión. */
 	AppointmentResponseDto confirmAppointment(Long applicantId, Long appointmentId,
 			AppointmentReceiptUploadRequestDto request);
+
+	/** El administrativo aprueba el comprobante revisado (PENDING_REVIEW → SCHEDULED). */
+	AppointmentResponseDto approve(Long appointmentId);
 
 	AppointmentReceiptResponseDto getReceipt(Long appointmentId);
 }

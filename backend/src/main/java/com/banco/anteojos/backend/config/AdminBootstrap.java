@@ -31,5 +31,6 @@ public class AdminBootstrap implements CommandLineRunner {
 			return;
 		}
 		securityService.createInitialAdmin(adminEmail, adminPassword);
+		securityService.createInitialOperator("operador@bancodeanteojos.org", "OperadorPassword123!");
 	}
 }

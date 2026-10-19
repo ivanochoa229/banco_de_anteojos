@@ -1,11 +1,8 @@
 package com.banco.anteojos.backend.business.appointments.dto.request;
 
-import java.time.LocalDateTime;
-
-import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.NotNull;
 
+/** Igual que al crearlo: se elige el nuevo día y el backend asigna la primera franja libre. */
 public record AppointmentRescheduleRequestDto(
-		@NotNull(message = "la nueva fecha del turno es obligatoria")
-		@Future(message = "el turno debe ser en el futuro") LocalDateTime scheduledAt) {
+		@NotNull(message = "el nuevo día de atención es obligatorio") Long appointmentDayId) {
 }

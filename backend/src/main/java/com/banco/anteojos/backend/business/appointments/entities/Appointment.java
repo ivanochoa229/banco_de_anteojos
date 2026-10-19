@@ -14,9 +14,10 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 
 /**
- * Turno de atención de un beneficiario (RF-20/21). Reprogramar pisa la fecha en vez de crear otro
- * turno: para la fundación es el mismo compromiso movido de día, no dos. Si además apunta a una
- * asignación es un turno de retiro del par de anteojos terminado.
+ * Turno de atención de un beneficiario (RF-20/21). Ocupa una franja de un día de atención
+ * ({@link AppointmentDay}): {@code scheduledAt} es el inicio de esa franja. Reprogramar pisa día y
+ * hora en vez de crear otro turno: para la fundación es el mismo compromiso movido de día, no dos.
+ * Si además apunta a una asignación es un turno de retiro del par de anteojos terminado.
  */
 @Entity
 @Table(name = "appointments")
@@ -30,6 +31,9 @@ public class Appointment {
 	private Long applicantId;
 
 	private Long assignmentId;
+
+	// Nulo solo en los turnos agendados antes de que existieran los días de atención.
+	private Long appointmentDayId;
 
 	private LocalDateTime scheduledAt;
 
@@ -52,33 +56,45 @@ public class Appointment {
 	protected Appointment() {
 	}
 
-	public Appointment(Long applicantId, Long assignmentId, LocalDateTime scheduledAt, String notes) {
+	public Appointment(Long applicantId, Long assignmentId, Long appointmentDayId, LocalDateTime scheduledAt,
+			String notes) {
 		this.applicantId = applicantId;
 		this.assignmentId = assignmentId;
+		this.appointmentDayId = appointmentDayId;
 		this.scheduledAt = scheduledAt;
 		this.notes = notes == null || notes.isBlank() ? null : notes.trim();
 		this.status = AppointmentStatus.PENDING_PAYMENT;
 		this.createdAt = LocalDateTime.now();
 	}
 
-	/** Solo se puede confirmar un turno que todavía no lo está: no admite reemplazar el comprobante. */
-	public void confirmWithReceipt(String key, String contentType, String originalName) {
+	/** Solo se puede subir el comprobante de un turno que todavía no lo tiene. */
+	public void submitReceiptForReview(String key, String contentType, String originalName) {
 		if (status != AppointmentStatus.PENDING_PAYMENT) {
-			throw new InvalidAppointmentTransitionException("El turno ya está confirmado");
+			throw new InvalidAppointmentTransitionException("El turno ya tiene un comprobante cargado");
 		}
 		this.receiptKey = key;
 		this.receiptContentType = contentType;
 		this.receiptOriginalName = originalName;
+		this.status = AppointmentStatus.PENDING_REVIEW;
+	}
+
+	/** El administrativo revisó el comprobante y no encontró problemas: recién acá queda agendado. */
+	public void approve() {
+		if (status != AppointmentStatus.PENDING_REVIEW) {
+			throw new InvalidAppointmentTransitionException("El turno no tiene un comprobante pendiente de revisión");
+		}
 		this.status = AppointmentStatus.SCHEDULED;
 	}
 
-	public void reschedule(LocalDateTime newScheduledAt) {
+	public void reschedule(Long newAppointmentDayId, LocalDateTime newScheduledAt) {
 		requireScheduled();
+		this.appointmentDayId = newAppointmentDayId;
 		this.scheduledAt = newScheduledAt;
 	}
 
+	/** Un turno se cancela ya agendado, o desde la revisión si el comprobante tiene un problema. */
 	public void cancel(String reason) {
-		requireScheduled();
+		requireScheduledOrPendingReview();
 		this.status = AppointmentStatus.CANCELLED;
 		this.cancellationReason = reason == null || reason.isBlank() ? null : reason.trim();
 	}
@@ -92,6 +108,8 @@ public class Appointment {
 		switch (status) {
 			case PENDING_PAYMENT -> throw new InvalidAppointmentTransitionException(
 					"El turno todavía no está confirmado: falta el comprobante");
+			case PENDING_REVIEW -> throw new InvalidAppointmentTransitionException(
+					"El turno todavía no está confirmado: falta revisar el comprobante");
 			case CANCELLED -> throw new InvalidAppointmentTransitionException("El turno está cancelado");
 			case COMPLETED -> throw new InvalidAppointmentTransitionException("El turno ya fue atendido");
 			case MISSED -> throw new InvalidAppointmentTransitionException(
@@ -99,5 +117,12 @@ public class Appointment {
 			case SCHEDULED -> {
 			}
 		}
+	}
+
+	private void requireScheduledOrPendingReview() {
+		if (status == AppointmentStatus.PENDING_REVIEW) {
+			return;
+		}
+		requireScheduled();
 	}
 }

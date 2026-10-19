@@ -1,11 +1,16 @@
 import { useState } from 'react'
 import { Alert } from '../../../components/Alert'
 import { Button } from '../../../components/Button'
-import { Input } from '../../../components/Input'
 import { Select } from '../../../components/Select'
+import { appointmentDayLabel } from '../labels'
 
-export function AppointmentForm({ assignmentOptions, onSubmit, isPending, submitError }) {
-  const [values, setValues] = useState({ scheduledAt: '', assignmentId: '', notes: '' })
+/**
+ * Se elige el día de atención, no la hora: la sede solo atiende los días que habilita el personal
+ * y el backend asigna la primera franja libre de ese día. `days` ya viene filtrado a los que tienen
+ * lugar.
+ */
+export function AppointmentForm({ days, isLoadingDays, assignmentOptions, onSubmit, isPending, submitError }) {
+  const [values, setValues] = useState({ appointmentDayId: '', assignmentId: '', notes: '' })
   const [fieldErrors, setFieldErrors] = useState({})
 
   function setField(name) {
@@ -16,32 +21,46 @@ export function AppointmentForm({ assignmentOptions, onSubmit, isPending, submit
     event.preventDefault()
 
     const errors = {
-      scheduledAt: !values.scheduledAt
-        ? 'Elegí la fecha y hora del turno'
-        : new Date(values.scheduledAt) <= new Date()
-          ? 'El turno debe ser en el futuro'
-          : null,
+      appointmentDayId: !values.appointmentDayId ? 'Elegí el día del turno' : null,
     }
     setFieldErrors(errors)
     if (Object.values(errors).some(Boolean)) return
 
     onSubmit({
-      scheduledAt: values.scheduledAt,
+      appointmentDayId: Number(values.appointmentDayId),
       assignmentId: values.assignmentId ? Number(values.assignmentId) : null,
       notes: values.notes.trim() || null,
     })
   }
 
+  if (isLoadingDays) {
+    return <p className="text-sm text-slate-500">Cargando días de atención…</p>
+  }
+
+  if (days.length === 0) {
+    return (
+      <p className="rounded-lg border border-dashed border-slate-300 px-4 py-6 text-center text-sm text-slate-500">
+        Por ahora no hay días de atención con turnos libres. Volvé a consultar en unos días.
+      </p>
+    )
+  }
+
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-4">
-      <Input
-        id="scheduledAt"
-        label="Fecha y hora"
-        type="datetime-local"
-        value={values.scheduledAt}
-        onChange={setField('scheduledAt')}
-        error={fieldErrors.scheduledAt}
-      />
+      <div>
+        <Select
+          id="appointmentDayId"
+          label="Día de atención"
+          options={days.map((day) => ({ value: day.id, label: appointmentDayLabel(day) }))}
+          placeholder="Elegí un día"
+          value={values.appointmentDayId}
+          onChange={setField('appointmentDayId')}
+          error={fieldErrors.appointmentDayId}
+        />
+        <p className="mt-1.5 text-xs text-slate-500">
+          La hora se asigna sola: el primer turno libre de ese día.
+        </p>
+      </div>
 
       {assignmentOptions.length > 0 && (
         <Select

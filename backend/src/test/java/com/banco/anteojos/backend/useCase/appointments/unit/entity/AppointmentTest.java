@@ -18,14 +18,21 @@ class AppointmentTest {
 	private static final LocalDateTime SCHEDULED_AT = LocalDateTime.now().plusDays(3);
 
 	private Appointment appointment() {
-		return new Appointment(1L, null, SCHEDULED_AT, "  trae la receta original  ");
+		return new Appointment(1L, null, 5L, SCHEDULED_AT, "  trae la receta original  ");
 	}
 
 	// La mayoría de las transiciones (reprogramar, cancelar, asistencia) exigen un turno ya
-	// confirmado: este helper lo deja en ese estado sin repetir el confirmWithReceipt en cada test.
+	// aprobado: este helper lo deja en ese estado sin repetir el submit+approve en cada test.
 	private Appointment confirmedAppointment() {
 		Appointment appointment = appointment();
-		appointment.confirmWithReceipt("appointments/1/comprobante.pdf", "application/pdf", "comprobante.pdf");
+		appointment.submitReceiptForReview("appointments/1/comprobante.pdf", "application/pdf", "comprobante.pdf");
+		appointment.approve();
+		return appointment;
+	}
+
+	private Appointment pendingReviewAppointment() {
+		Appointment appointment = appointment();
+		appointment.submitReceiptForReview("appointments/1/comprobante.pdf", "application/pdf", "comprobante.pdf");
 		return appointment;
 	}
 
@@ -35,6 +42,7 @@ class AppointmentTest {
 
 		assertThat(appointment.getApplicantId()).isEqualTo(1L);
 		assertThat(appointment.getAssignmentId()).isNull();
+		assertThat(appointment.getAppointmentDayId()).isEqualTo(5L);
 		assertThat(appointment.getScheduledAt()).isEqualTo(SCHEDULED_AT);
 		// Nace sin confirmar: recién pasa a SCHEDULED con el comprobante del bono contribución.
 		assertThat(appointment.getStatus()).isEqualTo(AppointmentStatus.PENDING_PAYMENT);
@@ -44,33 +52,61 @@ class AppointmentTest {
 
 	@Test
 	void Create_WhenNotesAreBlank() {
-		assertThat(new Appointment(1L, null, SCHEDULED_AT, "   ").getNotes()).isNull();
+		assertThat(new Appointment(1L, null, 5L, SCHEDULED_AT, "   ").getNotes()).isNull();
 	}
 
 	@Test
 	void Create_AsPickupAppointment() {
-		assertThat(new Appointment(1L, 9L, SCHEDULED_AT, null).getAssignmentId()).isEqualTo(9L);
+		assertThat(new Appointment(1L, 9L, 5L, SCHEDULED_AT, null).getAssignmentId()).isEqualTo(9L);
 	}
 
 	@Test
-	void ConfirmWithReceipt_Successful() {
+	void SubmitReceiptForReview_Successful() {
 		Appointment appointment = appointment();
 
-		appointment.confirmWithReceipt("appointments/1/comprobante.pdf", "application/pdf", "comprobante.pdf");
+		appointment.submitReceiptForReview("appointments/1/comprobante.pdf", "application/pdf", "comprobante.pdf");
 
-		assertThat(appointment.getStatus()).isEqualTo(AppointmentStatus.SCHEDULED);
+		assertThat(appointment.getStatus()).isEqualTo(AppointmentStatus.PENDING_REVIEW);
 		assertThat(appointment.getReceiptKey()).isEqualTo("appointments/1/comprobante.pdf");
 		assertThat(appointment.getReceiptContentType()).isEqualTo("application/pdf");
 		assertThat(appointment.getReceiptOriginalName()).isEqualTo("comprobante.pdf");
 	}
 
 	@Test
-	void ConfirmWithReceipt_WhenAlreadyConfirmed() {
-		Appointment appointment = confirmedAppointment();
+	void SubmitReceiptForReview_WhenAlreadySubmitted() {
+		Appointment appointment = pendingReviewAppointment();
 
-		assertThatThrownBy(() -> appointment.confirmWithReceipt("otra-key", "application/pdf", "otro.pdf"))
+		assertThatThrownBy(() -> appointment.submitReceiptForReview("otra-key", "application/pdf", "otro.pdf"))
 				.isInstanceOf(InvalidAppointmentTransitionException.class)
-				.hasMessageContaining("ya está confirmado");
+				.hasMessageContaining("ya tiene un comprobante cargado");
+	}
+
+	@Test
+	void Approve_Successful() {
+		Appointment appointment = pendingReviewAppointment();
+
+		appointment.approve();
+
+		assertThat(appointment.getStatus()).isEqualTo(AppointmentStatus.SCHEDULED);
+	}
+
+	@Test
+	void Approve_WhenNotPendingReview() {
+		Appointment appointment = appointment();
+
+		assertThatThrownBy(appointment::approve)
+				.isInstanceOf(InvalidAppointmentTransitionException.class)
+				.hasMessageContaining("pendiente de revisión");
+	}
+
+	@Test
+	void Cancel_WhenPendingReview() {
+		Appointment appointment = pendingReviewAppointment();
+
+		appointment.cancel("el comprobante no corresponde");
+
+		assertThat(appointment.getStatus()).isEqualTo(AppointmentStatus.CANCELLED);
+		assertThat(appointment.getCancellationReason()).isEqualTo("el comprobante no corresponde");
 	}
 
 	@Test
@@ -78,9 +114,10 @@ class AppointmentTest {
 		Appointment appointment = confirmedAppointment();
 		LocalDateTime newDate = SCHEDULED_AT.plusDays(2);
 
-		appointment.reschedule(newDate);
+		appointment.reschedule(6L, newDate);
 
 		// Reprogramar mueve el mismo turno: sigue agendado, no nace otro.
+		assertThat(appointment.getAppointmentDayId()).isEqualTo(6L);
 		assertThat(appointment.getScheduledAt()).isEqualTo(newDate);
 		assertThat(appointment.getStatus()).isEqualTo(AppointmentStatus.SCHEDULED);
 	}
@@ -89,7 +126,7 @@ class AppointmentTest {
 	void Reschedule_WhenPendingPayment() {
 		Appointment appointment = appointment();
 
-		assertThatThrownBy(() -> appointment.reschedule(SCHEDULED_AT.plusDays(1)))
+		assertThatThrownBy(() -> appointment.reschedule(6L, SCHEDULED_AT.plusDays(1)))
 				.isInstanceOf(InvalidAppointmentTransitionException.class)
 				.hasMessageContaining("no está confirmado");
 	}
@@ -136,7 +173,7 @@ class AppointmentTest {
 		Appointment appointment = confirmedAppointment();
 		appointment.cancel("no viene más");
 
-		assertThatThrownBy(() -> appointment.reschedule(SCHEDULED_AT.plusDays(1)))
+		assertThatThrownBy(() -> appointment.reschedule(6L, SCHEDULED_AT.plusDays(1)))
 				.isInstanceOf(InvalidAppointmentTransitionException.class)
 				.hasMessageContaining("cancelado");
 	}

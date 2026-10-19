@@ -49,11 +49,16 @@ public class SecurityConfig {
 						.requestMatchers("/v1/frames/**").hasAnyRole("ADMIN", "OPERATOR")
 						.requestMatchers("/v1/assignments/**").hasAnyRole("ADMIN", "OPERATOR")
 						.requestMatchers("/v1/appointments/**").hasAnyRole("ADMIN", "OPERATOR")
+						.requestMatchers("/v1/appointment-days/**").hasAnyRole("ADMIN", "OPERATOR")
 						// Público a propósito: 17TRACK no puede mandar JWT; lo autentica la
 						// firma del push (ver ShipmentWebhookController).
 						.requestMatchers(HttpMethod.POST, "/v1/shipments/webhook").permitAll()
 						.requestMatchers("/v1/shipments/**").hasAnyRole("ADMIN", "OPERATOR")
 						.requestMatchers("/v1/indicators/**").hasAnyRole("ADMIN", "OPERATOR")
+						// GET va antes que el matcher genérico de abajo: el solicitante puede ver
+						// el catálogo de venta (RF-28), pero no crearlo/editarlo ni registrar ventas.
+						.requestMatchers(HttpMethod.GET, "/v1/catalog/products", "/v1/catalog/products/*")
+							.hasAnyRole("ADMIN", "OPERATOR", "APPLICANT")
 						.requestMatchers("/v1/catalog/**").hasAnyRole("ADMIN", "OPERATOR")
 						.anyRequest().authenticated())
 				.exceptionHandling(exceptions -> exceptions

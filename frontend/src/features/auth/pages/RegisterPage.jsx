@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
 import { useAuth } from '../../../context/useAuth'
 import { Alert } from '../../../components/Alert'
+import { BancoAnteojosLogo, HacerFuturoLogo } from '../../../components/BrandLogo'
 import { Button } from '../../../components/Button'
 import { Input } from '../../../components/Input'
 
@@ -41,7 +42,7 @@ export function RegisterPage() {
         email: values.email.trim(),
         password: values.password,
       }),
-    onSuccess: () => navigate('/', { replace: true }),
+    onSuccess: () => navigate('/solicitante', { replace: true }),
   })
 
   function handleSubmit(event) {
@@ -58,16 +59,50 @@ export function RegisterPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-100 px-4 py-8">
-      <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-sm">
-        <h1 className="text-2xl font-bold text-slate-900">Banco de Anteojos</h1>
-        <p className="mt-1 text-sm text-slate-500">Registrate como solicitante</p>
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-100/90 px-4 py-12">
+      {/* Círculos decorativos difuminados */}
+      <div className="pointer-events-none absolute -top-40 -left-40 h-96 w-96 rounded-full bg-orange-200/25 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-40 -right-40 h-96 w-96 rounded-full bg-slate-300/30 blur-3xl" />
+
+      <div className="relative w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-8 shadow-xl shadow-slate-900/5 sm:p-10">
+        {/* Link para volver a la home pública */}
+        <div className="mb-6">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-orange-600 transition"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            <span>Volver a la página principal</span>
+          </Link>
+        </div>
+        <div className="text-center">
+          <div className="mb-6 flex items-center justify-center gap-4">
+            <HacerFuturoLogo className="h-11 w-auto" />
+            <div className="h-8 w-[1.5px] bg-slate-200" />
+            <BancoAnteojosLogo className="h-14 w-auto" />
+          </div>
+
+          <span className="block text-[11px] font-black uppercase tracking-widest text-slate-500">
+            Fundación Hacer Futuro
+          </span>
+          <h1 className="mt-1 text-2xl font-black tracking-tight text-orange-600 sm:text-3xl">
+            REGISTRO DE SOLICITANTE
+          </h1>
+
+          <p className="mt-2 text-xs font-medium text-slate-500">
+            Completá tus datos para solicitar tus anteojos y agendar tu turno
+          </p>
+        </div>
+
 
         <form onSubmit={handleSubmit} noValidate className="mt-8 space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Input
               id="firstName"
               label="Nombre"
+              placeholder="Juan"
               value={values.firstName}
               onChange={setField('firstName')}
               error={fieldErrors.firstName}
@@ -75,6 +110,7 @@ export function RegisterPage() {
             <Input
               id="lastName"
               label="Apellido"
+              placeholder="Pérez"
               value={values.lastName}
               onChange={setField('lastName')}
               error={fieldErrors.lastName}
@@ -82,7 +118,8 @@ export function RegisterPage() {
           </div>
           <Input
             id="dni"
-            label="DNI"
+            label="DNI (sin puntos)"
+            placeholder="12345678"
             inputMode="numeric"
             value={values.dni}
             onChange={setField('dni')}
@@ -98,13 +135,15 @@ export function RegisterPage() {
           />
           <Input
             id="phone"
-            label="Teléfono (opcional)"
+            label="Teléfono / WhatsApp (opcional)"
+            placeholder="381 123 4567"
             value={values.phone}
             onChange={setField('phone')}
           />
           <Input
             id="email"
-            label="Email"
+            label="Correo electrónico"
+            placeholder="juanperez@gmail.com"
             type="email"
             value={values.email}
             onChange={setField('email')}
@@ -114,6 +153,7 @@ export function RegisterPage() {
           <Input
             id="password"
             label="Contraseña"
+            placeholder="Mínimo 8 caracteres"
             type="password"
             value={values.password}
             onChange={setField('password')}
@@ -123,18 +163,28 @@ export function RegisterPage() {
 
           {registerMutation.isError && <Alert>{registerMutation.error.message}</Alert>}
 
-          <Button type="submit" className="w-full" disabled={registerMutation.isPending}>
-            {registerMutation.isPending ? 'Creando la cuenta…' : 'Registrarme'}
+          <Button
+            type="submit"
+            className="w-full py-3 text-sm font-bold shadow-md shadow-orange-600/20"
+            disabled={registerMutation.isPending}
+          >
+            {registerMutation.isPending ? 'Creando la cuenta…' : 'Registrarme como beneficiario'}
           </Button>
         </form>
 
-        <p className="mt-6 text-center text-sm text-slate-500">
-          ¿Ya tenés cuenta?{' '}
-          <Link to="/login" className="font-medium text-sky-700 hover:underline">
-            Iniciá sesión
-          </Link>
-        </p>
+        <div className="mt-8 border-t border-slate-100 pt-5 text-center">
+          <p className="text-sm text-slate-600">
+            ¿Ya tenés cuenta?{' '}
+            <Link
+              to="/login"
+              className="font-bold text-orange-600 hover:text-orange-700 hover:underline"
+            >
+              Iniciá sesión acá
+            </Link>
+          </p>
+        </div>
       </div>
     </main>
   )
 }
+

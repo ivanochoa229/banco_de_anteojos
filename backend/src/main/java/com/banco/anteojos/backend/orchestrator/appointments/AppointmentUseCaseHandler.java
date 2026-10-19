@@ -1,10 +1,10 @@
 package com.banco.anteojos.backend.orchestrator.appointments;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.banco.anteojos.backend.business.applicants.ApplicantService;
 import com.banco.anteojos.backend.business.applicants.dto.response.ApplicantResponseDto;
@@ -21,10 +21,10 @@ import com.banco.anteojos.backend.thirdPartyServiceComunication.notifications.No
 import lombok.RequiredArgsConstructor;
 
 /**
- * El turno nace PENDING_PAYMENT y recién dispara la notificación de RF-22 cuando se confirma con
- * el comprobante (confirmAppointment), no al crearlo. Reprogramación y cancelación siguen
- * disparando la suya después de persistir: el cliente de notificaciones es best effort y nunca
- * corta el caso de uso.
+ * El turno nace PENDING_PAYMENT, pasa a PENDING_REVIEW al subir el comprobante (confirmAppointment)
+ * y recién dispara la notificación de RF-22 cuando el administrativo lo aprueba tras revisarlo
+ * (approve), no antes. Reprogramación, cancelación y aprobación disparan la suya después de
+ * persistir: el cliente de notificaciones es best effort y nunca corta el caso de uso.
  */
 @Component
 @RequiredArgsConstructor
@@ -35,7 +35,9 @@ public class AppointmentUseCaseHandler implements AppointmentUseCaseOrchestrator
 	private final AssignmentService assignmentService;
 	private final NotificationClient notificationClient;
 
+	// Transaccional por el lock del día que toma el service al reservar la franja.
 	@Override
+	@Transactional
 	public AppointmentResponseDto createAppointment(Long applicantId, AppointmentCreationRequestDto request) {
 		// Pertenencia primero: que la asignación a retirar sea de este beneficiario. 404 y no
 		// 403 para no revelar de quién es la asignación ajena.
@@ -54,8 +56,8 @@ public class AppointmentUseCaseHandler implements AppointmentUseCaseOrchestrator
 	}
 
 	@Override
-	public List<AppointmentResponseDto> listAppointments(LocalDate date) {
-		return appointmentService.listAppointments(date);
+	public List<AppointmentResponseDto> listAppointments(LocalDate date, LocalDate from) {
+		return appointmentService.listAppointments(date, from);
 	}
 
 	@Override
@@ -64,8 +66,9 @@ public class AppointmentUseCaseHandler implements AppointmentUseCaseOrchestrator
 	}
 
 	@Override
-	public AppointmentResponseDto reschedule(Long appointmentId, LocalDateTime newScheduledAt) {
-		AppointmentResponseDto appointment = appointmentService.reschedule(appointmentId, newScheduledAt);
+	@Transactional
+	public AppointmentResponseDto reschedule(Long appointmentId, Long newAppointmentDayId) {
+		AppointmentResponseDto appointment = appointmentService.reschedule(appointmentId, newAppointmentDayId);
 		ApplicantResponseDto applicant = applicantService.getApplicant(appointment.applicantId());
 		notificationClient.sendAppointmentRescheduled(applicant.email(), applicant.firstName(),
 				appointment.scheduledAt());
@@ -93,8 +96,13 @@ public class AppointmentUseCaseHandler implements AppointmentUseCaseOrchestrator
 		if (!appointmentService.getAppointment(appointmentId).applicantId().equals(applicantId)) {
 			throw new AppointmentNotFoundException();
 		}
-		AppointmentResponseDto appointment = appointmentService.confirmWithReceipt(appointmentId, request);
-		ApplicantResponseDto applicant = applicantService.getApplicant(applicantId);
+		return appointmentService.submitReceiptForReview(appointmentId, request);
+	}
+
+	@Override
+	public AppointmentResponseDto approve(Long appointmentId) {
+		AppointmentResponseDto appointment = appointmentService.approve(appointmentId);
+		ApplicantResponseDto applicant = applicantService.getApplicant(appointment.applicantId());
 		notificationClient.sendAppointmentScheduled(applicant.email(), applicant.firstName(),
 				appointment.scheduledAt());
 		return appointment;

@@ -7,11 +7,18 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.font.PDType1Font;
+import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -29,12 +36,14 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.banco.anteojos.backend.business.applicants.entities.Prescription;
+import com.banco.anteojos.backend.business.appointments.entities.AppointmentDay;
 import com.banco.anteojos.backend.business.security.JwtService;
 import com.banco.anteojos.backend.business.security.entities.Role;
 import com.banco.anteojos.backend.business.security.entities.User;
 import com.banco.anteojos.backend.business.shipments.entities.Shipment;
 import com.banco.anteojos.backend.business.shipments.entities.ShipmentStatus;
 import com.banco.anteojos.backend.persistence.applicants.PrescriptionPostgresSqlRepository;
+import com.banco.anteojos.backend.persistence.appointments.AppointmentDayPostgresSqlRepository;
 import com.banco.anteojos.backend.persistence.shipments.ShipmentPostgresSqlRepository;
 import com.banco.anteojos.backend.thirdPartyServiceComunication.notifications.NotificationClient;
 import com.banco.anteojos.backend.thirdPartyServiceComunication.storage.R2StorageClient;
@@ -76,6 +85,9 @@ class IndicatorsE2ETest {
 
 	@Autowired
 	private ShipmentPostgresSqlRepository shipmentRepository;
+
+	@Autowired
+	private AppointmentDayPostgresSqlRepository appointmentDayRepository;
 
 	@Autowired
 	private JdbcTemplate jdbcTemplate;
@@ -143,25 +155,51 @@ class IndicatorsE2ETest {
 		return assignmentId;
 	}
 
+	// Un día de atención por turno, arrancando a esa hora: el turno cae en su primera franja.
+	// Franja de 1 minuto para que, si el test corre cerca de medianoche, no pase al día siguiente.
 	private Long createAppointment(LocalDateTime scheduledAt) throws Exception {
+		Long dayId = appointmentDayRepository.save(new AppointmentDay(scheduledAt.toLocalDate(),
+				scheduledAt.toLocalTime(), 1, 1)).getId();
 		String response = mockMvc.perform(post("/v1/applicants/" + APPLICANT_ID + "/appointments")
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
-								{"scheduledAt": "%s"}
-								""".formatted(scheduledAt))
+								{"appointmentDayId": %d}
+								""".formatted(dayId))
 						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
 				.andExpect(status().isCreated())
 				.andReturn().getResponse().getContentAsString();
 		return ((Number) JsonPath.read(response, "$.id")).longValue();
 	}
 
+	// El comprobante queda pendiente de revisión al subirlo: hace falta aprobarlo para que el
+	// turno llegue a SCHEDULED y pueda registrarse la asistencia.
 	private void confirmAppointment(Long appointmentId) throws Exception {
 		MockMultipartFile file = new MockMultipartFile("file", "comprobante.pdf", "application/pdf",
-				new byte[] { 1, 2, 3 });
+				receiptPdf());
 		mockMvc.perform(multipart(HttpMethod.PUT, "/v1/me/appointments/" + appointmentId + "/receipt")
 						.file(file)
 						.header(HttpHeaders.AUTHORIZATION, applicantBearerToken()))
 				.andExpect(status().isOk());
+		mockMvc.perform(put("/v1/appointments/" + appointmentId + "/approval")
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isOk());
+	}
+
+	private byte[] receiptPdf() throws IOException {
+		try (PDDocument document = new PDDocument()) {
+			PDPage page = new PDPage();
+			document.addPage(page);
+			try (PDPageContentStream stream = new PDPageContentStream(document, page)) {
+				stream.beginText();
+				stream.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA), 12);
+				stream.newLineAtOffset(50, 700);
+				stream.showText("Comprobante de pago - Bono contribución");
+				stream.endText();
+			}
+			ByteArrayOutputStream out = new ByteArrayOutputStream();
+			document.save(out);
+			return out.toByteArray();
+		}
 	}
 
 	private void registerAttendance(Long appointmentId, boolean attended) throws Exception {

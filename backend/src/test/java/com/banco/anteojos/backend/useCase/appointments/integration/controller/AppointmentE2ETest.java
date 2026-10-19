@@ -14,10 +14,19 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.font.PDType1Font;
+import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,6 +43,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.banco.anteojos.backend.business.applicants.entities.Applicant;
 import com.banco.anteojos.backend.business.applicants.entities.Prescription;
+import com.banco.anteojos.backend.business.appointments.entities.Appointment;
+import com.banco.anteojos.backend.business.appointments.entities.AppointmentDay;
 import com.banco.anteojos.backend.business.appointments.entities.AppointmentStatus;
 import com.banco.anteojos.backend.business.assignments.entities.Assignment;
 import com.banco.anteojos.backend.business.security.JwtService;
@@ -41,6 +52,7 @@ import com.banco.anteojos.backend.business.security.entities.Role;
 import com.banco.anteojos.backend.business.security.entities.User;
 import com.banco.anteojos.backend.persistence.applicants.ApplicantPostgresSqlRepository;
 import com.banco.anteojos.backend.persistence.applicants.PrescriptionPostgresSqlRepository;
+import com.banco.anteojos.backend.persistence.appointments.AppointmentDayPostgresSqlRepository;
 import com.banco.anteojos.backend.persistence.appointments.AppointmentPostgresSqlRepository;
 import com.banco.anteojos.backend.persistence.assignments.AssignmentPostgresSqlRepository;
 import com.banco.anteojos.backend.thirdPartyServiceComunication.notifications.NotificationClient;
@@ -58,8 +70,9 @@ class AppointmentE2ETest {
 
 	private static final long APPLICANT_ID = 200000L;
 	// Segundos distintos de cero para que LocalDateTime.toString() coincida con el JSON.
-	private static final LocalDateTime SCHEDULED_AT =
-			LocalDateTime.now().plusDays(7).withHour(10).withMinute(30).withSecond(15).withNano(0);
+	private static final LocalTime START_TIME = LocalTime.of(10, 30, 15);
+	// Primera franja del día de atención: la que le toca al primer turno que se pide.
+	private static final LocalDateTime SCHEDULED_AT = LocalDate.now().plusDays(7).atTime(START_TIME);
 
 	@Autowired
 	private MockMvc mockMvc;
@@ -69,6 +82,9 @@ class AppointmentE2ETest {
 
 	@Autowired
 	private AppointmentPostgresSqlRepository appointmentRepository;
+
+	@Autowired
+	private AppointmentDayPostgresSqlRepository appointmentDayRepository;
 
 	@Autowired
 	private ApplicantPostgresSqlRepository applicantRepository;
@@ -85,6 +101,17 @@ class AppointmentE2ETest {
 	@MockitoBean
 	private R2StorageClient r2StorageClient;
 
+	private Long dayId;
+	private Long nextDayId;
+
+	@BeforeEach
+	void setUpAppointmentDays() {
+		dayId = appointmentDayRepository.save(new AppointmentDay(SCHEDULED_AT.toLocalDate(), START_TIME, 15, 4))
+				.getId();
+		nextDayId = appointmentDayRepository
+				.save(new AppointmentDay(SCHEDULED_AT.toLocalDate().plusDays(3), START_TIME, 15, 4)).getId();
+	}
+
 	private String bearerToken() {
 		return "Bearer " + jwtService.generateToken(
 				new User("Operador Test", "operator.test@bancoanteojos.org", "hash", Role.OPERATOR));
@@ -96,16 +123,16 @@ class AppointmentE2ETest {
 				new User("Beneficiario Test", "beneficiario.test@mail.com", "hash", Role.APPLICANT, applicantId));
 	}
 
-	private String creationBody(LocalDateTime scheduledAt) {
+	private String creationBody(Long appointmentDayId) {
 		return """
-				{"scheduledAt": "%s", "notes": "trae la receta original"}
-				""".formatted(scheduledAt);
+				{"appointmentDayId": %d, "notes": "trae la receta original"}
+				""".formatted(appointmentDayId);
 	}
 
 	private Long createAppointment() throws Exception {
 		String response = mockMvc.perform(post("/v1/applicants/" + APPLICANT_ID + "/appointments")
 						.contentType(MediaType.APPLICATION_JSON)
-						.content(creationBody(SCHEDULED_AT))
+						.content(creationBody(dayId))
 						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
 				.andExpect(status().isCreated())
 				.andReturn().getResponse().getContentAsString();
@@ -114,17 +141,42 @@ class AppointmentE2ETest {
 
 	private void confirmAppointment(Long appointmentId) throws Exception {
 		MockMultipartFile file = new MockMultipartFile("file", "comprobante.pdf", "application/pdf",
-				new byte[] { 1, 2, 3 });
+				receiptPdf());
 		mockMvc.perform(multipart(HttpMethod.PUT, "/v1/me/appointments/" + appointmentId + "/receipt")
 						.file(file)
 						.header(HttpHeaders.AUTHORIZATION, applicantBearerToken(APPLICANT_ID)))
 				.andExpect(status().isOk());
 	}
 
+	private void approveAppointment(Long appointmentId) throws Exception {
+		mockMvc.perform(put("/v1/appointments/" + appointmentId + "/approval")
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isOk());
+	}
+
+	// El administrativo revisa el comprobante y no encuentra problemas: recién ahí queda agendado.
 	private Long createConfirmedAppointment() throws Exception {
 		Long appointmentId = createAppointment();
 		confirmAppointment(appointmentId);
+		approveAppointment(appointmentId);
 		return appointmentId;
+	}
+
+	private byte[] receiptPdf() throws IOException {
+		try (PDDocument document = new PDDocument()) {
+			PDPage page = new PDPage();
+			document.addPage(page);
+			try (PDPageContentStream stream = new PDPageContentStream(document, page)) {
+				stream.beginText();
+				stream.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA), 12);
+				stream.newLineAtOffset(50, 700);
+				stream.showText("Comprobante de pago - Bono contribución");
+				stream.endText();
+			}
+			ByteArrayOutputStream out = new ByteArrayOutputStream();
+			document.save(out);
+			return out.toByteArray();
+		}
 	}
 
 	private AppointmentStatus statusInDb(Long appointmentId) {
@@ -135,7 +187,7 @@ class AppointmentE2ETest {
 	void CreateAppointment_Successful() throws Exception {
 		mockMvc.perform(post("/v1/applicants/" + APPLICANT_ID + "/appointments")
 						.contentType(MediaType.APPLICATION_JSON)
-						.content(creationBody(SCHEDULED_AT))
+						.content(creationBody(dayId))
 						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
 				.andExpect(status().isCreated())
 				.andExpect(jsonPath("$.applicantId").value(APPLICANT_ID))
@@ -153,9 +205,39 @@ class AppointmentE2ETest {
 
 		confirmAppointment(appointmentId);
 
+		// Todavía no está aprobado: subir el comprobante solo lo deja pendiente de revisión.
+		assertThat(statusInDb(appointmentId)).isEqualTo(AppointmentStatus.PENDING_REVIEW);
+		verifyNoInteractions(notificationClient);
+	}
+
+	@Test
+	void Approve_Successful() throws Exception {
+		Long appointmentId = createAppointment();
+		confirmAppointment(appointmentId);
+
+		mockMvc.perform(put("/v1/appointments/" + appointmentId + "/approval")
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.status").value("SCHEDULED"));
+
 		assertThat(statusInDb(appointmentId)).isEqualTo(AppointmentStatus.SCHEDULED);
 		verify(notificationClient).sendAppointmentScheduled(eq("juana.perez@mail.com"), eq("Juana"),
 				eq(SCHEDULED_AT));
+	}
+
+	@Test
+	void Cancel_WhenPendingReview() throws Exception {
+		Long appointmentId = createAppointment();
+		confirmAppointment(appointmentId);
+
+		mockMvc.perform(put("/v1/appointments/" + appointmentId + "/cancellation")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"reason\": \"el comprobante no corresponde\"}")
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.status").value("CANCELLED"));
+
+		assertThat(statusInDb(appointmentId)).isEqualTo(AppointmentStatus.CANCELLED);
 	}
 
 	@Test
@@ -187,10 +269,25 @@ class AppointmentE2ETest {
 	}
 
 	@Test
-	void CreateAppointment_WhenDateIsInThePast() throws Exception {
+	void CreateAppointment_WhenDayHasPassed() throws Exception {
+		Long pastDayId = appointmentDayRepository
+				.save(new AppointmentDay(LocalDate.now().minusDays(1), START_TIME, 15, 4)).getId();
+
 		mockMvc.perform(post("/v1/applicants/" + APPLICANT_ID + "/appointments")
 						.contentType(MediaType.APPLICATION_JSON)
-						.content(creationBody(LocalDateTime.now().minusDays(1)))
+						.content(creationBody(pastDayId))
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isConflict())
+				.andExpect(jsonPath("$.message").value("Ese día de atención ya pasó"));
+
+		assertThat(appointmentRepository.count()).isZero();
+	}
+
+	@Test
+	void CreateAppointment_WithoutAppointmentDay() throws Exception {
+		mockMvc.perform(post("/v1/applicants/" + APPLICANT_ID + "/appointments")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"notes\": \"sin día\"}")
 						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
 				.andExpect(status().isBadRequest());
 
@@ -198,10 +295,24 @@ class AppointmentE2ETest {
 	}
 
 	@Test
+	void CreateAppointment_AssignsConsecutiveSlots() throws Exception {
+		createAppointment();
+
+		// El segundo turno del mismo día cae en la franja siguiente, 15 minutos después.
+		mockMvc.perform(post("/v1/applicants/" + APPLICANT_ID + "/appointments")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(creationBody(dayId))
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.appointmentDayId").value(dayId))
+				.andExpect(jsonPath("$.scheduledAt").value(SCHEDULED_AT.plusMinutes(15).toString()));
+	}
+
+	@Test
 	void CreateAppointment_WhenApplicantNotFound() throws Exception {
 		mockMvc.perform(post("/v1/applicants/999999/appointments")
 						.contentType(MediaType.APPLICATION_JSON)
-						.content(creationBody(SCHEDULED_AT))
+						.content(creationBody(dayId))
 						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
 				.andExpect(status().isNotFound());
 	}
@@ -217,8 +328,8 @@ class AppointmentE2ETest {
 		mockMvc.perform(post("/v1/applicants/" + APPLICANT_ID + "/appointments")
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
-								{"scheduledAt": "%s", "assignmentId": %d}
-								""".formatted(SCHEDULED_AT, assignmentId))
+								{"appointmentDayId": %d, "assignmentId": %d}
+								""".formatted(dayId, assignmentId))
 						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
 				.andExpect(status().isCreated())
 				.andExpect(jsonPath("$.assignmentId").value(assignmentId));
@@ -237,8 +348,8 @@ class AppointmentE2ETest {
 		mockMvc.perform(post("/v1/applicants/" + APPLICANT_ID + "/appointments")
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
-								{"scheduledAt": "%s", "assignmentId": %d}
-								""".formatted(SCHEDULED_AT, foreignAssignmentId))
+								{"appointmentDayId": %d, "assignmentId": %d}
+								""".formatted(dayId, foreignAssignmentId))
 						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
 				.andExpect(status().isNotFound())
 				.andExpect(jsonPath("$.message").value("Asignación no encontrada"));
@@ -255,9 +366,10 @@ class AppointmentE2ETest {
 
 		mockMvc.perform(put("/v1/appointments/" + appointmentId + "/schedule")
 						.contentType(MediaType.APPLICATION_JSON)
-						.content("{\"scheduledAt\": \"" + newDate + "\"}")
+						.content("{\"appointmentDayId\": " + nextDayId + "}")
 						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
 				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.appointmentDayId").value(nextDayId))
 				.andExpect(jsonPath("$.scheduledAt").value(newDate.toString()))
 				.andExpect(jsonPath("$.status").value("SCHEDULED"));
 
@@ -293,7 +405,7 @@ class AppointmentE2ETest {
 
 		mockMvc.perform(put("/v1/appointments/" + appointmentId + "/schedule")
 						.contentType(MediaType.APPLICATION_JSON)
-						.content("{\"scheduledAt\": \"" + SCHEDULED_AT.plusDays(1) + "\"}")
+						.content("{\"appointmentDayId\": " + nextDayId + "}")
 						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
 				.andExpect(status().isConflict())
 				.andExpect(jsonPath("$.message").value("El turno está cancelado"));
@@ -318,7 +430,7 @@ class AppointmentE2ETest {
 		createAppointment();
 		mockMvc.perform(post("/v1/applicants/" + APPLICANT_ID + "/appointments")
 						.contentType(MediaType.APPLICATION_JSON)
-						.content(creationBody(SCHEDULED_AT.plusDays(1)))
+						.content(creationBody(nextDayId))
 						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
 				.andExpect(status().isCreated());
 
@@ -336,6 +448,19 @@ class AppointmentE2ETest {
 	}
 
 	@Test
+	void ListAppointments_FromToday() throws Exception {
+		createAppointment();
+		// Un turno ya pasado, anterior a los días de atención: la agenda de "próximos" no lo trae.
+		appointmentRepository.save(new Appointment(APPLICANT_ID, null, null, LocalDateTime.now().minusDays(2), null));
+
+		mockMvc.perform(get("/v1/appointments?from=" + LocalDate.now())
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.length()").value(1))
+				.andExpect(jsonPath("$[0].scheduledAt").value(SCHEDULED_AT.toString()));
+	}
+
+	@Test
 	void ListAppointmentsByApplicant_Successful() throws Exception {
 		createAppointment();
 
@@ -350,7 +475,7 @@ class AppointmentE2ETest {
 	void CreateAppointment_WithoutToken() throws Exception {
 		mockMvc.perform(post("/v1/applicants/" + APPLICANT_ID + "/appointments")
 						.contentType(MediaType.APPLICATION_JSON)
-						.content(creationBody(SCHEDULED_AT)))
+						.content(creationBody(dayId)))
 				.andExpect(status().isUnauthorized());
 	}
 }
