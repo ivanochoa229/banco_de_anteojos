@@ -165,6 +165,16 @@ Agrupadas por módulo (correspondencia 1 a 1 con los dominios del backend):
 - Se asume disponibilidad de conectividad a internet en el punto de atención para consultar
   RENAPER y 17TRACK; ante indisponibilidad de RENAPER, el sistema depende de que el operador
   ejecute la validación presencial documentada como alternativa (RF-06).
+- **Aclaración sobre el estado de RF-02/RF-06** (dos situaciones distintas, para no confundirlas):
+  la integración con el SID de RENAPER (RF-02) depende del convenio TAD mencionado arriba, y por eso
+  esta entrega **no incluye un `RenaperClient` propio por decisión de alcance** — no es una
+  funcionalidad pendiente, es la decisión ya tomada en 1.2 ("Fuera de alcance") y en `CLAUDE.md` del
+  proyecto. La validación presencial alternativa (RF-06), en cambio, sí está especificada como una
+  funcionalidad del sistema (que el operador confirme la identidad y quede trazado quién lo hizo), y
+  **esa sí es un pendiente real**: el código actual no tiene ningún endpoint ni control de interfaz
+  que la dispare, `identityValidated` permanece en `false` para todo solicitante, y hoy el operador
+  verifica el DNI físico fuera del sistema, sin dejar registro digital. Detalle de estado en el
+  Apéndice B.
 - Se asume que el monto del bono contribución y la validez del comprobante los verifica un humano
   (operador), no el sistema — el sistema solo garantiza que no se confirme un turno sin que el
   operador haya revisado y aprobado el comprobante cargado.
@@ -202,6 +212,7 @@ Agrupadas por módulo (correspondencia 1 a 1 con los dominios del backend):
 | **17TRACK** | Registrar y seguir envíos entre sucursales por Vía Cargo (RF-23, RF-24) | REST `/register` + webhook push | Cliente aislado `TrackingClient`; tier gratuito, 100 envíos/mes |
 | **Cloudflare R2** | Almacenar imágenes de marcos/catálogo y PDFs (recetas, ANSES, comprobantes) | API S3-compatible | Solo se persiste la URL en PostgreSQL (RNF-07) |
 | **MediaPipe Face Mesh** | Detección de rostro en el navegador para el probador virtual (RF-17) | Librería cliente (WASM/JS), sin llamada a servidor | Ejecuta 100% en el dispositivo del usuario |
+| **SMTP (email)** | Notificar al beneficiario los eventos de su turno — confirmación, reprogramación, cancelación (RF-22) | SMTP (`spring.mail` / `JavaMailSender`) | Cliente aislado `NotificationClient` (`EmailNotificationClientHandler`); best effort, se saltea sin `MAIL_HOST` configurado |
 
 #### 3.1.4 Interfaces de comunicación
 
@@ -232,6 +243,9 @@ Cada requisito funcional se especifica con: descripción, entradas, proceso, sal
 - *Proceso*: consulta al SID; si coincide, marca `identityValidated = true`.
 - *Salidas*: resultado de validación (validado / no validado / servicio no disponible).
 - *Prioridad*: Alta.
+- *Nota de estado*: **no implementado, por decisión de alcance** (no es un gap). El acceso al SID
+  depende del convenio de confronte de datos por TAD, un trámite administrativo de la fundación
+  externo al sistema (ver 1.2 y 2.5); esta entrega no incluye un `RenaperClient` propio.
 
 **RF-03 — Carga de PDF de Certificación Negativa de ANSES**
 - *Descripción*: el sistema permite adjuntar el PDF de ANSES del solicitante.
@@ -264,6 +278,10 @@ Cada requisito funcional se especifica con: descripción, entradas, proceso, sal
 - *Proceso*: registra la validación como manual, con el operador responsable.
 - *Salidas*: `identityValidated = true` por vía alternativa, trazado como tal.
 - *Prioridad*: Media.
+- *Nota de estado*: **especificado, pendiente de implementación** (a diferencia de RF-02, esta sí es
+  funcionalidad del sistema). El frontend y el backend actuales no tienen ningún endpoint ni control
+  de interfaz que la dispare; hoy el operador verifica el DNI físico fuera del sistema, sin dejar
+  registro digital. Queda como trabajo pendiente para una próxima iteración.
 
 **RF-07 — Registrar receta médica**
 - *Descripción*: el sistema permite registrar la receta (graduación) del beneficiario.
@@ -398,11 +416,15 @@ Cada requisito funcional se especifica con: descripción, entradas, proceso, sal
 - *Prioridad*: Alta.
 
 **RF-22 — Notificaciones automáticas de turnos**
-- *Descripción*: envía notificaciones automáticas asociadas a los turnos.
-- *Entradas*: evento de turno (confirmación al pasar a `SCHEDULED`, recordatorio, cancelación).
-- *Proceso*: dispara la notificación correspondiente; un fallo en el envío no debe interrumpir el
-  flujo principal (envuelto en manejo de error, no crítico).
-- *Salidas*: notificación entregada al beneficiario (canal a definir: email/SMS).
+- *Descripción*: envía notificaciones automáticas por **correo electrónico, vía SMTP**, asociadas a
+  los turnos (confirmación al pasar a `SCHEDULED`, reprogramación, cancelación).
+- *Entradas*: evento de turno (confirmación, reprogramación, cancelación).
+- *Proceso*: `NotificationClient` (`EmailNotificationClientHandler`) arma el email y lo envía por
+  SMTP (`JavaMailSender`, configurado por `MAIL_HOST`/`MAIL_USERNAME`/`MAIL_PASSWORD`/`MAIL_FROM`).
+  Si el solicitante no tiene email cargado o el SMTP no está configurado, el envío se saltea con un
+  log; un fallo en el envío no debe interrumpir el flujo principal (operación best effort, el turno
+  ya quedó guardado).
+- *Salidas*: email de notificación entregado al beneficiario.
 - *Prioridad*: Media.
 
 #### Módulo 6 — Logística e Integración 17TRACK
@@ -558,12 +580,13 @@ Ver sección 1.3. Se amplía con vocabulario de estados:
 |---|---|---|---|
 | 1. Solicitantes y Validación | RF-01, RF-07, RF-08 | Alta | Implementado |
 | 1. Solicitantes y Validación | RF-03, RF-04, RF-05 | Alta | Implementado |
-| 1. Solicitantes y Validación | RF-02, RF-06 | Alta / Media | Pendiente (cliente RENAPER no implementado; fallback manual a confirmar) |
+| 1. Solicitantes y Validación | RF-02 | Alta | No implementado — decisión de alcance, no gap (depende del convenio TAD, ver 2.5) |
+| 1. Solicitantes y Validación | RF-06 | Media | No implementado — pendiente real (sin endpoint ni control de interfaz) |
 | 2. Donaciones | RF-09 a RF-12 | Alta / Media | Implementado |
 | 3. Inventario, Asignación y Trazabilidad | RF-13 a RF-16 | Alta | Implementado |
 | 4. Probador Virtual | RF-17 a RF-19 | Media / Baja | Implementado |
 | 5. Turnos y Notificaciones | RF-20, RF-21 | Alta | Implementado |
-| 5. Turnos y Notificaciones | RF-22 | Media | Implementado (a confirmar canal de notificación) |
+| 5. Turnos y Notificaciones | RF-22 | Media | Implementado (canal: email vía SMTP) |
 | 6. Logística e Integración 17TRACK | RF-23 a RF-25 | Media | Implementado |
 | 7. Panel de Impacto | RF-26, RF-27 | Media / Baja | Implementado |
 | 8. Catálogo de Venta | RF-28 a RF-30 | Media | Implementado |

@@ -691,3 +691,9 @@ cancelación).
   sin atarse a una pantalla concreta. El detalle de interacción con la UI (formularios, botones,
   mensajes) se especifica en el entregable "Casos de Uso Reales", que referencia los mismos IDs
   (UC-01, UC-02, …) y los mockups correspondientes.
+- UC-02 (validar identidad vía RENAPER) y UC-06 (validación presencial alternativa) especifican el
+  comportamiento esencial tal como quedó definido en el SRS (RF-02/RF-06); en el código actual
+  **ninguno de los dos está implementado** — no hay cliente RENAPER (decisión de alcance: depende
+  de un convenio administrativo externo, no es una funcionalidad del sistema) ni control de
+  validación presencial en la interfaz (este sí, pendiente real). Detalle del estado en el SRS
+  (2.5 y Apéndice B) y en "Casos de Uso Reales" (RU-04).

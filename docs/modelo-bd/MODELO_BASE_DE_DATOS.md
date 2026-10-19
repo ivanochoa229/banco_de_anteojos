@@ -31,6 +31,13 @@ Las 13 tablas del esquema en un único diagrama.
 
 > El diagrama muestra columnas clave (PK/FK/UNIQUE + atributos distintivos) para que se lea de un
 > vistazo. El detalle completo de cada tabla está en el diccionario de datos (sección 4).
+>
+> **Nota de idioma**: los nombres de tabla y columna del diagrama están en español (con el nombre
+> real en inglés debajo del título de cada tabla y entre paréntesis junto a cada columna), para
+> facilitar su interpretación en la defensa. El schema real (migraciones Flyway, entidades,
+> repositorios) sigue 100% en inglés, sin cambios — es una traducción solo a nivel de este diagrama,
+> no del código ni de la base de datos. El diccionario de datos (sección 3) usa los nombres reales
+> tal como existen en el schema.
 
 ## 3. Diccionario de datos
 

@@ -32,8 +32,11 @@ documento:
 - Ningún binario en PostgreSQL: imágenes y PDFs van a Cloudflare R2, solo se persiste la URL.
 - El probador virtual corre 100% en el navegador (MediaPipe + Canvas), sin servidor de
   procesamiento propio.
-- Integraciones de terceros aisladas cada una en su propio cliente (`RenaperClient`,
-  `TrackingClient`, `R2StorageClient`).
+- Integraciones de terceros aisladas cada una en su propio cliente (`TrackingClient`,
+  `R2StorageClient`, `NotificationClient`). `RenaperClient` está especificado en el SRS (RF-02) como
+  el cliente que aislaría al SID de RENAPER, pero esta entrega no lo implementa: el acceso depende
+  de un convenio administrativo de la fundación (trámite TAD), fuera del alcance del sistema — ver
+  SRS 1.2 y 2.5.
 
 ---
 
@@ -100,10 +103,12 @@ orchestrator**, nunca en un `*ServiceHandler`, que solo puede inyectar su propio
 `*Helper` de su mismo dominio, o un cliente de terceros.
 
 Los clientes de terceros (`thirdPartyServiceComunication/`) son un cuarto tipo de dependencia
-permitida para un `*ServiceHandler`: `RenaperClient` (usado por `applicants` para RF-02),
-`TrackingClient` (usado por `shipments` para RF-23) y `R2StorageClient` (compartido por
-`applicants`, `frames`, `appointments` y `catalog` para subir imágenes/PDFs — el único caso de una
-dependencia verdaderamente transversal, y por eso vive en terceros y no en un dominio de negocio).
+permitida para un `*ServiceHandler`: `TrackingClient` (usado por `shipments` para RF-23),
+`NotificationClient`/`EmailNotificationClientHandler` (usado por `appointments` para RF-22, email
+vía SMTP) y `R2StorageClient` (compartido por `applicants`, `frames`, `appointments` y `catalog`
+para subir imágenes/PDFs — el único caso de una dependencia verdaderamente transversal, y por eso
+vive en terceros y no en un dominio de negocio). `RenaperClient` no está entre ellos: no está
+implementado en esta entrega (ver 1.2).
 
 ### 3.2 Frontend — estructura feature-based
 
