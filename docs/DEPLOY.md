@@ -10,7 +10,7 @@ documentación: no hay que volver a correrlo).
 
 | Servicio | Imagen | Puertos publicados | Memoria |
 |---|---|---|---|
-| `db` | `postgres:16-alpine` | ninguno (Docker se saltea UFW: **nunca** publicar 5432) | 512m |
+| `db` | `postgres:16-alpine` | solo `127.0.0.1:5432` del servidor, para túnel SSH (Docker se saltea UFW: **nunca** publicarlo en `0.0.0.0`) | 512m |
 | `api` | `backend/Dockerfile` (Spring Boot, perfil `prod`) | ninguno | 1g |
 | `web` | `frontend/Dockerfile` (build de React + Caddy) | 80, 443/tcp, 443/udp | 256m |
 
@@ -97,6 +97,42 @@ VALUES ('Nombre Apellido', 'persona@fundacion.org', '<hash>', 'OPERATOR', true, 
 -- Dar de baja (no se borra: las acciones quedan asociadas al usuario).
 UPDATE users SET is_active = false WHERE email = 'persona@fundacion.org';
 ```
+
+## Acceso a la base con pgAdmin (túnel SSH)
+
+Postgres escucha solo en `127.0.0.1:5432` **del servidor**: desde Internet no existe. Para llegar
+hace falta entrar al VPS por SSH (puerto 5151, solo con clave autorizada) y abrir un túnel.
+
+1. En tu PC, abrí el túnel y dejá la terminal abierta mientras lo uses (`Ctrl+C` lo cierra):
+   ```bash
+   ssh -N -o ExitOnForwardFailure=yes -L 127.0.0.1:15432:127.0.0.1:5432 banco
+   ```
+   Escucha solo en `127.0.0.1` de tu PC: no lo ven ni tu red local ni tus otros contenedores.
+   No uses `0.0.0.0` ni la IP de `docker0`.
+2. En pgAdmin (sin la pestaña *SSH Tunnel*): host `127.0.0.1`, puerto `15432`, base
+   `banco_anteojos`, usuario `banco_app`, contraseña = `DB_PASSWORD` del `.env`.
+
+Si pgAdmin corre en Docker, tiene que usar la red del host para ver el `127.0.0.1` de tu PC:
+
+```yaml
+# docker-compose.yml del pgAdmin local
+services:
+  pgadmin:
+    image: dpage/pgadmin4
+    network_mode: host            # ve el 127.0.0.1 de la PC (y el túnel)
+    environment:
+      PGADMIN_DEFAULT_EMAIL: tu@email.com
+      PGADMIN_DEFAULT_PASSWORD: cambiar
+      PGADMIN_LISTEN_ADDRESS: 127.0.0.1   # la UI tampoco queda expuesta a la red local
+      PGADMIN_LISTEN_PORT: 5050           # http://localhost:5050
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+volumes:
+  pgadmin_data:
+```
+
+**Cuidado:** `banco_app` es superusuario y son datos reales, todavía sin backups automáticos.
+Abrí el túnel solo cuando lo necesites.
 
 ## Actualizar a una versión nueva
 

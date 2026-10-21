@@ -14,7 +14,10 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:?falta DB_PASSWORD}
     volumes:
       - pgdata:/var/lib/postgresql/data
-    # SIN "ports": Postgres no se expone fuera de Docker (Docker se saltea UFW)
+    # Solo en el loopback del servidor, para entrar con pgAdmin por túnel SSH (ver docs/DEPLOY.md).
+    # NUNCA "5432:5432" a secas: Docker se saltea UFW y la base quedaría abierta a Internet.
+    ports:
+      - "127.0.0.1:5432:5432"
     mem_limit: 512m
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U banco_app -d banco_anteojos"]
