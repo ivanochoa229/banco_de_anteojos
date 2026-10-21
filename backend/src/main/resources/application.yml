@@ -48,8 +48,8 @@ bootstrap:
   admin:
     email: ${ADMIN_EMAIL:}
     password: ${ADMIN_PASSWORD:}
-  # Defaults de desarrollo (ver CREDENTIALS.md). En producción OPERATOR_PASSWORD es obligatoria
-  # y pisa la contraseña que siembra V15, porque se reescribe en cada arranque.
+  # Operador de desarrollo (ver CREDENTIALS.md): se crea o se resetea a esta contraseña en cada
+  # arranque. En producción application-prod.yml lo deja vacío: los operadores los da de alta el DBA.
   operator:
     email: ${OPERATOR_EMAIL:operador@bancodeanteojos.org}
     password: ${OPERATOR_PASSWORD:OperadorPassword123!}

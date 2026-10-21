@@ -59,9 +59,11 @@ bootstrap:
   admin:
     email: ${ADMIN_EMAIL}
     password: ${ADMIN_PASSWORD}
+  # Vacío a propósito: en producción los operadores los da de alta el DBA y AdminBootstrap
+  # se saltea. Pisa los defaults de desarrollo del application.yml base.
   operator:
-    email: ${OPERATOR_EMAIL}
-    password: ${OPERATOR_PASSWORD}
+    email: ${OPERATOR_EMAIL:}
+    password: ${OPERATOR_PASSWORD:}
 
 r2:
   account-id: ${R2_ACCOUNT_ID}

@@ -42,8 +42,9 @@ services:
       FRONTEND_URL: http://localhost:5173
       ADMIN_EMAIL: ${ADMIN_EMAIL}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      # Opcional: con OPERATOR_PASSWORD vacía no se crea el operador, igual que en producción.
       OPERATOR_EMAIL: ${OPERATOR_EMAIL:-operador@bancodeanteojos.org}
-      OPERATOR_PASSWORD: ${OPERATOR_PASSWORD}
+      OPERATOR_PASSWORD: ${OPERATOR_PASSWORD:-}
       R2_ACCOUNT_ID: ${R2_ACCOUNT_ID}
       R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID}
       R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY}

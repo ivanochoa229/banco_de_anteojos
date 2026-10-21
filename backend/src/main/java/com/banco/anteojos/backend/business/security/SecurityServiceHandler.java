@@ -36,8 +36,8 @@ public class SecurityServiceHandler implements SecurityService {
 
 	@Override
 	public void createInitialAdmin(String email, String password) {
-		// Por rol y no por "tabla vacía": la migración V15 siembra un operador, así que en una base
-		// nueva la tabla nunca está vacía cuando corre el bootstrap.
+		// Por rol y no por "tabla vacía": puede haber operadores (dados de alta por el DBA) o
+		// solicitantes registrados antes de que exista el primer admin.
 		if (userRepository.existsByRole(Role.ADMIN)) {
 			return;
 		}
