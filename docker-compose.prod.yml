@@ -41,10 +41,6 @@ services:
       FRONTEND_URL: https://${DOMAIN}
       ADMIN_EMAIL: ${ADMIN_EMAIL}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
-      # Obligatoria: el backend reescribe la contraseña del operador inicial en cada arranque,
-      # así que esto pisa la contraseña de desarrollo que siembra la migración V15.
-      OPERATOR_EMAIL: ${OPERATOR_EMAIL:-operador@bancodeanteojos.org}
-      OPERATOR_PASSWORD: ${OPERATOR_PASSWORD:?falta OPERATOR_PASSWORD}
       R2_ACCOUNT_ID: ${R2_ACCOUNT_ID}
       R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID}
       R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY}

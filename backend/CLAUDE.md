@@ -77,6 +77,8 @@ Un cliente por integración, aislado. El resto del código nunca llama directo a
 - Enums/estados como `VARCHAR(n)` con `CHECK` restringiendo valores (ej. estado de un marco, estado de turno).
 - Migraciones Flyway = única fuente de verdad del schema. Hibernate no genera DDL.
 - Migración ya en `main` es **append-only** (no editarla; crear una nueva).
+  Única excepción hecha: antes del primer deploy (sin nada en producción) se consolidaron V1–V17
+  en `V1__initial_schema.sql`. No es precedente: con producción viva, siempre migración nueva.
 
 ## Reparto DB ↔ backend
 

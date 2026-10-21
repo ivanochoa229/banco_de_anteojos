@@ -34,8 +34,7 @@ bloque `environment:` del compose: agregar una variable al `.env` no alcanza par
 | `ACME_EMAIL` | recomendada | Avisos de Let's Encrypt. |
 | `DB_PASSWORD` | sí | `openssl rand -base64 32` |
 | `JWT_SECRET` | sí | Clave HMAC: **al menos 32 bytes**. `openssl rand -base64 32` |
-| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | sí (primer arranque) | Admin inicial; cambiar la contraseña después del primer login. |
-| `OPERATOR_PASSWORD` | sí | Contraseña del operador inicial (`OPERATOR_EMAIL`, por defecto `operador@bancodeanteojos.org`). Se reescribe en cada arranque y pisa la contraseña de desarrollo que siembra la migración V15. |
+| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | sí (primer arranque) | Admin inicial: se crea si no existe ningún ADMIN. La app todavía no permite cambiar contraseñas, así que elegí una definitiva. |
 | `R2_*` | sí | Bucket de **producción**, privado (se sirve con URLs firmadas), token restringido a ese bucket. |
 | `TRACK17_API_KEY` | para logística | También firma los webhooks entrantes. |
 | `MAIL_*` | no | SMTP de notificaciones de turnos (RF-22). `MAIL_HOST` vacío = desactivadas. |
@@ -74,8 +73,30 @@ docker compose -f docker-compose.prod.yml up -d --build
 docker compose -f docker-compose.prod.yml logs -f api   # Flyway + "Started ..."
 ```
 
-Probar: `https://<DOMAIN>` → login con el admin inicial → cambiar su contraseña.
+Probar: `https://<DOMAIN>` → login con el admin inicial.
 Después: registrar en 17TRACK la URL del webhook (`https://api.<DOMAIN>/v1/shipments/webhook`).
+
+## Alta de operadores (DBA)
+
+La base arranca sin operadores (la migración inicial no siembra usuarios). Los da de alta el DBA
+directo en Postgres. `password_hash` tiene que ser un hash **BCrypt**, nunca la contraseña en claro:
+
+```bash
+# Generar el hash sin instalar nada (Spring acepta el prefijo $2y$ que produce htpasswd).
+# Ojo: la contraseña queda en el historial del shell; borrala después con `history -d`.
+docker run --rm httpd:2-alpine htpasswd -bnBC 10 "" 'LaContraseña' | tr -d ':\n'; echo
+
+docker compose -f docker-compose.prod.yml exec db psql -U banco_app -d banco_anteojos
+```
+
+```sql
+-- Email en minúsculas: el login lo normaliza antes de buscarlo.
+INSERT INTO users (name, email, password_hash, role, is_active, created_at)
+VALUES ('Nombre Apellido', 'persona@fundacion.org', '<hash>', 'OPERATOR', true, now());
+
+-- Dar de baja (no se borra: las acciones quedan asociadas al usuario).
+UPDATE users SET is_active = false WHERE email = 'persona@fundacion.org';
+```
 
 ## Actualizar a una versión nueva
 
