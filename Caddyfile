@@ -1,0 +1,45 @@
+# HTTPS automático con Let's Encrypt para ambos dominios.
+
+{
+	email {$ACME_EMAIL}
+}
+
+# ---------- Frontend (React) ----------
+{$DOMAIN} {
+	root * /srv
+	encode zstd gzip
+	try_files {path} /index.html   # SPA: rutas del router sirven index.html
+	file_server
+
+	@assets path /assets/*
+	header @assets Cache-Control "public, max-age=31536000, immutable"
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+}
+
+# ---------- API (Spring Boot) ----------
+api.{$DOMAIN} {
+	encode zstd gzip
+
+	# Actuator no se expone a Internet
+	@actuator path /actuator/*
+	respond @actuator 404
+
+	request_body {
+		max_size 15MB   # PDFs de ANSES / fotos; debe coincidir con el multipart de Spring
+	}
+
+	reverse_proxy api:8080
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		-Server
+	}
+}

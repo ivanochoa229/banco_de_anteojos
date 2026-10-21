@@ -1,0 +1,3 @@
+# Variables de entorno reales (producción y prueba local): nunca se versionan.
+.env
+.env.local

@@ -1,0 +1,62 @@
+# Uso: docker compose -f docker-compose.local.yml --env-file .env.local up --build
+# Ver consumo: docker stats banco-api banco-db
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: banco-db
+    environment:
+      POSTGRES_DB: banco_anteojos
+      POSTGRES_USER: banco_app
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "5433:5432"            # 5433 para no chocar con un Postgres local
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    mem_limit: 256m
+    memswap_limit: 256m
+    cpus: 0.1
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U banco_app -d banco_anteojos"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: ./backend
+    container_name: banco-api
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      PORT: 8080
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: banco_anteojos
+      DB_USER: banco_app
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      FRONTEND_URL: http://localhost:5173
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      OPERATOR_EMAIL: ${OPERATOR_EMAIL:-operador@bancodeanteojos.org}
+      OPERATOR_PASSWORD: ${OPERATOR_PASSWORD}
+      R2_ACCOUNT_ID: ${R2_ACCOUNT_ID}
+      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID}
+      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY}
+      R2_BUCKET: ${R2_BUCKET}
+      TRACK17_API_KEY: ${TRACK17_API_KEY}
+      MAIL_HOST: ${MAIL_HOST:-}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+    mem_limit: 512m
+    memswap_limit: 512m        # sin swap: si se pasa, OOMKilled
+    cpus: 0.5
+
+volumes:
+  pgdata:

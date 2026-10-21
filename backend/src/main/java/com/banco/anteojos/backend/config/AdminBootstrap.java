@@ -15,13 +15,19 @@ public class AdminBootstrap implements CommandLineRunner {
 	private final SecurityService securityService;
 	private final String adminEmail;
 	private final String adminPassword;
+	private final String operatorEmail;
+	private final String operatorPassword;
 
 	public AdminBootstrap(SecurityService securityService,
 			@Value("${bootstrap.admin.email}") String adminEmail,
-			@Value("${bootstrap.admin.password}") String adminPassword) {
+			@Value("${bootstrap.admin.password}") String adminPassword,
+			@Value("${bootstrap.operator.email}") String operatorEmail,
+			@Value("${bootstrap.operator.password}") String operatorPassword) {
 		this.securityService = securityService;
 		this.adminEmail = adminEmail;
 		this.adminPassword = adminPassword;
+		this.operatorEmail = operatorEmail;
+		this.operatorPassword = operatorPassword;
 	}
 
 	@Override
@@ -31,6 +37,10 @@ public class AdminBootstrap implements CommandLineRunner {
 			return;
 		}
 		securityService.createInitialAdmin(adminEmail, adminPassword);
-		securityService.createInitialOperator("operador@bancodeanteojos.org", "OperadorPassword123!");
+		if (operatorEmail.isBlank() || operatorPassword.isBlank()) {
+			log.warn("OPERATOR_EMAIL / OPERATOR_PASSWORD no configurados: se omite el bootstrap del operador inicial");
+			return;
+		}
+		securityService.createInitialOperator(operatorEmail, operatorPassword);
 	}
 }
