@@ -1,8 +1,8 @@
 spring:
   application:
     name: banco-anteojos-backend
-  # Carga el .env local (no versionado) como propiedades; en Render las variables
-  # llegan por entorno y el import se ignora por ser optional.
+  # Carga el .env local (no versionado) como propiedades; en producción (Docker Compose)
+  # las variables llegan por entorno y el import se ignora por ser optional.
   config:
     import: optional:file:.env[.properties]
   datasource:
@@ -39,10 +39,20 @@ jwt:
   secret: ${JWT_SECRET:}
   expiration-ms: ${JWT_EXPIRATION_MS:86400000}
 
+# En dev el frontend pega al backend por el proxy de Vite (mismo origen); CORS solo hace falta
+# cuando el front y la API viven en dominios distintos, como en producción.
+cors:
+  allowed-origins: ${FRONTEND_URL:http://localhost:5173}
+
 bootstrap:
   admin:
     email: ${ADMIN_EMAIL:}
     password: ${ADMIN_PASSWORD:}
+  # Defaults de desarrollo (ver CREDENTIALS.md). En producción OPERATOR_PASSWORD es obligatoria
+  # y pisa la contraseña que siembra V15, porque se reescribe en cada arranque.
+  operator:
+    email: ${OPERATOR_EMAIL:operador@bancodeanteojos.org}
+    password: ${OPERATOR_PASSWORD:OperadorPassword123!}
 
 # Cloudflare R2. Un solo bucket PRIVADO: todo se sirve con presigned URLs, nunca por URL pública.
 # Las recetas son datos de salud (RNF-02, Ley 25.326) y no pueden quedar accesibles sin firma.

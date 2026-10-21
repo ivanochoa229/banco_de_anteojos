@@ -23,12 +23,16 @@ los commits y la documentación.
 banco-anteojos/
 ├── backend/          # Spring Boot + Maven — ver backend/CLAUDE.md para convenciones
 ├── frontend/         # React + Tailwind (Vite) — ver frontend/CLAUDE.md
-├── docs/             # Documentación de cátedra (EDT, actas, cronograma)
+├── docs/             # Documentación de cátedra (EDT, actas, cronograma) + DEPLOY.md (runbook)
+├── deploy/           # setup-server.sh (preparación del VPS, ya ejecutado)
+├── docker-compose.prod.yml / docker-compose.local.yml / Caddyfile
 └── CLAUDE.md         # este archivo
 ```
 
-Deploy en Render: backend y frontend se despliegan desde este mismo repo apuntando a
-`backend/` y `frontend/` como Root Directory.
+Deploy en **DonWeb Cloud Server** (VPS) con Docker Compose + Caddy: `docker-compose.prod.yml` levanta
+`db` (Postgres), `api` (`backend/Dockerfile`) y `web` (`frontend/Dockerfile`: build de React servido
+por Caddy, que también hace HTTPS y reverse proxy a la API). Front en `https://${DOMAIN}`, API en
+`https://api.${DOMAIN}`. Runbook completo en `docs/DEPLOY.md`.
 
 ## Stack
 
@@ -41,7 +45,7 @@ Deploy en Render: backend y frontend se despliegan desde este mismo repo apuntan
 | ORM | Spring Data JPA / Hibernate |
 | Migraciones | Flyway (schema versionado; Hibernate DDL en `none`) |
 | Storage imágenes | Cloudflare R2 (S3-compatible) — solo se guarda la URL en PostgreSQL |
-| Hosting | Render |
+| Hosting | DonWeb Cloud Server (VPS) · Docker Compose + Caddy (HTTPS automático) |
 
 ## Integraciones externas — decisiones ya tomadas (no reabrir sin avisar)
 

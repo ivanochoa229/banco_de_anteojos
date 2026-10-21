@@ -91,8 +91,8 @@ class SecurityServiceHandlerTest {
 	}
 
 	@Test
-	void CreateInitialAdmin_WhenNoUsersExist() {
-		when(userRepository.count()).thenReturn(0L);
+	void CreateInitialAdmin_WhenNoAdminExists() {
+		when(userRepository.existsByRole(Role.ADMIN)).thenReturn(false);
 		when(passwordEncoder.encode("secret")).thenReturn("encoded-hash");
 
 		securityServiceHandler.createInitialAdmin("Admin@Mail.com", "secret");
@@ -107,8 +107,8 @@ class SecurityServiceHandlerTest {
 	}
 
 	@Test
-	void CreateInitialAdmin_WhenUsersAlreadyExist() {
-		when(userRepository.count()).thenReturn(3L);
+	void CreateInitialAdmin_WhenAdminAlreadyExists() {
+		when(userRepository.existsByRole(Role.ADMIN)).thenReturn(true);
 
 		securityServiceHandler.createInitialAdmin("admin@mail.com", "secret");
 

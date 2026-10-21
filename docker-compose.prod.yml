@@ -1,0 +1,86 @@
+# docker-compose.prod.yml — producción en DonWeb
+# En el servidor: docker compose -f docker-compose.prod.yml up -d --build
+# Variables: se leen del archivo .env en la misma carpeta (ver .env.prod.example).
+# Ojo: el contenedor solo recibe las variables listadas en su "environment"; tener una
+# variable en el .env no alcanza para que le llegue a Spring.
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: banco_anteojos
+      POSTGRES_USER: banco_app
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?falta DB_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # SIN "ports": Postgres no se expone fuera de Docker (Docker se saltea UFW)
+    mem_limit: 512m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U banco_app -d banco_anteojos"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      PORT: 8080
+      JAVA_OPTS: "-Xmx512m -Xss512k -XX:MaxMetaspaceSize=192m -XX:ReservedCodeCacheSize=64m -XX:+UseSerialGC -XX:+ExitOnOutOfMemoryError"
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: banco_anteojos
+      DB_USER: banco_app
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:?falta JWT_SECRET}
+      FRONTEND_URL: https://${DOMAIN}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      # Obligatoria: el backend reescribe la contraseña del operador inicial en cada arranque,
+      # así que esto pisa la contraseña de desarrollo que siembra la migración V15.
+      OPERATOR_EMAIL: ${OPERATOR_EMAIL:-operador@bancodeanteojos.org}
+      OPERATOR_PASSWORD: ${OPERATOR_PASSWORD:?falta OPERATOR_PASSWORD}
+      R2_ACCOUNT_ID: ${R2_ACCOUNT_ID}
+      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID}
+      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY}
+      R2_BUCKET: ${R2_BUCKET}
+      TRACK17_API_KEY: ${TRACK17_API_KEY}
+      # SMTP de notificaciones de turnos (RF-22). Sin MAIL_HOST el envío se saltea con un log.
+      MAIL_HOST: ${MAIL_HOST:-}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+    # SIN "ports": solo Caddy le habla por la red interna
+    mem_limit: 1g
+
+  web:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: https://api.${DOMAIN}
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      DOMAIN: ${DOMAIN:?falta DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"     # HTTP/3
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data       # certificados: NO borrar (Let's Encrypt limita emisiones)
+      - caddy_config:/config
+    mem_limit: 256m
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

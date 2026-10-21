@@ -4,9 +4,12 @@ import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import com.banco.anteojos.backend.business.security.entities.Role;
 import com.banco.anteojos.backend.business.security.entities.User;
 
 public interface UserPostgresSqlRepository extends JpaRepository<User, Long> {
 
 	Optional<User> findByEmail(String email);
+
+	boolean existsByRole(Role role);
 }

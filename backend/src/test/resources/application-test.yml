@@ -17,9 +17,16 @@ jwt:
   secret: test-secret-para-tests-de-integracion-no-usar-en-produccion
   expiration-ms: 86400000
 
+# Origen fijo para los E2E de CORS: no depende del default de desarrollo del application.yml.
+cors:
+  allowed-origins: https://front.test
+
 # En blanco a propósito: AdminBootstrap se saltea y no ensucia la tabla users.
 bootstrap:
   admin:
+    email: ""
+    password: ""
+  operator:
     email: ""
     password: ""
 

@@ -1,0 +1,73 @@
+# Se activa con SPRING_PROFILES_ACTIVE=prod (lo setea docker-compose.prod.yml).
+# Solo sobreescribe lo que cambia en producción; el resto (mail, presigned TTL de R2,
+# expiración del JWT, URL de 17TRACK) sale del application.yml base.
+
+server:
+  port: ${PORT:8080}
+  forward-headers-strategy: framework   # Caddy termina TLS y reenvía X-Forwarded-*
+  tomcat:
+    threads:
+      max: 40                           # default 200; tráfico bajo, ahorra memoria
+      min-spare: 5
+  error:
+    include-stacktrace: never
+    include-message: never
+
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT:5432}/${DB_NAME}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 5
+  jpa:
+    hibernate:
+      ddl-auto: none                     # el esquema lo maneja Flyway
+    open-in-view: false
+    show-sql: false
+  flyway:
+    enabled: true                        # requiere spring-boot-flyway en el pom (Boot 4.1)
+    baseline-on-migrate: false
+  servlet:
+    multipart:
+      max-file-size: 15MB                # igual que request_body del Caddyfile
+      max-request-size: 15MB
+
+# Actuator no está en el pom hoy; esto deja acotada la exposición si se agrega.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+
+logging:
+  level:
+    root: INFO
+    org.springframework.security: WARN
+
+# Mismas claves que el application.yml base (las que lee el código con @Value).
+jwt:
+  secret: ${JWT_SECRET}
+
+cors:
+  allowed-origins: ${FRONTEND_URL}
+
+bootstrap:
+  admin:
+    email: ${ADMIN_EMAIL}
+    password: ${ADMIN_PASSWORD}
+  operator:
+    email: ${OPERATOR_EMAIL}
+    password: ${OPERATOR_PASSWORD}
+
+r2:
+  account-id: ${R2_ACCOUNT_ID}
+  access-key-id: ${R2_ACCESS_KEY_ID}
+  secret-access-key: ${R2_SECRET_ACCESS_KEY}
+  bucket: ${R2_BUCKET}
+
+track17:
+  api-key: ${TRACK17_API_KEY}
