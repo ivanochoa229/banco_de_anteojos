@@ -40,12 +40,13 @@ echo "==> Código: $(git rev-parse --short HEAD) -> ${SHA:0:7}"
 # --ff-only: si alguien editó archivos versionados en el servidor, falla en vez de pisarlos.
 git merge --ff-only --quiet "$SHA"
 
-# IMAGE_TAG queda en el .env para que un "docker compose up -d" a mano use la misma versión.
+echo "==> Descargando imágenes ${SHA:0:7}"
+IMAGE_TAG="$SHA" $COMPOSE pull api web
+
+# Recién con las imágenes descargadas: IMAGE_TAG queda en el .env para que un
+# "docker compose up -d" a mano use la misma versión.
 sed -i '/^IMAGE_TAG=/d' .env
 echo "IMAGE_TAG=$SHA" >> .env
-
-echo "==> Descargando imágenes ${SHA:0:7}"
-$COMPOSE pull api web
 
 echo "==> Recreando contenedores"
 $COMPOSE up -d --remove-orphans
