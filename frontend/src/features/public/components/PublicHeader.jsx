@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../../context/useAuth'
 import { BancoAnteojosLogo, HacerFuturoLogo } from '../../../components/BrandLogo'
+import { LogoutButton } from '../../../components/LogoutButton'
 
 const PUBLIC_LINKS = [
   { href: '#como-funciona', label: 'Cómo funciona' },
@@ -13,7 +14,7 @@ const PUBLIC_LINKS = [
 ]
 
 export function PublicHeader() {
-  const { isAuthenticated, role, logout } = useAuth()
+  const { isAuthenticated, role } = useAuth()
   const [isMobileOpen, setIsMobileOpen] = useState(false)
 
   const portalRoute =
@@ -84,13 +85,7 @@ export function PublicHeader() {
               >
                 Mi Portal →
               </Link>
-              <button
-                type="button"
-                onClick={logout}
-                className="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-bold text-slate-600 shadow-2xs hover:bg-slate-50 transition"
-              >
-                Cerrar sesión
-              </button>
+              <LogoutButton className="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-bold text-slate-600 shadow-2xs hover:bg-slate-50 transition" />
             </>
           ) : (
             <Link
@@ -143,16 +138,10 @@ export function PublicHeader() {
                   >
                     Mi Portal →
                   </Link>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsMobileOpen(false)
-                      logout()
-                    }}
+                  <LogoutButton
+                    onLogout={() => setIsMobileOpen(false)}
                     className="w-full rounded-xl border border-slate-200 bg-white py-2 text-center text-xs font-bold text-slate-600"
-                  >
-                    Cerrar sesión
-                  </button>
+                  />
                 </div>
               ) : (
                 <Link
