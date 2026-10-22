@@ -11,8 +11,13 @@ documentación: no hay que volver a correrlo).
 | Servicio | Imagen | Puertos publicados | Memoria |
 |---|---|---|---|
 | `db` | `postgres:16-alpine` | solo `127.0.0.1:5432` del servidor, para túnel SSH (Docker se saltea UFW: **nunca** publicarlo en `0.0.0.0`) | 512m |
-| `api` | `backend/Dockerfile` (Spring Boot, perfil `prod`) | ninguno | 1g |
-| `web` | `frontend/Dockerfile` (build de React + Caddy) | 80, 443/tcp, 443/udp | 256m |
+| `api` | `ghcr.io/ivanochoa229/banco-anteojos-api` (`backend/Dockerfile`, Spring Boot, perfil `prod`) | ninguno | 1g |
+| `web` | `ghcr.io/ivanochoa229/banco-anteojos-web` (`frontend/Dockerfile`, build de React + Caddy) | 80, 443/tcp, 443/udp | 256m |
+
+Las imágenes de `api` y `web` **no se compilan en el servidor**: las compila GitHub Actions y las
+sube a GitHub Container Registry con el SHA del commit como tag. El servidor solo las descarga
+(`IMAGE_TAG` en el `.env` dice qué versión corre). El repo clonado en el servidor sigue haciendo
+falta por el compose, el `Caddyfile` (montado en `web`) y `deploy/deploy.sh`.
 
 URLs:
 - `https://${DOMAIN}` → frontend React (Caddy sirve `dist/`, con fallback SPA a `index.html`).
@@ -136,20 +141,98 @@ Abrí el túnel solo cuando lo necesites.
 
 ## Actualizar a una versión nueva
 
+### Automático (GitHub Actions)
+
+`.github/workflows/deploy.yml` despliega solo cada merge a `main`:
+
+1. El push a `main` dispara **Main protection** (tests del backend + build del front).
+2. Si pasa, **Deploy** compila las imágenes de `api` y `web` en el runner de GitHub y las sube a
+   `ghcr.io` con el tag `<sha>`. El front se compila con `VITE_API_URL=https://api.<DOMAIN>`,
+   tomando la **variable `DOMAIN` del repo**.
+3. Después entra por SSH al VPS y corre `deploy/deploy.sh <sha>`: `git fetch`,
+   `git merge --ff-only`, escribe `IMAGE_TAG=<sha>` en el `.env`, `docker compose pull api web`,
+   `docker compose up -d`, `docker image prune -af` y espera a que `https://api.${DOMAIN}`
+   responda (si en 3 minutos no responde, muestra los logs de `api` y el job falla).
+4. Si entretanto entró otro merge, se saltea el commit viejo: solo se despliega la punta de
+   `main`, y nunca un commit que todavía no pasó los tests.
+
+Los deploys van en fila (nunca dos a la vez). También se puede lanzar a mano:
+Actions → Deploy → *Run workflow* (rama `main`). Mientras se recrean los contenedores hay
+unos segundos de corte.
+
+La clave SSH de GitHub **solo puede ejecutar `deploy.sh`**: en `authorized_keys` va con
+`restrict,command=...`, así que aunque se filtre no da una shell en el servidor.
+
+#### Configuración inicial (una sola vez)
+
+1. Mergear el PR que agrega el workflow y traer el script al servidor (el workflow lo necesita ya
+   presente):
+   ```bash
+   ssh banco 'cd /opt/banco-anteojos && git pull'
+   ```
+2. En tu PC, generar una clave exclusiva para GitHub Actions (sin passphrase):
+   ```bash
+   ssh-keygen -t ed25519 -C "github-actions-deploy" -f gha_deploy -N ""
+   ```
+3. En el servidor, agregar la pública como una línea más de `/home/deploy/.ssh/authorized_keys`,
+   **con el prefijo** que la limita al script:
+   ```
+   restrict,command="/opt/banco-anteojos/deploy/deploy.sh" ssh-ed25519 AAAA... github-actions-deploy
+   ```
+4. Obtener la huella del servidor para que el runner no acepte un host falso:
+   ```bash
+   ssh-keyscan -p 5151 -t ed25519 201.32.131.186
+   # Comparar con lo que muestra el servidor:  ssh banco 'ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub'
+   ```
+5. En GitHub: Settings → Secrets and variables → Actions → pestaña *Variables* → variable de
+   repositorio `DOMAIN` con el **mismo valor** que `DOMAIN` en el `.env` del servidor
+   (hoy `201-32-131-186.sslip.io`).
+6. En GitHub: Settings → Environments → *New environment* `production`:
+   - *Deployment branches and tags*: solo `main`.
+   - Secrets: `VPS_SSH_KEY` (contenido completo de `gha_deploy`, la **privada**) y
+     `VPS_KNOWN_HOSTS` (la línea que devolvió `ssh-keyscan`).
+   - Opcional: *Required reviewers* si se quiere aprobar cada deploy a mano.
+7. Borrar `gha_deploy` y `gha_deploy.pub` de la PC.
+8. Probar con Actions → Deploy → *Run workflow*.
+9. Después del primer deploy, hacer **públicos** los dos paquetes (perfil de GitHub → Packages →
+   `banco-anteojos-api` / `banco-anteojos-web` → Package settings → *Change visibility*). El repo
+   ya es público y las imágenes no llevan secretos (se inyectan por el `.env` al arrancar), así el
+   servidor las descarga sin token. Si se prefiere dejarlos privados: en el servidor,
+   `docker login ghcr.io -u <usuario>` con un token *classic* con solo `read:packages`.
+   Si el primer `pull` falla con `denied`, es esto: hacerlos públicos y relanzar el workflow.
+10. Liberar el caché de builds que quedó de cuando se compilaba en el servidor:
+    `ssh banco 'docker builder prune -af'`.
+
+Para revocar el acceso de GitHub: borrar esa línea de `authorized_keys`.
+
+### Manual
+
 ```bash
 ssh banco
-cd /opt/banco-anteojos
-git pull
-docker compose -f docker-compose.prod.yml up -d --build
-docker image prune -f
+/opt/banco-anteojos/deploy/deploy.sh        # despliega la punta de origin/main
 ```
+
+Necesita que las imágenes de ese commit ya estén en `ghcr.io` (las sube el workflow). El script
+hace `git merge --ff-only`: si alguien editó archivos versionados en el servidor, falla en vez de
+pisarlos (`git status` para ver qué cambió).
+
+**Emergencia (GitHub Actions caído):** compilar en el servidor, como antes. Es lento y usa
+mucha memoria con la app corriendo:
+
+```bash
+cd /opt/banco-anteojos && git pull
+docker compose -f docker-compose.prod.yml up -d --build   # pisa localmente el tag de IMAGE_TAG
+```
+
+El siguiente deploy automático vuelve a las imágenes de `ghcr.io`.
 
 ## Cambiar al dominio definitivo
 
 1. Registros DNS: `A @ → 201.32.131.186` y `A api → 201.32.131.186`.
-2. Editar `DOMAIN` en `/opt/banco-anteojos/.env`.
-3. `docker compose -f docker-compose.prod.yml up -d --build` (rebuild necesario: `VITE_API_URL` se
-   inyecta en el build del frontend, y `FRONTEND_URL` —el origen CORS del backend— sale de `DOMAIN`).
+2. Editar `DOMAIN` en `/opt/banco-anteojos/.env` **y** la variable `DOMAIN` del repo en GitHub
+   (los dos con el mismo valor).
+3. Actions → Deploy → *Run workflow*. Hace falta un build nuevo: `VITE_API_URL` se inyecta en el
+   build del frontend. `FRONTEND_URL` (el origen CORS del backend) sale del `DOMAIN` del `.env`.
 4. Actualizar la URL del webhook en 17TRACK y el CORS del bucket R2.
 
 ## Validación local (antes de subir cambios de deploy)

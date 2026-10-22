@@ -24,7 +24,7 @@ banco-anteojos/
 ├── backend/          # Spring Boot + Maven — ver backend/CLAUDE.md para convenciones
 ├── frontend/         # React + Tailwind (Vite) — ver frontend/CLAUDE.md
 ├── docs/             # Documentación de cátedra (EDT, actas, cronograma) + DEPLOY.md (runbook)
-├── deploy/           # setup-server.sh (preparación del VPS, ya ejecutado)
+├── deploy/           # setup-server.sh (preparación del VPS, ya ejecutado) + deploy.sh (deploy automático: pull de imágenes de ghcr.io)
 ├── docker-compose.prod.yml / docker-compose.local.yml / Caddyfile
 └── CLAUDE.md         # este archivo
 ```
@@ -32,7 +32,9 @@ banco-anteojos/
 Deploy en **DonWeb Cloud Server** (VPS) con Docker Compose + Caddy: `docker-compose.prod.yml` levanta
 `db` (Postgres), `api` (`backend/Dockerfile`) y `web` (`frontend/Dockerfile`: build de React servido
 por Caddy, que también hace HTTPS y reverse proxy a la API). Front en `https://${DOMAIN}`, API en
-`https://api.${DOMAIN}`. Runbook completo en `docs/DEPLOY.md`.
+`https://api.${DOMAIN}`. Cada merge a `main` que pasa los tests se despliega solo
+(`.github/workflows/deploy.yml`): GitHub Actions compila las imágenes, las sube a `ghcr.io` y el
+VPS solo las descarga (no compila). Runbook completo en `docs/DEPLOY.md`.
 
 ## Stack
 
