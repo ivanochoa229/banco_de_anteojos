@@ -1,5 +1,5 @@
 import { formatDateTime } from '../../../lib/dates'
-import { SHIPMENT_MILESTONES } from '../labels'
+import { INBOUND_SHIPMENT_MILESTONES, SHIPMENT_MILESTONES, isInbound } from '../labels'
 
 function Milestone({ label, at }) {
   const isDone = Boolean(at)
@@ -21,13 +21,14 @@ function Milestone({ label, at }) {
   )
 }
 
-/** Los tres hitos propios del paquete. Lo que pasa entre medio lo cuenta el historial del carrier. */
+/** Los hitos propios del paquete. Lo que pasa entre medio lo cuenta el historial del carrier. */
 export function ShipmentTimeline({ shipment }) {
   const isCancelled = shipment.status === 'CANCELLED'
+  const milestones = isInbound(shipment) ? INBOUND_SHIPMENT_MILESTONES : SHIPMENT_MILESTONES
 
   return (
     <ol className="border-l border-slate-200 pl-4">
-      {SHIPMENT_MILESTONES.map(({ field, label }) => (
+      {milestones.map(({ field, label }) => (
         <Milestone key={field} label={label} at={shipment[field]} />
       ))}
       {isCancelled && (

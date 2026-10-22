@@ -13,7 +13,8 @@ export function FrameActionsCell({ frame }) {
     onSuccess: () => {
       setConfirming(false)
       queryClient.invalidateQueries({ queryKey: ['frames'] })
-      queryClient.invalidateQueries({ queryKey: ['donors', frame.donorId, 'frames'] })
+      // String: la ficha del donante arma la key con el parámetro de la URL, y 5 !== '5'.
+      queryClient.invalidateQueries({ queryKey: ['donors', String(frame.donorId), 'frames'] })
     },
   })
 

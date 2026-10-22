@@ -19,14 +19,21 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.banco.anteojos.backend.business.frames.dto.response.FrameResponseDto;
+import com.banco.anteojos.backend.business.frames.entities.FrameMaterial;
+import com.banco.anteojos.backend.business.frames.entities.FrameStatus;
+import com.banco.anteojos.backend.business.frames.entities.FrameType;
 import com.banco.anteojos.backend.business.shipments.ShipmentServiceHandler;
 import com.banco.anteojos.backend.business.shipments.TrackingUpdate;
 import com.banco.anteojos.backend.business.shipments.TrackingWebhookHelper;
+import com.banco.anteojos.backend.business.shipments.dto.request.InboundShipmentCreationRequestDto;
 import com.banco.anteojos.backend.business.shipments.dto.request.ShipmentCreationRequestDto;
 import com.banco.anteojos.backend.business.shipments.dto.response.ShipmentResponseDto;
 import com.banco.anteojos.backend.business.shipments.entities.Shipment;
+import com.banco.anteojos.backend.business.shipments.entities.ShipmentDirection;
 import com.banco.anteojos.backend.business.shipments.entities.ShipmentEvent;
 import com.banco.anteojos.backend.business.shipments.entities.ShipmentStatus;
+import com.banco.anteojos.backend.business.shipments.exception.FrameFromAnotherDonorException;
 import com.banco.anteojos.backend.business.shipments.exception.ShipmentNotFoundException;
 import com.banco.anteojos.backend.business.shipments.exception.TrackingNumberAlreadyExistsException;
 import com.banco.anteojos.backend.persistence.shipments.ShipmentEventPostgresSqlRepository;
@@ -63,6 +70,11 @@ class ShipmentServiceHandlerTest {
 		return shipment;
 	}
 
+	private FrameResponseDto frame(Long id, Long donorId) {
+		return new FrameResponseDto(id, donorId, "A-" + id, FrameType.FULL_RIM, FrameMaterial.ACETATE, 52, 18,
+				140, FrameStatus.AVAILABLE, null, LocalDateTime.now());
+	}
+
 	private void mockSaveEcho() {
 		when(shipmentRepository.save(any(Shipment.class))).thenAnswer(inv -> inv.getArgument(0));
 	}
@@ -76,8 +88,80 @@ class ShipmentServiceHandlerTest {
 						"frágil"));
 
 		assertThat(response.status()).isEqualTo("PENDING");
+		assertThat(response.direction()).isEqualTo("OUTBOUND");
 		assertThat(response.frameIds()).containsExactly(7L, 9L);
 		assertThat(response.trackingNumber()).isNull();
+	}
+
+	@Test
+	void CreateInboundShipment_Successful() {
+		when(shipmentRepository.existsByTrackingNumber("999038143994")).thenReturn(false);
+		mockSaveEcho();
+
+		ShipmentResponseDto response = shipmentServiceHandler.createInboundShipment(3L,
+				new InboundShipmentCreationRequestDto("  999038143994  ", null));
+
+		assertThat(response.direction()).isEqualTo("INBOUND");
+		assertThat(response.donorId()).isEqualTo(3L);
+		assertThat(response.status()).isEqualTo("REGISTERED");
+		assertThat(response.trackingNumber()).isEqualTo("999038143994");
+		verify(trackingClient).register("999038143994");
+	}
+
+	@Test
+	void CreateInboundShipment_WhenTrackingNumberAlreadyExists() {
+		when(shipmentRepository.existsByTrackingNumber("999038143994")).thenReturn(true);
+
+		assertThatThrownBy(() -> shipmentServiceHandler.createInboundShipment(3L,
+				new InboundShipmentCreationRequestDto("999038143994", null)))
+				.isInstanceOf(TrackingNumberAlreadyExistsException.class);
+		verify(trackingClient, never()).register(any());
+	}
+
+	@Test
+	void CreateInboundShipment_WhenTrackingRegistrationFails() {
+		when(shipmentRepository.existsByTrackingNumber("999038143994")).thenReturn(false);
+		doThrow(new TrackingRejectedException()).when(trackingClient).register("999038143994");
+
+		assertThatThrownBy(() -> shipmentServiceHandler.createInboundShipment(3L,
+				new InboundShipmentCreationRequestDto("999038143994", null)))
+				.isInstanceOf(TrackingRejectedException.class);
+		verify(shipmentRepository, never()).save(any());
+	}
+
+	@Test
+	void Receive_Successful() {
+		when(shipmentRepository.findById(20L))
+				.thenReturn(Optional.of(Shipment.inbound(3L, "999038143994", null)));
+		mockSaveEcho();
+
+		ShipmentResponseDto response = shipmentServiceHandler.receive(20L,
+				List.of(frame(400L, 3L), frame(401L, 3L)));
+
+		assertThat(response.status()).isEqualTo("RECEIVED");
+		assertThat(response.frameIds()).containsExactly(400L, 401L);
+		assertThat(response.receivedAt()).isNotNull();
+	}
+
+	@Test
+	void Receive_WhenFrameIsFromAnotherDonor() {
+		when(shipmentRepository.findById(20L))
+				.thenReturn(Optional.of(Shipment.inbound(3L, "999038143994", null)));
+
+		assertThatThrownBy(() -> shipmentServiceHandler.receive(20L, List.of(frame(400L, 3L), frame(401L, 8L))))
+				.isInstanceOf(FrameFromAnotherDonorException.class);
+		verify(shipmentRepository, never()).save(any());
+	}
+
+	@Test
+	void ListShipments_FiltersByDirection() {
+		when(shipmentRepository.findByDirectionOrderByCreatedAtDesc(ShipmentDirection.INBOUND))
+				.thenReturn(List.of(Shipment.inbound(3L, "999038143994", null)));
+
+		List<ShipmentResponseDto> response = shipmentServiceHandler.listShipments(ShipmentDirection.INBOUND);
+
+		assertThat(response).singleElement()
+				.satisfies(shipment -> assertThat(shipment.direction()).isEqualTo("INBOUND"));
 	}
 
 	@Test
@@ -186,11 +270,11 @@ class ShipmentServiceHandlerTest {
 	}
 
 	@Test
-	void CountDelivered_DelegatesToRepository() {
+	void CountDelivered_OnlyCountsOutbound() {
 		LocalDateTime from = LocalDateTime.of(2026, 1, 1, 0, 0);
 		LocalDateTime to = LocalDateTime.of(2026, 2, 1, 0, 0);
-		when(shipmentRepository.countByStatusAndDeliveredAtBetween(ShipmentStatus.DELIVERED, from, to))
-				.thenReturn(2L);
+		when(shipmentRepository.countByDirectionAndStatusAndDeliveredAtBetween(ShipmentDirection.OUTBOUND,
+				ShipmentStatus.DELIVERED, from, to)).thenReturn(2L);
 
 		assertThat(shipmentServiceHandler.countDelivered(from, to)).isEqualTo(2L);
 	}

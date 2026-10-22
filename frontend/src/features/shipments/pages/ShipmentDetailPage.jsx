@@ -1,5 +1,6 @@
 import { Link, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { donorsApi } from '../../../api/donorsApi'
 import { shipmentsApi } from '../../../api/shipmentsApi'
 import { Alert } from '../../../components/Alert'
 import { Layout } from '../../../components/Layout'
@@ -8,8 +9,10 @@ import { FrameStatusBadge } from '../../frames/components/FrameStatusBadge'
 import { FRAME_MATERIAL_LABELS, FRAME_TYPE_LABELS } from '../../frames/labels'
 import { ShipmentActions } from '../components/ShipmentActions'
 import { ShipmentEvents } from '../components/ShipmentEvents'
+import { ShipmentReceptionForm } from '../components/ShipmentReceptionForm'
 import { ShipmentStatusBadge } from '../components/ShipmentStatusBadge'
 import { ShipmentTimeline } from '../components/ShipmentTimeline'
+import { isInbound } from '../labels'
 
 function Field({ label, children }) {
   return (
@@ -43,6 +46,30 @@ export function ShipmentDetailPage() {
     onSuccess: invalidateShipments,
   })
 
+  const receiveMutation = useMutation({
+    mutationFn: (frameIds) => shipmentsApi.receive(shipmentId, frameIds),
+    onSuccess: invalidateShipments,
+  })
+
+  // Solo las donaciones tienen donante. La key usa el id como string para compartir caché con
+  // la página de marcos del donante, que lo lee de la URL.
+  const loadedShipment = detailQuery.data?.shipment
+  const donorId =
+    loadedShipment && isInbound(loadedShipment) ? String(loadedShipment.donorId) : null
+  const awaitsReception = donorId !== null && loadedShipment.status !== 'RECEIVED'
+
+  const donorQuery = useQuery({
+    queryKey: ['donors', donorId],
+    queryFn: () => donorsApi.get(donorId),
+    enabled: donorId !== null,
+  })
+
+  const donorFramesQuery = useQuery({
+    queryKey: ['donors', donorId, 'frames'],
+    queryFn: () => donorsApi.listFrames(donorId),
+    enabled: awaitsReception,
+  })
+
   if (detailQuery.isPending) {
     return (
       <Layout>
@@ -60,6 +87,7 @@ export function ShipmentDetailPage() {
   }
 
   const { shipment, frames, events } = detailQuery.data
+  const inbound = isInbound(shipment)
   const actionError = dispatchMutation.error?.message ?? cancelMutation.error?.message
   const isPending = dispatchMutation.isPending || cancelMutation.isPending
 
@@ -68,11 +96,25 @@ export function ShipmentDetailPage() {
       <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-3">
-            <h2 className="text-xl font-semibold text-slate-900">Envío #{shipment.id}</h2>
-            <ShipmentStatusBadge status={shipment.status} />
+            <h2 className="text-xl font-semibold text-slate-900">
+              {inbound ? 'Donación' : 'Envío'} #{shipment.id}
+            </h2>
+            <ShipmentStatusBadge shipment={shipment} />
           </div>
           <p className="mt-1 text-sm text-slate-500">
-            {shipment.originBranch} → {shipment.destinationBranch}
+            {inbound ? (
+              <>
+                Por Vía Cargo de{' '}
+                <Link
+                  to={`/donors/${shipment.donorId}/frames`}
+                  className="font-medium text-sky-700 hover:underline"
+                >
+                  {donorQuery.data?.name ?? `donante #${shipment.donorId}`}
+                </Link>
+              </>
+            ) : (
+              `${shipment.originBranch} → ${shipment.destinationBranch}`
+            )}
           </p>
         </div>
         <Link to="/shipments" className="text-sm font-medium text-sky-700 hover:underline">
@@ -86,14 +128,39 @@ export function ShipmentDetailPage() {
         </div>
       )}
 
-      <div className="mt-6">
-        <ShipmentActions
-          shipment={shipment}
-          isPending={isPending}
-          onDispatch={(trackingNumber) => dispatchMutation.mutate(trackingNumber)}
-          onCancel={(reason) => cancelMutation.mutate(reason)}
-        />
-      </div>
+      {inbound ? (
+        awaitsReception && (
+          <div className="mt-6 rounded-lg border border-slate-200 bg-white p-5">
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+              Registrar recepción
+            </h3>
+            <div className="mt-3">
+              {donorFramesQuery.isPending && (
+                <p className="text-sm text-slate-500">Cargando marcos del donante…</p>
+              )}
+              {donorFramesQuery.isError && <Alert>{donorFramesQuery.error.message}</Alert>}
+              {donorFramesQuery.isSuccess && (
+                <ShipmentReceptionForm
+                  donorId={shipment.donorId}
+                  frames={donorFramesQuery.data}
+                  onSubmit={(frameIds) => receiveMutation.mutate(frameIds)}
+                  isPending={receiveMutation.isPending}
+                  submitError={receiveMutation.error?.message}
+                />
+              )}
+            </div>
+          </div>
+        )
+      ) : (
+        <div className="mt-6">
+          <ShipmentActions
+            shipment={shipment}
+            isPending={isPending}
+            onDispatch={(trackingNumber) => dispatchMutation.mutate(trackingNumber)}
+            onCancel={(reason) => cancelMutation.mutate(reason)}
+          />
+        </div>
+      )}
 
       <div className="mt-8 grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div className="space-y-4">
@@ -125,17 +192,31 @@ export function ShipmentDetailPage() {
           <div className="rounded-lg border border-slate-200 bg-white p-5">
             <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Paquete</h3>
             <dl className="mt-3 space-y-2 text-sm">
-              <Field label="Seguimiento">{shipment.trackingNumber ?? 'Sin despachar'}</Field>
-              <Field label="Despachado">{formatDateTime(shipment.dispatchedAt)}</Field>
-              <Field label="Entregado">{formatDateTime(shipment.deliveredAt)}</Field>
+              <Field label={inbound ? 'Guía' : 'Seguimiento'}>
+                {shipment.trackingNumber ?? 'Sin despachar'}
+              </Field>
+              <Field label={inbound ? 'Guía cargada' : 'Despachado'}>
+                {formatDateTime(shipment.dispatchedAt)}
+              </Field>
+              <Field label={inbound ? 'Entregado por el correo' : 'Entregado'}>
+                {formatDateTime(shipment.deliveredAt)}
+              </Field>
+              {inbound && <Field label="Recibida">{formatDateTime(shipment.receivedAt)}</Field>}
               <Field label="Marcos">{frames.length}</Field>
             </dl>
           </div>
 
           <div className="rounded-lg border border-slate-200 bg-white p-5">
             <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-              Marcos que viajan
+              {inbound ? 'Marcos recibidos' : 'Marcos que viajan'}
             </h3>
+            {inbound && frames.length === 0 && (
+              <p className="mt-3 text-sm text-slate-500">
+                {shipment.status === 'RECEIVED'
+                  ? 'La donación no trajo marcos aprovechables.'
+                  : 'Se ven acá cuando se registre la recepción.'}
+              </p>
+            )}
             <ul className="mt-3 divide-y divide-slate-100">
               {frames.map((frame) => (
                 <li key={frame.id} className="flex items-center justify-between gap-4 py-2.5">

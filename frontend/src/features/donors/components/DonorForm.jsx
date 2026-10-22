@@ -14,6 +14,10 @@ export function DonorForm({ onSubmit, isPending, submitError }) {
     documentNumber: '',
     phone: '',
     email: '',
+    address: '',
+    postalCode: '',
+    city: '',
+    province: '',
   })
   const [fieldErrors, setFieldErrors] = useState({})
 
@@ -41,6 +45,10 @@ export function DonorForm({ onSubmit, isPending, submitError }) {
       documentNumber: values.documentNumber.trim() || null,
       phone: values.phone.trim() || null,
       email: values.email.trim() || null,
+      address: values.address.trim() || null,
+      postalCode: values.postalCode.trim() || null,
+      city: values.city.trim() || null,
+      province: values.province.trim() || null,
     })
   }
 
@@ -83,6 +91,43 @@ export function DonorForm({ onSubmit, isPending, submitError }) {
           error={fieldErrors.email}
         />
       </div>
+
+      <fieldset className="space-y-4 rounded-lg border border-slate-200 p-4">
+        <legend className="px-1 text-sm font-semibold text-slate-700">Domicilio (opcional)</legend>
+        <p className="text-sm text-slate-500">
+          Lo pide la etiqueta de envío de donaciones por Vía Cargo.
+        </p>
+        <Input
+          id="address"
+          label="Domicilio"
+          maxLength={255}
+          value={values.address}
+          onChange={setField('address')}
+        />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <Input
+            id="city"
+            label="Localidad"
+            maxLength={120}
+            value={values.city}
+            onChange={setField('city')}
+          />
+          <Input
+            id="province"
+            label="Provincia"
+            maxLength={60}
+            value={values.province}
+            onChange={setField('province')}
+          />
+          <Input
+            id="postalCode"
+            label="CP"
+            maxLength={10}
+            value={values.postalCode}
+            onChange={setField('postalCode')}
+          />
+        </div>
+      </fieldset>
 
       {submitError && <Alert>{submitError}</Alert>}
 

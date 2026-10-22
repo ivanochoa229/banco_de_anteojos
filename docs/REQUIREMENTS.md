@@ -114,6 +114,15 @@
   que coloca los cristales y devuelve el lente terminado. **Pendiente:** replicar este cambio en la
   Matriz de Trazabilidad v3 y en la Declaración de Alcance v4, que son la fuente textual.
 
+- **Donaciones por Vía Cargo (2026-10-22).** Además de los envíos entre sucursales, RF-23/24 cubren
+  las donaciones que llegan por correo: el donante pega la etiqueta de la fundación ("flete a pagar
+  en destino", depósito de Alberdi 160), despacha y pasa la **Guía No.** del comprobante (no el
+  remito). El operador la carga bajo el donante (`POST /v1/donors/{id}/shipments`), se registra en
+  17TRACK y entra por el mismo webhook. Al abrir el paquete, el operador carga los marcos (RF-10) y
+  confirma la recepción (`PUT /v1/shipments/{id}/reception`), que los vincula al envío para la
+  trazabilidad desde la donación (RF-16). Los donantes guardan además domicilio, CP, localidad y
+  provincia, que pide la etiqueta. **Pendiente:** reflejarlo en la Matriz de Trazabilidad.
+
 - Los criterios de aceptación asociados (CA1–CA13, con CA3 dividido en **CA3a/CA3b/CA3c** para la
   validación ANSES y CA9 ampliado para stock del catálogo) están enunciados en la Declaración de
   Alcance v4. Esa es la fuente textual exacta.

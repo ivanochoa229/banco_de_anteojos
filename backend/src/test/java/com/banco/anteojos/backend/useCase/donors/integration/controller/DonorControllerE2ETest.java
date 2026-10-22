@@ -51,17 +51,22 @@ class DonorControllerE2ETest {
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
 								{"donorType": "INDIVIDUAL", "name": "Ana Ruiz", "documentNumber": "28444555",
-								 "phone": "3815551111", "email": "ana.ruiz@mail.com"}
+								 "phone": "3815551111", "email": "ana.ruiz@mail.com",
+								 "address": "San Martín 450", "postalCode": "4000",
+								 "city": "San Miguel de Tucumán", "province": "Tucumán"}
 								"""))
 				.andExpect(status().isCreated())
 				.andExpect(jsonPath("$.id").isNotEmpty())
 				.andExpect(jsonPath("$.donorType").value("INDIVIDUAL"))
-				.andExpect(jsonPath("$.name").value("Ana Ruiz"));
+				.andExpect(jsonPath("$.name").value("Ana Ruiz"))
+				.andExpect(jsonPath("$.city").value("San Miguel de Tucumán"))
+				.andExpect(jsonPath("$.province").value("Tucumán"));
 
 		assertThat(donorRepository.findAllByOrderByNameAsc())
 				.anySatisfy(donor -> {
 					assertThat(donor.getName()).isEqualTo("Ana Ruiz");
 					assertThat(donor.getDonorType()).isEqualTo(DonorType.INDIVIDUAL);
+					assertThat(donor.getPostalCode()).isEqualTo("4000");
 				});
 	}
 

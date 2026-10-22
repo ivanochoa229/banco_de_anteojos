@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
 import { BancoAnteojosLogo, HacerFuturoLogo } from './BrandLogo'
-import { Button } from './Button'
+import { LogoutButton } from './LogoutButton'
 
 const APPLICANT_NAV_LINKS = [
   { to: '/solicitante', label: 'Inicio', end: true, matchPrefix: ['/solicitante'] },
@@ -45,7 +45,7 @@ const ADMIN_NAV_ROW_2 = [
 ]
 
 export function Layout({ children }) {
-  const { role, logout } = useAuth()
+  const { role } = useAuth()
   const location = useLocation()
   const [isNavOpen, setIsNavOpen] = useState(false)
 
@@ -88,12 +88,7 @@ export function Layout({ children }) {
 
           {/* Lado derecho: logout */}
           <div className="flex items-center gap-3">
-            <Button
-              onClick={logout}
-              className="rounded-xl border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-bold text-slate-700 shadow-xs hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
-            >
-              Cerrar sesión
-            </Button>
+            <LogoutButton className="rounded-xl border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-bold text-slate-700 shadow-xs transition-all duration-150 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900" />
 
             {/* Botón hamburguesa móvil */}
             <button

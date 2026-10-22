@@ -7,15 +7,17 @@ import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.banco.anteojos.backend.business.shipments.entities.Shipment;
+import com.banco.anteojos.backend.business.shipments.entities.ShipmentDirection;
 import com.banco.anteojos.backend.business.shipments.entities.ShipmentStatus;
 
 public interface ShipmentPostgresSqlRepository extends JpaRepository<Shipment, Long> {
 
-	List<Shipment> findAllByOrderByCreatedAtDesc();
+	List<Shipment> findByDirectionOrderByCreatedAtDesc(ShipmentDirection direction);
 
 	Optional<Shipment> findByTrackingNumber(String trackingNumber);
 
 	boolean existsByTrackingNumber(String trackingNumber);
 
-	long countByStatusAndDeliveredAtBetween(ShipmentStatus status, LocalDateTime from, LocalDateTime to);
+	long countByDirectionAndStatusAndDeliveredAtBetween(ShipmentDirection direction, ShipmentStatus status,
+			LocalDateTime from, LocalDateTime to);
 }

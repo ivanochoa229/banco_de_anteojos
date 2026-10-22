@@ -12,5 +12,9 @@ public record DonorCreationRequestDto(
 		@NotBlank @Size(max = 150) String name,
 		@Size(max = 20) String documentNumber,
 		@Size(max = 30) String phone,
-		@Email @Size(max = 255) String email) {
+		@Email @Size(max = 255) String email,
+		@Size(max = 255) String address,
+		@Size(max = 10) String postalCode,
+		@Size(max = 120) String city,
+		@Size(max = 60) String province) {
 }
