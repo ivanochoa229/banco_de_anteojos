@@ -1,0 +1,49 @@
+# Deploy automático: cada push a main (merge de un PR) que pasa "Main protection" se
+# despliega en el VPS de DonWeb. También se puede lanzar a mano desde Actions > Deploy.
+# Se conecta por SSH con una clave que el servidor restringe a ejecutar deploy/deploy.sh.
+# Configuración inicial (clave, secrets del environment "production"): docs/DEPLOY.md.
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: [Main protection]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+# Deploys en fila, nunca dos a la vez ni cancelados a mitad de un build.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: deploy-production
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 30
+    env:
+      VPS_HOST: 201.32.131.186
+      VPS_PORT: 5151
+      VPS_USER: deploy
+    steps:
+      - name: Configurar SSH
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      - name: Desplegar
+        env:
+          # workflow_run: el commit que pasó los tests; workflow_dispatch: la punta de main.
+          SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          ssh -p "$VPS_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes \
+              -o ServerAliveInterval=30 "$VPS_USER@$VPS_HOST" "$SHA"

@@ -24,7 +24,7 @@ banco-anteojos/
 ├── backend/          # Spring Boot + Maven — ver backend/CLAUDE.md para convenciones
 ├── frontend/         # React + Tailwind (Vite) — ver frontend/CLAUDE.md
 ├── docs/             # Documentación de cátedra (EDT, actas, cronograma) + DEPLOY.md (runbook)
-├── deploy/           # setup-server.sh (preparación del VPS, ya ejecutado)
+├── deploy/           # setup-server.sh (preparación del VPS, ya ejecutado) + deploy.sh (deploy automático)
 ├── docker-compose.prod.yml / docker-compose.local.yml / Caddyfile
 └── CLAUDE.md         # este archivo
 ```

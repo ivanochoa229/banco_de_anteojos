@@ -136,13 +136,65 @@ Abrí el túnel solo cuando lo necesites.
 
 ## Actualizar a una versión nueva
 
+### Automático (GitHub Actions)
+
+`.github/workflows/deploy.yml` despliega solo cada merge a `main`:
+
+1. El push a `main` dispara **Main protection** (tests del backend + build del front).
+2. Si pasa, **Deploy** entra por SSH al VPS y corre `deploy/deploy.sh <sha>`: `git fetch`,
+   `git merge --ff-only`, `docker compose up -d --build`, `docker image prune -f` y espera a que
+   `https://api.${DOMAIN}` responda (si en 3 minutos no responde, muestra los logs de `api` y el
+   job falla).
+3. Si entretanto entró otro merge, se saltea el commit viejo: solo se despliega la punta de
+   `main`, y nunca un commit que todavía no pasó los tests.
+
+Los deploys van en fila (nunca dos builds a la vez). También se puede lanzar a mano:
+Actions → Deploy → *Run workflow* (rama `main`). Mientras se reconstruyen los contenedores hay
+unos segundos de corte.
+
+La clave SSH de GitHub **solo puede ejecutar `deploy.sh`**: en `authorized_keys` va con
+`restrict,command=...`, así que aunque se filtre no da una shell en el servidor.
+
+#### Configuración inicial (una sola vez)
+
+1. Mergear el PR que agrega el workflow y traer el script al servidor (el workflow lo necesita ya
+   presente):
+   ```bash
+   ssh banco 'cd /opt/banco-anteojos && git pull'
+   ```
+2. En tu PC, generar una clave exclusiva para GitHub Actions (sin passphrase):
+   ```bash
+   ssh-keygen -t ed25519 -C "github-actions-deploy" -f gha_deploy -N ""
+   ```
+3. En el servidor, agregar la pública como una línea más de `/home/deploy/.ssh/authorized_keys`,
+   **con el prefijo** que la limita al script:
+   ```
+   restrict,command="/opt/banco-anteojos/deploy/deploy.sh" ssh-ed25519 AAAA... github-actions-deploy
+   ```
+4. Obtener la huella del servidor para que el runner no acepte un host falso:
+   ```bash
+   ssh-keyscan -p 5151 -t ed25519 201.32.131.186
+   # Comparar con lo que muestra el servidor:  ssh banco 'ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub'
+   ```
+5. En GitHub: Settings → Environments → *New environment* `production`:
+   - *Deployment branches and tags*: solo `main`.
+   - Secrets: `VPS_SSH_KEY` (contenido completo de `gha_deploy`, la **privada**) y
+     `VPS_KNOWN_HOSTS` (la línea que devolvió `ssh-keyscan`).
+   - Opcional: *Required reviewers* si se quiere aprobar cada deploy a mano.
+6. Borrar `gha_deploy` y `gha_deploy.pub` de la PC.
+7. Probar con Actions → Deploy → *Run workflow*.
+
+Para revocar el acceso de GitHub: borrar esa línea de `authorized_keys`.
+
+### Manual
+
 ```bash
 ssh banco
-cd /opt/banco-anteojos
-git pull
-docker compose -f docker-compose.prod.yml up -d --build
-docker image prune -f
+/opt/banco-anteojos/deploy/deploy.sh        # despliega la punta de origin/main
 ```
+
+El script hace `git merge --ff-only`: si alguien editó archivos versionados en el servidor,
+falla en vez de pisarlos (`git status` para ver qué cambió).
 
 ## Cambiar al dominio definitivo
 
