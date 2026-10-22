@@ -31,7 +31,12 @@ export function FrameImageCell({ frame }) {
 
   const uploadMutation = useMutation({
     mutationFn: (file) => framesApi.uploadImage(frame.id, file),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['frames'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['frames'] })
+      // La tabla también vive en la ficha del donante, que cachea su lista aparte. El id va
+      // como string porque esa página arma la key con el parámetro de la URL.
+      queryClient.invalidateQueries({ queryKey: ['donors', String(frame.donorId), 'frames'] })
+    },
   })
 
   async function handleChange(event) {
