@@ -38,11 +38,16 @@ class DonorServiceHandlerTest {
 		when(donorRepository.save(any(Donor.class))).thenAnswer(inv -> inv.getArgument(0));
 
 		DonorResponseDto response = donorServiceHandler.createDonor(new DonorCreationRequestDto(
-				DonorType.ORGANIZATION, "  Óptica Central  ", "30712345678", "3814440000", "Contacto@Optica.COM"));
+				DonorType.ORGANIZATION, "  Óptica Central  ", "30712345678", "3814440000", "Contacto@Optica.COM",
+				"  Av. Colón 1200  ", "X5000", "  Córdoba  ", "Córdoba"));
 
 		assertThat(response.donorType()).isEqualTo(DonorType.ORGANIZATION);
 		assertThat(response.name()).isEqualTo("Óptica Central");
 		assertThat(response.email()).isEqualTo("contacto@optica.com");
+		assertThat(response.address()).isEqualTo("Av. Colón 1200");
+		assertThat(response.postalCode()).isEqualTo("X5000");
+		assertThat(response.city()).isEqualTo("Córdoba");
+		assertThat(response.province()).isEqualTo("Córdoba");
 	}
 
 	@Test
@@ -50,11 +55,12 @@ class DonorServiceHandlerTest {
 		when(donorRepository.save(any(Donor.class))).thenAnswer(inv -> inv.getArgument(0));
 
 		DonorResponseDto response = donorServiceHandler.createDonor(new DonorCreationRequestDto(
-				DonorType.INDIVIDUAL, "Donante Anónimo", null, null, null));
+				DonorType.INDIVIDUAL, "Donante Anónimo", null, null, null, null, null, null, null));
 
 		assertThat(response.documentNumber()).isNull();
 		assertThat(response.phone()).isNull();
 		assertThat(response.email()).isNull();
+		assertThat(response.city()).isNull();
 	}
 
 	@Test
@@ -68,8 +74,9 @@ class DonorServiceHandlerTest {
 	@Test
 	void ListDonors_Successful() {
 		when(donorRepository.findAllByOrderByNameAsc()).thenReturn(List.of(
-				new Donor(DonorType.INDIVIDUAL, "Ana Ruiz", null, null, null),
-				new Donor(DonorType.ORGANIZATION, "Rotary Club", "30711111119", null, null)));
+				new Donor(DonorType.INDIVIDUAL, "Ana Ruiz", null, null, null, null, null, null, null),
+				new Donor(DonorType.ORGANIZATION, "Rotary Club", "30711111119", null, null, null, null,
+						null, null)));
 
 		List<DonorResponseDto> response = donorServiceHandler.listDonors();
 

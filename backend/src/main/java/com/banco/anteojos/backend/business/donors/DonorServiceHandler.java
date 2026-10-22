@@ -21,7 +21,8 @@ public class DonorServiceHandler implements DonorService {
 	@Override
 	public DonorResponseDto createDonor(DonorCreationRequestDto request) {
 		Donor donor = donorRepository.save(new Donor(request.donorType(), request.name(),
-				request.documentNumber(), request.phone(), request.email()));
+				request.documentNumber(), request.phone(), request.email(), request.address(),
+				request.postalCode(), request.city(), request.province()));
 		return toResponse(donor);
 	}
 
@@ -37,6 +38,7 @@ public class DonorServiceHandler implements DonorService {
 
 	private DonorResponseDto toResponse(Donor donor) {
 		return new DonorResponseDto(donor.getId(), donor.getDonorType(), donor.getName(),
-				donor.getDocumentNumber(), donor.getPhone(), donor.getEmail(), donor.getCreatedAt());
+				donor.getDocumentNumber(), donor.getPhone(), donor.getEmail(), donor.getAddress(),
+				donor.getPostalCode(), donor.getCity(), donor.getProvince(), donor.getCreatedAt());
 	}
 }

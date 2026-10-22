@@ -4,11 +4,15 @@ import java.util.List;
 
 import org.springframework.stereotype.Component;
 
+import com.banco.anteojos.backend.business.donors.DonorService;
 import com.banco.anteojos.backend.business.frames.FrameService;
 import com.banco.anteojos.backend.business.shipments.ShipmentService;
+import com.banco.anteojos.backend.business.shipments.dto.request.InboundShipmentCreationRequestDto;
 import com.banco.anteojos.backend.business.shipments.dto.request.ShipmentCreationRequestDto;
+import com.banco.anteojos.backend.business.shipments.dto.request.ShipmentReceptionRequestDto;
 import com.banco.anteojos.backend.business.shipments.dto.response.ShipmentDetailResponseDto;
 import com.banco.anteojos.backend.business.shipments.dto.response.ShipmentResponseDto;
+import com.banco.anteojos.backend.business.shipments.entities.ShipmentDirection;
 
 import lombok.RequiredArgsConstructor;
 
@@ -18,6 +22,7 @@ public class ShipmentUseCaseHandler implements ShipmentUseCaseOrchestrator {
 
 	private final ShipmentService shipmentService;
 	private final FrameService frameService;
+	private final DonorService donorService;
 
 	@Override
 	public ShipmentResponseDto createShipment(ShipmentCreationRequestDto request) {
@@ -27,8 +32,15 @@ public class ShipmentUseCaseHandler implements ShipmentUseCaseOrchestrator {
 	}
 
 	@Override
-	public List<ShipmentResponseDto> listShipments() {
-		return shipmentService.listShipments();
+	public ShipmentResponseDto createInboundShipment(Long donorId, InboundShipmentCreationRequestDto request) {
+		// Pertenencia primero: que el donante exista.
+		donorService.getDonor(donorId);
+		return shipmentService.createInboundShipment(donorId, request);
+	}
+
+	@Override
+	public List<ShipmentResponseDto> listShipments(ShipmentDirection direction) {
+		return shipmentService.listShipments(direction);
 	}
 
 	@Override
@@ -45,6 +57,12 @@ public class ShipmentUseCaseHandler implements ShipmentUseCaseOrchestrator {
 	@Override
 	public ShipmentResponseDto cancel(Long shipmentId, String reason) {
 		return shipmentService.cancel(shipmentId, reason);
+	}
+
+	@Override
+	public ShipmentResponseDto receive(Long shipmentId, ShipmentReceptionRequestDto request) {
+		// Que todos los marcos existan; que sean del donante de la donación lo valida el service.
+		return shipmentService.receive(shipmentId, frameService.getFrames(request.frameIds()));
 	}
 
 	@Override

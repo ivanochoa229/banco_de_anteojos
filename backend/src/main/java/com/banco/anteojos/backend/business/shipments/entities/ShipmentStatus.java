@@ -4,7 +4,8 @@ import java.util.Optional;
 
 /**
  * PENDING y CANCELLED son nuestros (el paquete todavía no salió); REGISTERED marca el despacho
- * con el número de Vía Cargo ya registrado en 17TRACK; el resto espeja los estados que empuja
+ * con el número de Vía Cargo ya registrado en 17TRACK; RECEIVED también es nuestro (el operador
+ * abrió una donación entrante y cargó sus marcos); el resto espeja los estados que empuja
  * 17TRACK por webhook.
  */
 public enum ShipmentStatus {
@@ -19,7 +20,8 @@ public enum ShipmentStatus {
 	DELIVERY_FAILURE,
 	EXCEPTION,
 	EXPIRED,
-	NOT_FOUND;
+	NOT_FOUND,
+	RECEIVED;
 
 	/** Mapeo desde el estado crudo de 17TRACK; vacío si el carrier inventó uno nuevo. */
 	public static Optional<ShipmentStatus> fromTracking(String rawStatus) {

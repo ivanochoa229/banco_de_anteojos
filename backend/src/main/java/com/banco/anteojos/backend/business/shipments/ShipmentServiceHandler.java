@@ -7,11 +7,13 @@ import java.util.Optional;
 import org.springframework.stereotype.Service;
 
 import com.banco.anteojos.backend.business.frames.dto.response.FrameResponseDto;
+import com.banco.anteojos.backend.business.shipments.dto.request.InboundShipmentCreationRequestDto;
 import com.banco.anteojos.backend.business.shipments.dto.request.ShipmentCreationRequestDto;
 import com.banco.anteojos.backend.business.shipments.dto.response.ShipmentDetailResponseDto;
 import com.banco.anteojos.backend.business.shipments.dto.response.ShipmentEventResponseDto;
 import com.banco.anteojos.backend.business.shipments.dto.response.ShipmentResponseDto;
 import com.banco.anteojos.backend.business.shipments.entities.Shipment;
+import com.banco.anteojos.backend.business.shipments.entities.ShipmentDirection;
 import com.banco.anteojos.backend.business.shipments.entities.ShipmentEvent;
 import com.banco.anteojos.backend.business.shipments.entities.ShipmentStatus;
 import com.banco.anteojos.backend.business.shipments.exception.ShipmentNotFoundException;
@@ -41,13 +43,26 @@ public class ShipmentServiceHandler implements ShipmentService {
 	}
 
 	@Override
+	public ShipmentResponseDto createInboundShipment(Long donorId, InboundShipmentCreationRequestDto request) {
+		String normalized = request.trackingNumber().trim();
+		if (shipmentRepository.existsByTrackingNumber(normalized)) {
+			throw new TrackingNumberAlreadyExistsException();
+		}
+		// Mismo orden que el despacho: si 17TRACK no acepta la guía, no queda una donación
+		// "en camino" que nunca va a recibir novedades.
+		trackingClient.register(normalized);
+		return toResponse(shipmentRepository.save(Shipment.inbound(donorId, normalized, request.notes())));
+	}
+
+	@Override
 	public ShipmentResponseDto getShipment(Long shipmentId) {
 		return toResponse(findShipment(shipmentId));
 	}
 
 	@Override
-	public List<ShipmentResponseDto> listShipments() {
-		return shipmentRepository.findAllByOrderByCreatedAtDesc().stream().map(this::toResponse).toList();
+	public List<ShipmentResponseDto> listShipments(ShipmentDirection direction) {
+		return shipmentRepository.findByDirectionOrderByCreatedAtDesc(direction).stream().map(this::toResponse)
+				.toList();
 	}
 
 	@Override
@@ -68,6 +83,14 @@ public class ShipmentServiceHandler implements ShipmentService {
 	public ShipmentResponseDto cancel(Long shipmentId, String reason) {
 		Shipment shipment = findShipment(shipmentId);
 		shipment.cancel(reason);
+		return toResponse(shipmentRepository.save(shipment));
+	}
+
+	@Override
+	public ShipmentResponseDto receive(Long shipmentId, List<FrameResponseDto> frames) {
+		Shipment shipment = findShipment(shipmentId);
+		shipment.receive(frames.stream().map(FrameResponseDto::id).toList(),
+				frames.stream().map(FrameResponseDto::donorId).toList());
 		return toResponse(shipmentRepository.save(shipment));
 	}
 
@@ -114,7 +137,9 @@ public class ShipmentServiceHandler implements ShipmentService {
 
 	@Override
 	public long countDelivered(LocalDateTime from, LocalDateTime to) {
-		return shipmentRepository.countByStatusAndDeliveredAtBetween(ShipmentStatus.DELIVERED, from, to);
+		// Solo salientes: una donación que llega no es un envío completado por la fundación.
+		return shipmentRepository.countByDirectionAndStatusAndDeliveredAtBetween(ShipmentDirection.OUTBOUND,
+				ShipmentStatus.DELIVERED, from, to);
 	}
 
 	private Shipment findShipment(Long shipmentId) {
@@ -122,10 +147,10 @@ public class ShipmentServiceHandler implements ShipmentService {
 	}
 
 	private ShipmentResponseDto toResponse(Shipment shipment) {
-		return new ShipmentResponseDto(shipment.getId(), shipment.getOriginBranch(),
-				shipment.getDestinationBranch(), shipment.getTrackingNumber(),
+		return new ShipmentResponseDto(shipment.getId(), shipment.getDirection().name(), shipment.getDonorId(),
+				shipment.getOriginBranch(), shipment.getDestinationBranch(), shipment.getTrackingNumber(),
 				shipment.getStatus().name(), shipment.getNotes(), shipment.getCancellationReason(),
 				shipment.getCreatedAt(), shipment.getDispatchedAt(), shipment.getDeliveredAt(),
-				List.copyOf(shipment.getFrameIds()));
+				shipment.getReceivedAt(), List.copyOf(shipment.getFrameIds()));
 	}
 }

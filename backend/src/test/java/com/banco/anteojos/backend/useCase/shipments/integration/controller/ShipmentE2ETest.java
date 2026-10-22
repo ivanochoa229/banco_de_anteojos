@@ -1,7 +1,9 @@
 package com.banco.anteojos.backend.useCase.shipments.integration.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -29,6 +31,7 @@ import com.banco.anteojos.backend.business.security.JwtService;
 import com.banco.anteojos.backend.business.security.entities.Role;
 import com.banco.anteojos.backend.business.security.entities.User;
 import com.banco.anteojos.backend.business.shipments.entities.Shipment;
+import com.banco.anteojos.backend.business.shipments.entities.ShipmentDirection;
 import com.banco.anteojos.backend.business.shipments.entities.ShipmentStatus;
 import com.banco.anteojos.backend.persistence.shipments.ShipmentEventPostgresSqlRepository;
 import com.banco.anteojos.backend.persistence.shipments.ShipmentPostgresSqlRepository;
@@ -53,6 +56,8 @@ class ShipmentE2ETest {
 
 	private static final String TEST_API_KEY = "test-17track-key";
 	private static final String TRACKING_NUMBER = "VC0012345678";
+	/** "Guía No." de un comprobante real de Vía Cargo de una donación. */
+	private static final String DONATION_GUIDE = "999038143994";
 
 	@Autowired
 	private MockMvc mockMvc;
@@ -105,6 +110,34 @@ class ShipmentE2ETest {
 						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
 				.andExpect(status().isOk());
 		return shipmentId;
+	}
+
+	private Long createInboundShipment(Long donorId) throws Exception {
+		String response = mockMvc.perform(post("/v1/donors/" + donorId + "/shipments")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"trackingNumber\": \"" + DONATION_GUIDE + "\"}")
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isCreated())
+				.andReturn().getResponse().getContentAsString();
+		return ((Number) JsonPath.read(response, "$.id")).longValue();
+	}
+
+	private Long createDonor() throws Exception {
+		String response = mockMvc.perform(post("/v1/donors")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"donorType\": \"INDIVIDUAL\", \"name\": \"Ana Ruiz\", \"city\": \"Salta\"}")
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isCreated())
+				.andReturn().getResponse().getContentAsString();
+		return ((Number) JsonPath.read(response, "$.id")).longValue();
+	}
+
+	private void receive(Long shipmentId, String frameIds) throws Exception {
+		mockMvc.perform(put("/v1/shipments/" + shipmentId + "/reception")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"frameIds\": " + frameIds + "}")
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isOk());
 	}
 
 	private String pushBody(String status, String description) {
@@ -301,6 +334,121 @@ class ShipmentE2ETest {
 						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
 				.andExpect(status().isConflict())
 				.andExpect(jsonPath("$.message").value("El envío ya fue despachado"));
+	}
+
+	@Test
+	void CreateInboundShipment_Successful() throws Exception {
+		String response = mockMvc.perform(post("/v1/donors/300000/shipments")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"trackingNumber\": \" " + DONATION_GUIDE + " \", \"notes\": \"4 marcos\"}")
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.direction").value("INBOUND"))
+				.andExpect(jsonPath("$.donorId").value(300000))
+				.andExpect(jsonPath("$.status").value("REGISTERED"))
+				.andExpect(jsonPath("$.originBranch").isEmpty())
+				.andExpect(jsonPath("$.frameIds.length()").value(0))
+				.andReturn().getResponse().getContentAsString();
+
+		Shipment shipment = shipmentInDb(((Number) JsonPath.read(response, "$.id")).longValue());
+		assertThat(shipment.getDirection()).isEqualTo(ShipmentDirection.INBOUND);
+		assertThat(shipment.getTrackingNumber()).isEqualTo(DONATION_GUIDE);
+		verify(trackingClient).register(DONATION_GUIDE);
+	}
+
+	@Test
+	void CreateInboundShipment_WhenDonorDoesNotExist() throws Exception {
+		mockMvc.perform(post("/v1/donors/999999/shipments")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"trackingNumber\": \"" + DONATION_GUIDE + "\"}")
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isNotFound());
+
+		assertThat(shipmentRepository.count()).isZero();
+		verify(trackingClient, never()).register(any());
+	}
+
+	@Test
+	void Receive_Successful() throws Exception {
+		Long shipmentId = createInboundShipment(300000L);
+
+		mockMvc.perform(put("/v1/shipments/" + shipmentId + "/reception")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"frameIds\": [400000, 400001]}")
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.status").value("RECEIVED"))
+				.andExpect(jsonPath("$.receivedAt").isNotEmpty());
+
+		Shipment shipment = shipmentInDb(shipmentId);
+		assertThat(shipment.getStatus()).isEqualTo(ShipmentStatus.RECEIVED);
+		assertThat(shipment.getFrameIds()).containsExactlyInAnyOrder(400000L, 400001L);
+
+		// RF-16: la trazabilidad del marco arranca en el envío del donante.
+		mockMvc.perform(get("/v1/shipments/" + shipmentId)
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.frames.length()").value(2));
+	}
+
+	@Test
+	void Receive_WhenFrameIsFromAnotherDonor() throws Exception {
+		Long shipmentId = createInboundShipment(createDonor());
+
+		// 400000 es del donante del template, no de quien mandó esta donación.
+		mockMvc.perform(put("/v1/shipments/" + shipmentId + "/reception")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"frameIds\": [400000]}")
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isUnprocessableContent());
+
+		assertThat(shipmentInDb(shipmentId).getStatus()).isEqualTo(ShipmentStatus.REGISTERED);
+	}
+
+	@Test
+	void Receive_WhenOutbound() throws Exception {
+		Long shipmentId = createDispatchedShipment();
+
+		mockMvc.perform(put("/v1/shipments/" + shipmentId + "/reception")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"frameIds\": []}")
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isConflict());
+	}
+
+	@Test
+	void Webhook_WhenDonationAlreadyReceived() throws Exception {
+		Long shipmentId = createInboundShipment(300000L);
+		receive(shipmentId, "[400000]");
+		String body = pushBody("Delivered", "Entregado en sucursal").replace(TRACKING_NUMBER, DONATION_GUIDE);
+
+		mockMvc.perform(post("/v1/shipments/webhook")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body)
+						.header("sign", sign(body)))
+				.andExpect(status().isOk());
+
+		// La recepción del operador no se pisa, pero el evento queda en la trazabilidad.
+		assertThat(shipmentInDb(shipmentId).getStatus()).isEqualTo(ShipmentStatus.RECEIVED);
+		assertThat(eventRepository.findByShipmentIdOrderByIdAsc(shipmentId)).hasSize(1);
+	}
+
+	@Test
+	void ListShipments_ByDirection() throws Exception {
+		createShipment();
+		createInboundShipment(300000L);
+
+		mockMvc.perform(get("/v1/shipments")
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.length()").value(1))
+				.andExpect(jsonPath("$[0].direction").value("OUTBOUND"));
+
+		mockMvc.perform(get("/v1/shipments").param("direction", "INBOUND")
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.length()").value(1))
+				.andExpect(jsonPath("$[0].donorId").value(300000));
 	}
 
 	@Test

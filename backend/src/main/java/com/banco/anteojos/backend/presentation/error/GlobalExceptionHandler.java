@@ -40,6 +40,7 @@ import com.banco.anteojos.backend.business.frames.exception.SealCodeAlreadyExist
 import com.banco.anteojos.backend.business.indicators.exception.InvalidIndicatorsRangeException;
 import com.banco.anteojos.backend.business.security.exception.EmailAlreadyExistsException;
 import com.banco.anteojos.backend.business.security.exception.InvalidCredentialsException;
+import com.banco.anteojos.backend.business.shipments.exception.FrameFromAnotherDonorException;
 import com.banco.anteojos.backend.business.shipments.exception.InvalidShipmentTransitionException;
 import com.banco.anteojos.backend.business.shipments.exception.InvalidWebhookPayloadException;
 import com.banco.anteojos.backend.business.shipments.exception.InvalidWebhookSignatureException;
@@ -218,6 +219,13 @@ public class GlobalExceptionHandler {
 	public ErrorResponseDto invalidWebhookPayload(InvalidWebhookPayloadException e,
 			HttpServletRequest request) {
 		return ErrorResponseDto.of(HttpStatus.BAD_REQUEST, e.getMessage(), request.getRequestURI());
+	}
+
+	// 422: el operador eligió marcos de otro donante al recibir una donación; que lo corrija.
+	@ExceptionHandler(FrameFromAnotherDonorException.class)
+	@ResponseStatus(HttpStatus.UNPROCESSABLE_CONTENT)
+	public ErrorResponseDto frameFromAnotherDonor(FrameFromAnotherDonorException e, HttpServletRequest request) {
+		return ErrorResponseDto.of(HttpStatus.UNPROCESSABLE_CONTENT, e.getMessage(), request.getRequestURI());
 	}
 
 	// 422: el número no es un tracking válido para 17TRACK; que el operador lo revise.

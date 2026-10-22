@@ -11,5 +11,9 @@ public record DonorResponseDto(
 		String documentNumber,
 		String phone,
 		String email,
+		String address,
+		String postalCode,
+		String city,
+		String province,
 		LocalDateTime createdAt) {
 }
