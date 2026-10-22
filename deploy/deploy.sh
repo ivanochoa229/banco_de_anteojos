@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
-# deploy.sh — actualiza producción a un commit de main y reconstruye los contenedores.
+# deploy.sh — actualiza producción a un commit de main con las imágenes que compiló
+# GitHub Actions (ghcr.io). El servidor no compila nada.
 # Lo ejecuta .github/workflows/deploy.yml por SSH (forced command en authorized_keys, ver
 # docs/DEPLOY.md) y también se puede correr a mano en el servidor:
 #   /opt/banco-anteojos/deploy/deploy.sh [sha]     # sin sha: el último commit de main
+# Las imágenes de ese commit tienen que existir: las sube el workflow antes de llamarlo.
 #
 # Todo va entre { ... } para que bash lea el script completo antes de ejecutarlo: el
 # git merge de abajo puede reescribir este mismo archivo mientras corre.
@@ -33,13 +35,22 @@ if [[ "$SHA" != "$TIP" ]]; then
   exit 0
 fi
 
+# El repo sigue haciendo falta en el servidor: compose, Caddyfile (montado en web) y este script.
 echo "==> Código: $(git rev-parse --short HEAD) -> ${SHA:0:7}"
 # --ff-only: si alguien editó archivos versionados en el servidor, falla en vez de pisarlos.
 git merge --ff-only --quiet "$SHA"
 
-echo "==> Build y recreación de contenedores"
-$COMPOSE up -d --build --remove-orphans
-docker image prune -f
+# IMAGE_TAG queda en el .env para que un "docker compose up -d" a mano use la misma versión.
+sed -i '/^IMAGE_TAG=/d' .env
+echo "IMAGE_TAG=$SHA" >> .env
+
+echo "==> Descargando imágenes ${SHA:0:7}"
+$COMPOSE pull api web
+
+echo "==> Recreando contenedores"
+$COMPOSE up -d --remove-orphans
+# -a: borra también las imágenes de deploys anteriores (las que usa un contenedor quedan).
+docker image prune -af
 
 # Sin actuator: cualquier respuesta 2xx-4xx de la API significa que Spring levantó
 # (Caddy devuelve 502 mientras api:8080 no atiende).

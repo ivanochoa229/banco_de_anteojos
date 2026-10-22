@@ -1,5 +1,6 @@
 # docker-compose.prod.yml — producción en DonWeb
-# En el servidor: docker compose -f docker-compose.prod.yml up -d --build
+# Las imágenes de api y web las compila GitHub Actions (.github/workflows/deploy.yml) y el
+# servidor solo las descarga: deploy/deploy.sh fija IMAGE_TAG en el .env y hace pull + up.
 # Variables: se leen del archivo .env en la misma carpeta (ver .env.prod.example).
 # Ojo: el contenedor solo recibe las variables listadas en su "environment"; tener una
 # variable en el .env no alcanza para que le llegue a Spring.
@@ -26,6 +27,8 @@ services:
       retries: 10
 
   api:
+    image: ghcr.io/ivanochoa229/banco-anteojos-api:${IMAGE_TAG:-local}
+    # Solo para un build de emergencia en el servidor (up -d --build); ver docs/DEPLOY.md.
     build: ./backend
     restart: unless-stopped
     depends_on:
@@ -59,6 +62,7 @@ services:
     mem_limit: 1g
 
   web:
+    image: ghcr.io/ivanochoa229/banco-anteojos-web:${IMAGE_TAG:-local}
     build:
       context: ./frontend
       args:

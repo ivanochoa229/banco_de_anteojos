@@ -1,7 +1,9 @@
 # Deploy automático: cada push a main (merge de un PR) que pasa "Main protection" se
-# despliega en el VPS de DonWeb. También se puede lanzar a mano desde Actions > Deploy.
+# compila acá, se sube a GitHub Container Registry (ghcr.io) y se despliega en el VPS de
+# DonWeb, que solo descarga las imágenes (no compila: tiene 2 GB de RAM).
+# También se puede lanzar a mano desde Actions > Deploy.
 # Se conecta por SSH con una clave que el servidor restringe a ejecutar deploy/deploy.sh.
-# Configuración inicial (clave, secrets del environment "production"): docs/DEPLOY.md.
+# Configuración inicial (clave, variable DOMAIN, secrets de "production"): docs/DEPLOY.md.
 name: Deploy
 
 on:
@@ -16,15 +18,75 @@ concurrency:
   group: deploy-production
   cancel-in-progress: false
 
+permissions:
+  contents: read
+
+env:
+  # workflow_run: el commit que pasó los tests; workflow_dispatch: la punta de main.
+  SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+  # Mismos nombres que docker-compose.prod.yml.
+  API_IMAGE: ghcr.io/ivanochoa229/banco-anteojos-api
+  WEB_IMAGE: ghcr.io/ivanochoa229/banco-anteojos-web
+
 jobs:
-  deploy:
-    name: deploy-production
+  build:
+    name: build-images
     if: >-
       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
       (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
     runs-on: ubuntu-latest
-    environment: production
     timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SHA }}
+
+      # VITE_API_URL se fija en el build del front: tiene que coincidir con el DOMAIN del
+      # .env del servidor (Settings > Secrets and variables > Actions > Variables).
+      - name: Verificar variable DOMAIN
+        env:
+          DOMAIN: ${{ vars.DOMAIN }}
+        run: |
+          [[ -n "$DOMAIN" ]] || { echo "::error::Falta la variable DOMAIN del repo"; exit 1; }
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Imagen de la API
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          push: true
+          tags: ${{ env.API_IMAGE }}:${{ env.SHA }}
+          labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
+
+      - name: Imagen del frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          push: true
+          build-args: VITE_API_URL=https://api.${{ vars.DOMAIN }}
+          tags: ${{ env.WEB_IMAGE }}:${{ env.SHA }}
+          labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web
+
+  deploy:
+    name: deploy-production
+    needs: build
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 15
     env:
       VPS_HOST: 201.32.131.186
       VPS_PORT: 5151
@@ -41,9 +103,6 @@ jobs:
           printf '%s\n' "$VPS_KNOWN_HOSTS" > ~/.ssh/known_hosts
 
       - name: Desplegar
-        env:
-          # workflow_run: el commit que pasó los tests; workflow_dispatch: la punta de main.
-          SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
         run: |
           ssh -p "$VPS_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes \
               -o ServerAliveInterval=30 "$VPS_USER@$VPS_HOST" "$SHA"
