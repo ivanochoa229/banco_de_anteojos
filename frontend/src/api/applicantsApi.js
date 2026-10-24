@@ -8,6 +8,12 @@ export const applicantsApi = {
   // Autogestión: el backend resuelve el solicitante desde el JWT, por eso no lleva id.
   getMine: () => apiFetch('/v1/me'),
   updateMine: (data) => apiFetch('/v1/me', { method: 'PUT', body: data }),
+  getMyAnsesCertificate: () => apiFetch('/v1/me/anses-certificate'),
+  uploadMyAnsesCertificate: (file) => {
+    const body = new FormData()
+    body.append('file', file)
+    return apiFetch('/v1/me/anses-certificate', { method: 'PUT', body })
+  },
   listPrescriptions: (applicantId) => apiFetch(`/v1/applicants/${applicantId}/prescriptions`),
   createPrescription: (applicantId, data) =>
     apiFetch(`/v1/applicants/${applicantId}/prescriptions`, { method: 'POST', body: data }),

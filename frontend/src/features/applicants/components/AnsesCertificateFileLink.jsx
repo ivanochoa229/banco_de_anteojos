@@ -1,13 +1,12 @@
 import { useState } from 'react'
-import { applicantsApi } from '../../../api/applicantsApi'
 
 /**
  * La presigned URL viene con el registro pero vence a los pocos minutos, así que la pantalla
  * puede quedar abierta con una URL muerta. Se vuelve a pedir el certificado al hacer clic y se
- * abre la URL fresca. La pestaña se abre antes del await: si se abriera después, el navegador
+ * abre la URL fresca (fetchCertificate: el del operador o el de autogestión). La pestaña se abre antes del await: si se abriera después, el navegador
  * la bloquearía por no venir de una interacción directa del usuario.
  */
-export function AnsesCertificateFileLink({ applicantId, fileName }) {
+export function AnsesCertificateFileLink({ fetchCertificate, fileName }) {
   const [isOpening, setIsOpening] = useState(false)
   const [error, setError] = useState(null)
 
@@ -17,7 +16,7 @@ export function AnsesCertificateFileLink({ applicantId, fileName }) {
     const tab = window.open('', '_blank')
     if (tab) tab.opener = null
     try {
-      const { fileUrl } = await applicantsApi.getAnsesCertificate(applicantId)
+      const { fileUrl } = await fetchCertificate()
       if (tab) tab.location = fileUrl
       else window.location.assign(fileUrl)
     } catch (caught) {
