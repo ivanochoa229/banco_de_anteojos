@@ -211,6 +211,8 @@ public class GlobalExceptionHandler {
 	@ResponseStatus(HttpStatus.UNAUTHORIZED)
 	public ErrorResponseDto invalidWebhookSignature(InvalidWebhookSignatureException e,
 			HttpServletRequest request) {
+		// Endpoint público: una firma inválida es un intento de suplantar a 17TRACK.
+		log.warn("Webhook de 17TRACK rechazado por firma inválida");
 		return ErrorResponseDto.of(HttpStatus.UNAUTHORIZED, e.getMessage(), request.getRequestURI());
 	}
 

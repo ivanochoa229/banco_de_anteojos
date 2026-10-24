@@ -3,6 +3,7 @@ package com.banco.anteojos.backend.config;
 import java.io.IOException;
 import java.util.List;
 
+import org.slf4j.MDC;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -33,11 +34,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 		String header = request.getHeader(HttpHeaders.AUTHORIZATION);
 		if (header != null && header.startsWith(BEARER_PREFIX)) {
 			jwtService.validate(header.substring(BEARER_PREFIX.length()))
-					.ifPresent(tokenData -> SecurityContextHolder.getContext().setAuthentication(
-							new UsernamePasswordAuthenticationToken(
-									new AuthenticatedPrincipal(tokenData.email(), tokenData.role(), tokenData.applicantId()),
-									null,
-									List.of(new SimpleGrantedAuthority("ROLE_" + tokenData.role())))));
+					.ifPresent(tokenData -> {
+						SecurityContextHolder.getContext().setAuthentication(
+								new UsernamePasswordAuthenticationToken(
+										new AuthenticatedPrincipal(tokenData.email(), tokenData.role(), tokenData.applicantId()),
+										null,
+										List.of(new SimpleGrantedAuthority("ROLE_" + tokenData.role()))));
+						MDC.put("username", tokenData.email());
+					});
 		}
 		filterChain.doFilter(request, response);
 	}
