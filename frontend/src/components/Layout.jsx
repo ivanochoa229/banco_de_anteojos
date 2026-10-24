@@ -10,6 +10,7 @@ const APPLICANT_NAV_LINKS = [
   { to: '/solicitante/mi-marco', label: 'Estado de mi Marco', matchPrefix: ['/solicitante/mi-marco', '/my-status'] },
   { to: '/solicitante/probador', label: 'Probador Virtual', matchPrefix: ['/solicitante/probador', '/try-on'] },
   { to: '/solicitante/catalogo', label: 'Catálogo de Sol', matchPrefix: ['/solicitante/catalogo', '/catalog'] },
+  { to: '/solicitante/mi-perfil', label: 'Mi Perfil', matchPrefix: ['/solicitante/mi-perfil'] },
 ]
 
 const OPERATOR_NAV_ROW_1 = [
@@ -113,8 +114,8 @@ export function Layout({ children }) {
         <div className="hidden border-t border-slate-200/70 bg-slate-50/70 px-4 py-3 sm:block sm:px-6">
           <div className="mx-auto max-w-7xl">
             {isApplicant ? (
-              // Barra para Solicitante (5 botones grandes bien alineados)
-              <nav className="grid grid-cols-5 gap-3">
+              // Barra para Solicitante (6 botones grandes bien alineados)
+              <nav className="grid grid-cols-6 gap-3">
                 {APPLICANT_NAV_LINKS.map((item) => (
                   <NavLink
                     key={item.to}

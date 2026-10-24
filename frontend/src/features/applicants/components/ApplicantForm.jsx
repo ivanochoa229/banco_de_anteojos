@@ -9,7 +9,16 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const TODAY = new Date().toISOString().split('T')[0]
 
 // dniEditable: el DNI solo se carga en el alta; en la edición el backend no lo acepta.
-export function ApplicantForm({ initialValues, dniEditable, submitLabel, onSubmit, isPending, submitError }) {
+// emailReadOnly: en el perfil propio el email es el usuario de ingreso y el backend no lo cambia.
+export function ApplicantForm({
+  initialValues,
+  dniEditable,
+  emailReadOnly,
+  submitLabel,
+  onSubmit,
+  isPending,
+  submitError,
+}) {
   const [values, setValues] = useState({
     firstName: initialValues?.firstName ?? '',
     lastName: initialValues?.lastName ?? '',
@@ -30,7 +39,9 @@ export function ApplicantForm({ initialValues, dniEditable, submitLabel, onSubmi
     if (!values.firstName.trim()) errors.firstName = 'Ingresá el nombre'
     if (!values.lastName.trim()) errors.lastName = 'Ingresá el apellido'
     if (dniEditable && !DNI_REGEX.test(values.dni.trim())) errors.dni = 'El DNI debe tener 7 u 8 dígitos'
-    if (values.email.trim() && !EMAIL_REGEX.test(values.email.trim())) errors.email = 'El email no es válido'
+    if (!emailReadOnly && values.email.trim() && !EMAIL_REGEX.test(values.email.trim())) {
+      errors.email = 'El email no es válido'
+    }
     setFieldErrors(errors)
     if (Object.keys(errors).length > 0) return
 
@@ -40,7 +51,7 @@ export function ApplicantForm({ initialValues, dniEditable, submitLabel, onSubmi
       ...(dniEditable ? { dni: values.dni.trim() } : {}),
       birthDate: values.birthDate || null,
       phone: values.phone.trim() || null,
-      email: values.email.trim() || null,
+      ...(emailReadOnly ? {} : { email: values.email.trim() || null }),
     })
   }
 
@@ -88,11 +99,12 @@ export function ApplicantForm({ initialValues, dniEditable, submitLabel, onSubmi
         />
         <Input
           id="email"
-          label="Email (opcional)"
+          label={emailReadOnly ? 'Email (usuario de ingreso)' : 'Email (opcional)'}
           type="email"
           value={values.email}
           onChange={setField('email')}
           error={fieldErrors.email}
+          disabled={emailReadOnly}
         />
       </div>
 

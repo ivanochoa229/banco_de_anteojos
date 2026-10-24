@@ -6,6 +6,7 @@ import { ApplicantDashboardPage } from '../features/applicants/pages/ApplicantDa
 import { ApplicantEditPage } from '../features/applicants/pages/ApplicantEditPage'
 import { ApplicantPrescriptionsPage } from '../features/applicants/pages/ApplicantPrescriptionsPage'
 import { ApplicantsListPage } from '../features/applicants/pages/ApplicantsListPage'
+import { MyProfilePage } from '../features/applicants/pages/MyProfilePage'
 import { AppointmentCreatePage } from '../features/appointments/pages/AppointmentCreatePage'
 import { AppointmentDaysPage } from '../features/appointments/pages/AppointmentDaysPage'
 import { AppointmentsAgendaPage } from '../features/appointments/pages/AppointmentsAgendaPage'
@@ -73,6 +74,7 @@ export function AppRoutes() {
           <Route path="/solicitante/mi-marco" element={<MyStatusPage />} />
           <Route path="/solicitante/probador" element={<TryOnPage />} />
           <Route path="/solicitante/catalogo" element={<CatalogListPage />} />
+          <Route path="/solicitante/mi-perfil" element={<MyProfilePage />} />
           {/* Rutas de autogestión directa */}
           <Route path="/my-appointments" element={<MyAppointmentsPage />} />
           <Route path="/my-status" element={<MyStatusPage />} />

@@ -4,6 +4,7 @@ import java.util.List;
 
 import com.banco.anteojos.backend.business.applicants.dto.request.AnsesCertificateUploadRequestDto;
 import com.banco.anteojos.backend.business.applicants.dto.request.ApplicantCreationRequestDto;
+import com.banco.anteojos.backend.business.applicants.dto.request.ApplicantProfileUpdateRequestDto;
 import com.banco.anteojos.backend.business.applicants.dto.request.ApplicantUpdateRequestDto;
 import com.banco.anteojos.backend.business.applicants.dto.request.PrescriptionCreationRequestDto;
 import com.banco.anteojos.backend.business.applicants.dto.request.PrescriptionFileUploadRequestDto;
@@ -22,6 +23,9 @@ public interface ApplicantService {
 	List<ApplicantResponseDto> listApplicants();
 
 	ApplicantResponseDto updateApplicant(Long applicantId, ApplicantUpdateRequestDto request);
+
+	/** Autogestión del beneficiario: no toca el email, que es su usuario de ingreso. */
+	ApplicantResponseDto updateProfile(Long applicantId, ApplicantProfileUpdateRequestDto request);
 
 	PrescriptionResponseDto addPrescription(Long applicantId, PrescriptionCreationRequestDto request);
 
