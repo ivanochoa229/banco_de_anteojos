@@ -5,6 +5,9 @@ export const applicantsApi = {
   get: (applicantId) => apiFetch(`/v1/applicants/${applicantId}`),
   create: (data) => apiFetch('/v1/applicants', { method: 'POST', body: data }),
   update: (applicantId, data) => apiFetch(`/v1/applicants/${applicantId}`, { method: 'PUT', body: data }),
+  // Autogestión: el backend resuelve el solicitante desde el JWT, por eso no lleva id.
+  getMine: () => apiFetch('/v1/me'),
+  updateMine: (data) => apiFetch('/v1/me', { method: 'PUT', body: data }),
   listPrescriptions: (applicantId) => apiFetch(`/v1/applicants/${applicantId}/prescriptions`),
   createPrescription: (applicantId, data) =>
     apiFetch(`/v1/applicants/${applicantId}/prescriptions`, { method: 'POST', body: data }),

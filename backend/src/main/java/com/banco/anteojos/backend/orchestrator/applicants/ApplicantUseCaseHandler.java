@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 import com.banco.anteojos.backend.business.applicants.ApplicantService;
 import com.banco.anteojos.backend.business.applicants.dto.request.AnsesCertificateUploadRequestDto;
 import com.banco.anteojos.backend.business.applicants.dto.request.ApplicantCreationRequestDto;
+import com.banco.anteojos.backend.business.applicants.dto.request.ApplicantProfileUpdateRequestDto;
 import com.banco.anteojos.backend.business.applicants.dto.request.ApplicantUpdateRequestDto;
 import com.banco.anteojos.backend.business.applicants.dto.request.PrescriptionCreationRequestDto;
 import com.banco.anteojos.backend.business.applicants.dto.request.PrescriptionFileUploadRequestDto;
@@ -43,6 +44,11 @@ public class ApplicantUseCaseHandler implements ApplicantUseCaseOrchestrator {
 	@Override
 	public ApplicantResponseDto updateApplicant(Long applicantId, ApplicantUpdateRequestDto request) {
 		return applicantService.updateApplicant(applicantId, request);
+	}
+
+	@Override
+	public ApplicantResponseDto updateProfile(Long applicantId, ApplicantProfileUpdateRequestDto request) {
+		return applicantService.updateProfile(applicantId, request);
 	}
 
 	@Override

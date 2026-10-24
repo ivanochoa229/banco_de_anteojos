@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 
 import com.banco.anteojos.backend.business.applicants.dto.request.AnsesCertificateUploadRequestDto;
 import com.banco.anteojos.backend.business.applicants.dto.request.ApplicantCreationRequestDto;
+import com.banco.anteojos.backend.business.applicants.dto.request.ApplicantProfileUpdateRequestDto;
 import com.banco.anteojos.backend.business.applicants.dto.request.ApplicantUpdateRequestDto;
 import com.banco.anteojos.backend.business.applicants.dto.request.PrescriptionCreationRequestDto;
 import com.banco.anteojos.backend.business.applicants.dto.request.PrescriptionFileUploadRequestDto;
@@ -86,6 +87,14 @@ public class ApplicantServiceHandler implements ApplicantService {
 		Applicant applicant = findApplicant(applicantId);
 		applicant.updatePersonalData(request.firstName(), request.lastName(), request.birthDate(),
 				request.phone(), request.email());
+		return toResponse(applicantRepository.save(applicant));
+	}
+
+	@Override
+	public ApplicantResponseDto updateProfile(Long applicantId, ApplicantProfileUpdateRequestDto request) {
+		Applicant applicant = findApplicant(applicantId);
+		applicant.updatePersonalData(request.firstName(), request.lastName(), request.birthDate(),
+				request.phone(), applicant.getEmail());
 		return toResponse(applicantRepository.save(applicant));
 	}
 

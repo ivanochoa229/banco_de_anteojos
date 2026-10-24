@@ -28,6 +28,7 @@ import com.banco.anteojos.backend.business.applicants.ApplicantServiceHandler;
 import com.banco.anteojos.backend.business.applicants.ParsedAnsesCertificate;
 import com.banco.anteojos.backend.business.applicants.dto.request.AnsesCertificateUploadRequestDto;
 import com.banco.anteojos.backend.business.applicants.dto.request.ApplicantCreationRequestDto;
+import com.banco.anteojos.backend.business.applicants.dto.request.ApplicantProfileUpdateRequestDto;
 import com.banco.anteojos.backend.business.applicants.dto.request.ApplicantUpdateRequestDto;
 import com.banco.anteojos.backend.business.applicants.dto.request.PrescriptionCreationRequestDto;
 import com.banco.anteojos.backend.business.applicants.dto.request.PrescriptionFileUploadRequestDto;
@@ -138,6 +139,31 @@ class ApplicantServiceHandlerTest {
 
 		assertThatThrownBy(() -> applicantServiceHandler.updateApplicant(999L, new ApplicantUpdateRequestDto(
 				"Juana", "Pérez", null, null, null)))
+				.isInstanceOf(ApplicantNotFoundException.class);
+	}
+
+	@Test
+	void UpdateProfile_KeepsEmail() {
+		when(applicantRepository.findById(1L)).thenReturn(Optional.of(applicant()));
+		when(applicantRepository.save(any(Applicant.class))).thenAnswer(inv -> inv.getArgument(0));
+
+		ApplicantResponseDto response = applicantServiceHandler.updateProfile(1L,
+				new ApplicantProfileUpdateRequestDto("Juana María", "Pérez", LocalDate.of(1985, 3, 12),
+						" 3815551111 "));
+
+		assertThat(response.firstName()).isEqualTo("Juana María");
+		assertThat(response.birthDate()).isEqualTo(LocalDate.of(1985, 3, 12));
+		assertThat(response.phone()).isEqualTo("3815551111");
+		assertThat(response.email()).isEqualTo(applicant().getEmail());
+		assertThat(response.dni()).isEqualTo("30123456");
+	}
+
+	@Test
+	void UpdateProfile_WhenNotFound() {
+		when(applicantRepository.findById(999L)).thenReturn(Optional.empty());
+
+		assertThatThrownBy(() -> applicantServiceHandler.updateProfile(999L,
+				new ApplicantProfileUpdateRequestDto("Juana", "Pérez", null, null)))
 				.isInstanceOf(ApplicantNotFoundException.class);
 	}
 

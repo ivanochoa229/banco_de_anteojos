@@ -1,7 +1,9 @@
 package com.banco.anteojos.backend.useCase.security.integration.controller;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -18,7 +20,9 @@ import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.banco.anteojos.backend.business.applicants.entities.Applicant;
 import com.banco.anteojos.backend.business.appointments.entities.AppointmentDay;
+import com.banco.anteojos.backend.persistence.applicants.ApplicantPostgresSqlRepository;
 import com.banco.anteojos.backend.persistence.appointments.AppointmentDayPostgresSqlRepository;
 import com.jayway.jsonpath.JsonPath;
 
@@ -37,6 +41,9 @@ class SelfControllerE2ETest {
 
 	@Autowired
 	private AppointmentDayPostgresSqlRepository appointmentDayRepository;
+
+	@Autowired
+	private ApplicantPostgresSqlRepository applicantRepository;
 
 	private String registerApplicant(String dni, String email) throws Exception {
 		String body = mockMvc.perform(post("/v1/auth/register")
@@ -91,5 +98,46 @@ class SelfControllerE2ETest {
 
 		mockMvc.perform(get("/v1/me/appointments").header("Authorization", "Bearer " + operatorToken))
 				.andExpect(status().isForbidden());
+	}
+
+	@Test
+	void UpdateMyProfile_Successful() throws Exception {
+		String tokenA = registerApplicant("30444555", "solicitanteA@mail.com");
+		registerApplicant("30555666", "solicitanteB@mail.com");
+
+		// El email que viaje en el body se ignora: es el usuario de ingreso y no se cambia acá.
+		mockMvc.perform(put("/v1/me")
+						.header("Authorization", "Bearer " + tokenA)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{"firstName": "Ana", "lastName": "Gómez", "birthDate": "1990-05-20",
+								"phone": "3815551111", "email": "otro@mail.com"}
+								"""))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.firstName").value("Ana"))
+				.andExpect(jsonPath("$.phone").value("3815551111"))
+				.andExpect(jsonPath("$.email").value("solicitantea@mail.com"));
+
+		Applicant updated = applicantRepository.findByDni("30444555").orElseThrow();
+		assertThat(updated.getLastName()).isEqualTo("Gómez");
+		assertThat(updated.getBirthDate()).isEqualTo(LocalDate.of(1990, 5, 20));
+		assertThat(updated.getEmail()).isEqualTo("solicitantea@mail.com");
+
+		Applicant other = applicantRepository.findByDni("30555666").orElseThrow();
+		assertThat(other.getFirstName()).isEqualTo("Solicitante");
+		assertThat(other.getPhone()).isNull();
+	}
+
+	@Test
+	void UpdateMyProfile_WhenNameIsBlank() throws Exception {
+		String token = registerApplicant("30444555", "solicitanteA@mail.com");
+
+		mockMvc.perform(put("/v1/me")
+						.header("Authorization", "Bearer " + token)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{"firstName": " ", "lastName": "Gómez"}
+								"""))
+				.andExpect(status().isBadRequest());
 	}
 }

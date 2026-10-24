@@ -1,11 +1,13 @@
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
+import { applicantsApi } from '../../../api/applicantsApi'
 import { assignmentsApi } from '../../../api/assignmentsApi'
 import { appointmentsApi } from '../../../api/appointmentsApi'
 import { Layout } from '../../../components/Layout'
 import { formatDateTime, formatWeekday } from '../../../lib/dates'
 import { AssignmentStageBadge } from '../../assignments/components/AssignmentStageBadge'
 import { AppointmentStatusBadge } from '../../appointments/components/AppointmentStatusBadge'
+import { missingProfileFields } from '../profileCompleteness'
 
 export function ApplicantDashboardPage() {
   const assignmentsQuery = useQuery({
@@ -18,6 +20,12 @@ export function ApplicantDashboardPage() {
     queryFn: appointmentsApi.listMine,
   })
 
+  const profileQuery = useQuery({
+    queryKey: ['me', 'profile'],
+    queryFn: applicantsApi.getMine,
+  })
+
+  const missingFields = profileQuery.data ? missingProfileFields(profileQuery.data) : []
   const assignments = assignmentsQuery.data ?? []
   const appointments = appointmentsQuery.data ?? []
   const latestAssignment = assignments.length > 0 ? assignments[0] : null
@@ -48,6 +56,22 @@ export function ApplicantDashboardPage() {
 
         <div className="pointer-events-none absolute -right-10 -bottom-10 h-56 w-56 rounded-full bg-orange-600/15 blur-3xl" />
       </div>
+
+      {/* Aviso de datos faltantes del perfil */}
+      {missingFields.length > 0 && (
+        <div className="mb-8 flex flex-col justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-5 sm:flex-row sm:items-center">
+          <p className="text-sm text-amber-900">
+            Tu perfil está incompleto: falta tu <span className="font-semibold">{missingFields.join(' y ')}</span>.
+            Completalo para que la fundación pueda contactarte.
+          </p>
+          <Link
+            to="/solicitante/mi-perfil"
+            className="inline-flex shrink-0 items-center justify-center rounded-xl bg-orange-600 px-4 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-orange-700"
+          >
+            Completar mi perfil
+          </Link>
+        </div>
+      )}
 
       {/* Resumen Rápido de Estado */}
       <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2">

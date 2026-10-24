@@ -8,7 +8,7 @@ export function Input({ id, label, error, ...props }) {
       )}
       <input
         id={id}
-        className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-xs outline-none transition-all placeholder:text-slate-400 focus:ring-3 ${
+        className={`w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-xs outline-none transition-all placeholder:text-slate-400 focus:ring-3 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500 ${
           error
             ? 'border-red-400 focus:border-red-500 focus:ring-red-100'
             : 'border-slate-300 focus:border-orange-500 focus:ring-orange-500/15'
