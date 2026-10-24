@@ -67,3 +67,9 @@ r2:
   secret-access-key: ${R2_SECRET_ACCESS_KEY:}
   bucket: ${R2_BUCKET:}
   presigned-url-ttl-minutes: ${R2_PRESIGNED_URL_TTL_MINUTES:15}
+
+logging:
+  # Contexto de la petición (RequestLoggingFilter) al final de cada línea; vacío fuera de una petición.
+  pattern:
+    dateformat: "dd/MM/yyyy HH:mm:ss.SSS,America/Argentina/Tucuman"
+    console: "%d{${LOG_DATEFORMAT_PATTERN}} %5p [%t] %-36.36logger{35} - %m [traceId:%X{traceId:-}] [user:%X{username:-}] [ip:%X{sourceIp:-}] [%X{httpMethod:-} %X{path:-}]%n%wEx"
