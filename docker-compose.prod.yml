@@ -5,6 +5,14 @@
 # Ojo: el contenedor solo recibe las variables listadas en su "environment"; tener una
 # variable en el .env no alcanza para que le llegue a Spring.
 
+# Sin esto Docker guarda los logs sin límite y llenan el disco del VPS. Se conservan ~50 MB por
+# servicio (5 archivos de 10 MB); `docker compose logs` sigue funcionando igual.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
 services:
   db:
     image: postgres:16-alpine
@@ -20,6 +28,7 @@ services:
     ports:
       - "127.0.0.1:5432:5432"
     mem_limit: 512m
+    logging: *default-logging
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U banco_app -d banco_anteojos"]
       interval: 10s
@@ -60,6 +69,7 @@ services:
       MAIL_FROM: ${MAIL_FROM:-}
     # SIN "ports": solo Caddy le habla por la red interna
     mem_limit: 1g
+    logging: *default-logging
 
   web:
     image: ghcr.io/ivanochoa229/banco-anteojos-web:${IMAGE_TAG:-local}
@@ -82,6 +92,7 @@ services:
       - caddy_data:/data       # certificados: NO borrar (Let's Encrypt limita emisiones)
       - caddy_config:/config
     mem_limit: 256m
+    logging: *default-logging
 
 volumes:
   pgdata:
