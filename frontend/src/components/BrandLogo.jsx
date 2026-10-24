@@ -13,7 +13,7 @@ export function HacerFuturoLogo({ className = 'h-10 w-auto', theme = 'light' }) 
   )
 }
 
-export function BancoAnteojosLogo({ className = 'h-12 w-auto', variant = 'full' }) {
+export function BancoAnteojosLogo({ className = 'h-12 w-auto' }) {
   return (
     <img
       src="/images/logo_banco_anteojos_trans.png"
