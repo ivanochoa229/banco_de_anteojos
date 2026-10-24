@@ -4,27 +4,10 @@ import { applicantsApi } from '../../../api/applicantsApi'
 import { Alert } from '../../../components/Alert'
 import { Layout } from '../../../components/Layout'
 import { formatDate, formatDateTime } from '../../../lib/dates'
-import { ANSES_VALIDITY_DAYS, remainingValidityDays } from '../ansesValidity'
+import { ANSES_VALIDITY_DAYS } from '../ansesValidity'
 import { AnsesCertificateFileLink } from '../components/AnsesCertificateFileLink'
 import { AnsesCertificateUpload } from '../components/AnsesCertificateUpload'
-
-function ValidityNote({ issueDate }) {
-  const remaining = remainingValidityDays(issueDate)
-  if (remaining < 0) {
-    const days = Math.abs(remaining)
-    return (
-      <span className="text-red-700">
-        Vencida hace {days} {days === 1 ? 'día' : 'días'}
-      </span>
-    )
-  }
-  if (remaining === 0) return <span className="text-amber-700">Vence hoy</span>
-  return (
-    <span className={remaining <= 5 ? 'text-amber-700' : 'text-slate-600'}>
-      Vence en {remaining} {remaining === 1 ? 'día' : 'días'}
-    </span>
-  )
-}
+import { AnsesValidityNote } from '../components/AnsesValidityNote'
 
 function Field({ label, children }) {
   return (
@@ -132,12 +115,12 @@ export function ApplicantAnsesPage() {
                 <Field label="Nº de transacción">{certificate.transactionNumber}</Field>
                 <Field label="Fecha de emisión">{formatDate(certificate.issueDate)}</Field>
                 <Field label="Vigencia">
-                  <ValidityNote issueDate={certificate.issueDate} />
+                  <AnsesValidityNote issueDate={certificate.issueDate} />
                 </Field>
                 <Field label="Cargada el">{formatDateTime(certificate.createdAt)}</Field>
                 <Field label="Archivo">
                   <AnsesCertificateFileLink
-                    applicantId={applicantId}
+                    fetchCertificate={() => applicantsApi.getAnsesCertificate(applicantId)}
                     fileName={certificate.fileOriginalName}
                   />
                 </Field>

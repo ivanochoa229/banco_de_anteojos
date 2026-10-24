@@ -7,7 +7,7 @@ import { Layout } from '../../../components/Layout'
 import { formatDateTime, formatWeekday } from '../../../lib/dates'
 import { AssignmentStageBadge } from '../../assignments/components/AssignmentStageBadge'
 import { AppointmentStatusBadge } from '../../appointments/components/AppointmentStatusBadge'
-import { missingProfileFields } from '../profileCompleteness'
+import { joinFields, missingProfileFields } from '../profileCompleteness'
 
 export function ApplicantDashboardPage() {
   const assignmentsQuery = useQuery({
@@ -61,8 +61,8 @@ export function ApplicantDashboardPage() {
       {missingFields.length > 0 && (
         <div className="mb-8 flex flex-col justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-5 sm:flex-row sm:items-center">
           <p className="text-sm text-amber-900">
-            Tu perfil está incompleto: falta tu <span className="font-semibold">{missingFields.join(' y ')}</span>.
-            Completalo para que la fundación pueda contactarte.
+            Tu perfil está incompleto: te falta completar{' '}
+            <span className="font-semibold">{joinFields(missingFields)}</span>.
           </p>
           <Link
             to="/solicitante/mi-perfil"
