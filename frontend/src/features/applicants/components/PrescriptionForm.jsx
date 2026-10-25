@@ -124,9 +124,10 @@ export function PrescriptionForm({ onSubmit, isPending, submitError }) {
     setFieldErrors(errors)
     if (Object.values(errors).some(Boolean)) return
 
-    // El backend acepta todos los campos en null; una receta vacía no aportaría nada.
-    if (Object.values(values).every((value) => !value.trim())) {
-      setFormError('Cargá al menos un valor de la receta')
+    // Con el archivo adjunto los valores son opcionales: la graduación se lee de la receta del
+    // médico. Sin archivo ni valores, la receta no aportaría nada.
+    if (!file && Object.values(values).every((value) => !value.trim())) {
+      setFormError('Cargá los valores de la receta o adjuntá el PDF del médico')
       return
     }
 
@@ -145,6 +146,10 @@ export function PrescriptionForm({ onSubmit, isPending, submitError }) {
 
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-4">
+      <p className="text-sm text-slate-500">
+        Cargá la graduación o adjuntá la receta del médico. Si adjuntás el archivo, los valores son
+        opcionales: se leen de la receta.
+      </p>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {EYES.map(({ key, label }) => (
           <EyeFields
@@ -160,7 +165,7 @@ export function PrescriptionForm({ onSubmit, isPending, submitError }) {
 
       <fieldset className="rounded-lg border border-slate-200 p-4">
         <legend className="px-1 text-sm font-semibold text-slate-700">
-          Receta del médico (opcional)
+          Receta del médico
         </legend>
         <p className="mb-2 text-sm text-slate-500">
           Adjuntá el PDF o una foto de la receta. Se envía a la óptica junto con el marco.
