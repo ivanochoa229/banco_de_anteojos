@@ -12,6 +12,18 @@ import { AssignmentForm } from '../components/AssignmentForm'
 import { AssignmentStageBadge } from '../components/AssignmentStageBadge'
 
 function prescriptionLabel(prescription) {
+  const hasValues = [
+    prescription.rightSphere,
+    prescription.rightCylinder,
+    prescription.rightAxis,
+    prescription.leftSphere,
+    prescription.leftCylinder,
+    prescription.leftAxis,
+  ].some((value) => value !== null)
+  // Receta cargada solo con el archivo: la graduación está en el PDF.
+  if (!hasValues) {
+    return `${formatDateTime(prescription.createdAt)} · Receta adjunta (${prescription.fileOriginalName ?? 'sin archivo'})`
+  }
   const eyes = `OD ${formatEye(
     prescription.rightSphere,
     prescription.rightCylinder,
