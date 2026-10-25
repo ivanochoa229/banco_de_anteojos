@@ -1,7 +1,14 @@
 package com.banco.anteojos.backend.useCase.assignments.integration.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -9,6 +16,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
@@ -16,8 +24,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.mockito.ArgumentCaptor;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.web.servlet.MockMvc;
@@ -25,13 +36,18 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.banco.anteojos.backend.business.applicants.entities.AnsesCertificate;
 import com.banco.anteojos.backend.business.applicants.entities.Prescription;
+import com.banco.anteojos.backend.business.assignments.entities.Assignment;
 import com.banco.anteojos.backend.business.frames.entities.FrameStatus;
 import com.banco.anteojos.backend.business.security.JwtService;
 import com.banco.anteojos.backend.business.security.entities.Role;
 import com.banco.anteojos.backend.business.security.entities.User;
 import com.banco.anteojos.backend.persistence.applicants.AnsesCertificatePostgresSqlRepository;
 import com.banco.anteojos.backend.persistence.applicants.PrescriptionPostgresSqlRepository;
+import com.banco.anteojos.backend.persistence.assignments.AssignmentPostgresSqlRepository;
 import com.banco.anteojos.backend.persistence.frames.FramePostgresSqlRepository;
+import com.banco.anteojos.backend.thirdPartyServiceComunication.notifications.EmailAttachment;
+import com.banco.anteojos.backend.thirdPartyServiceComunication.notifications.NotificationClient;
+import com.banco.anteojos.backend.thirdPartyServiceComunication.storage.PresignedUrl;
 import com.banco.anteojos.backend.thirdPartyServiceComunication.storage.R2StorageClient;
 import com.jayway.jsonpath.JsonPath;
 
@@ -71,8 +87,15 @@ class AssignmentE2ETest {
 	@Autowired
 	private FramePostgresSqlRepository frameRepository;
 
+	@Autowired
+	private AssignmentPostgresSqlRepository assignmentRepository;
+
 	@MockitoBean
 	private R2StorageClient r2StorageClient;
+
+	// Mockeado para verificar el aviso al donante sin depender de un SMTP.
+	@MockitoBean
+	private NotificationClient notificationClient;
 
 	private Long prescriptionId;
 
@@ -194,8 +217,115 @@ class AssignmentE2ETest {
 		mockMvc.perform(put("/v1/assignments/" + assignmentId + "/delivery")
 						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.deliveredAt").isNotEmpty());
+				.andExpect(jsonPath("$.deliveredAt").isNotEmpty())
+				.andExpect(jsonPath("$.deliveryPhotoOriginalName").isEmpty());
 		assertThat(frameStatus(AVAILABLE_FRAME_ID)).isEqualTo(FrameStatus.DELIVERED);
+		// Sin foto, el donante recibe el aviso igual.
+		verify(notificationClient).sendFrameDelivered(eq("contacto@rotary.org"), eq("Rotary Club Tucumán"),
+				eq("A-1001"), isNull());
+	}
+
+	/** Lleva la asignación hasta "lista para entregar" (volvió de la óptica). */
+	private Long readyAssignment() throws Exception {
+		Long assignmentId = createAssignment(AVAILABLE_FRAME_ID);
+		mockMvc.perform(put("/v1/assignments/" + assignmentId + "/optician-dispatch")
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isOk());
+		mockMvc.perform(put("/v1/assignments/" + assignmentId + "/optician-return")
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isOk());
+		return assignmentId;
+	}
+
+	private MockMultipartFile deliveryPhoto(String contentType) {
+		return new MockMultipartFile("photo", "entrega.jpg", contentType, new byte[] { 1, 2, 3 });
+	}
+
+	@Test
+	void Deliver_WithPhotoAndConsent() throws Exception {
+		Long assignmentId = readyAssignment();
+
+		mockMvc.perform(multipart(HttpMethod.PUT, "/v1/assignments/" + assignmentId + "/delivery")
+						.file(deliveryPhoto("image/jpeg"))
+						.param("photoConsent", "true")
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.deliveredAt").isNotEmpty())
+				.andExpect(jsonPath("$.deliveryPhotoOriginalName").value("entrega.jpg"))
+				.andExpect(jsonPath("$.deliveryPhotoConsent").value(true));
+
+		Assignment saved = assignmentRepository.findById(assignmentId).orElseThrow();
+		assertThat(saved.getDeliveryPhotoKey()).startsWith("deliveries/" + assignmentId + "/").endsWith(".jpg");
+		assertThat(saved.isDeliveryPhotoConsent()).isTrue();
+		assertThat(frameStatus(AVAILABLE_FRAME_ID)).isEqualTo(FrameStatus.DELIVERED);
+		verify(r2StorageClient).upload(eq(saved.getDeliveryPhotoKey()), any(), eq("image/jpeg"));
+
+		ArgumentCaptor<EmailAttachment> photo = ArgumentCaptor.forClass(EmailAttachment.class);
+		verify(notificationClient).sendFrameDelivered(eq("contacto@rotary.org"), eq("Rotary Club Tucumán"),
+				eq("A-1001"), photo.capture());
+		assertThat(photo.getValue().fileName()).isEqualTo("entrega.jpg");
+		assertThat(photo.getValue().content()).containsExactly(1, 2, 3);
+	}
+
+	@Test
+	void Deliver_WithPhotoWithoutConsent() throws Exception {
+		Long assignmentId = readyAssignment();
+
+		mockMvc.perform(multipart(HttpMethod.PUT, "/v1/assignments/" + assignmentId + "/delivery")
+						.file(deliveryPhoto("image/jpeg"))
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.deliveryPhotoOriginalName").value("entrega.jpg"))
+				.andExpect(jsonPath("$.deliveryPhotoConsent").value(false));
+
+		// La foto queda guardada, pero sin el permiso del beneficiario no se le manda al donante.
+		assertThat(assignmentRepository.findById(assignmentId).orElseThrow().getDeliveryPhotoKey()).isNotNull();
+		verify(notificationClient).sendFrameDelivered(eq("contacto@rotary.org"), eq("Rotary Club Tucumán"),
+				eq("A-1001"), isNull());
+	}
+
+	@Test
+	void Deliver_WhenPhotoIsNotAnImage() throws Exception {
+		Long assignmentId = readyAssignment();
+
+		mockMvc.perform(multipart(HttpMethod.PUT, "/v1/assignments/" + assignmentId + "/delivery")
+						.file(deliveryPhoto("application/pdf"))
+						.param("photoConsent", "true")
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.message").value("La foto de la entrega debe ser JPG, PNG o WEBP"));
+
+		// No se registra nada: ni la entrega, ni el marco, ni el aviso.
+		assertThat(assignmentRepository.findById(assignmentId).orElseThrow().getDeliveredAt()).isNull();
+		assertThat(frameStatus(AVAILABLE_FRAME_ID)).isEqualTo(FrameStatus.READY);
+		verify(notificationClient, never()).sendFrameDelivered(any(), any(), any(), any());
+	}
+
+	@Test
+	void GetDeliveryPhoto_Successful() throws Exception {
+		when(r2StorageClient.presignedGetUrl(any()))
+				.thenReturn(new PresignedUrl("https://r2.example/firmada", LocalDateTime.now().plusMinutes(15)));
+		Long assignmentId = readyAssignment();
+		mockMvc.perform(multipart(HttpMethod.PUT, "/v1/assignments/" + assignmentId + "/delivery")
+						.file(deliveryPhoto("image/jpeg"))
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isOk());
+
+		mockMvc.perform(get("/v1/assignments/" + assignmentId + "/delivery-photo")
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.url").value("https://r2.example/firmada"))
+				.andExpect(jsonPath("$.fileName").value("entrega.jpg"));
+	}
+
+	@Test
+	void GetDeliveryPhoto_WhenThereIsNone() throws Exception {
+		Long assignmentId = createAssignment(AVAILABLE_FRAME_ID);
+
+		mockMvc.perform(get("/v1/assignments/" + assignmentId + "/delivery-photo")
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.message").value("La entrega no tiene una foto cargada"));
 	}
 
 	@Test

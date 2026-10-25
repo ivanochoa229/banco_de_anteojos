@@ -121,6 +121,27 @@ class AssignmentTest {
 	}
 
 	@Test
+	void AttachDeliveryPhoto_Successful() {
+		Assignment assignment = delivered();
+
+		assignment.attachDeliveryPhoto("deliveries/1/abc.jpg", "image/jpeg", "entrega.jpg", true);
+
+		assertThat(assignment.hasDeliveryPhoto()).isTrue();
+		assertThat(assignment.getDeliveryPhotoOriginalName()).isEqualTo("entrega.jpg");
+		assertThat(assignment.isDeliveryPhotoConsent()).isTrue();
+	}
+
+	@Test
+	void AttachDeliveryPhoto_WhenNotDelivered() {
+		Assignment assignment = assignment();
+
+		assertThatThrownBy(() -> assignment.attachDeliveryPhoto("deliveries/1/abc.jpg", "image/jpeg",
+				"entrega.jpg", true))
+				.isInstanceOf(InvalidAssignmentTransitionException.class);
+		assertThat(assignment.hasDeliveryPhoto()).isFalse();
+	}
+
+	@Test
 	void Deliver_WhenAlreadyDelivered() {
 		assertThatThrownBy(delivered()::deliver)
 				.isInstanceOf(InvalidAssignmentTransitionException.class)

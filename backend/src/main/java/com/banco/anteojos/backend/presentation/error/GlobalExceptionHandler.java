@@ -25,6 +25,8 @@ import com.banco.anteojos.backend.business.appointments.exception.InvalidAppoint
 import com.banco.anteojos.backend.business.appointments.exception.InvalidAppointmentReceiptException;
 import com.banco.anteojos.backend.business.appointments.exception.InvalidAppointmentTransitionException;
 import com.banco.anteojos.backend.business.assignments.exception.AssignmentNotFoundException;
+import com.banco.anteojos.backend.business.assignments.exception.DeliveryPhotoNotFoundException;
+import com.banco.anteojos.backend.business.assignments.exception.InvalidDeliveryPhotoException;
 import com.banco.anteojos.backend.business.assignments.exception.InvalidAssignmentTransitionException;
 import com.banco.anteojos.backend.business.catalog.exception.InsufficientStockException;
 import com.banco.anteojos.backend.business.catalog.exception.InvalidProductImageException;
@@ -135,6 +137,18 @@ public class GlobalExceptionHandler {
 	@ResponseStatus(HttpStatus.NOT_FOUND)
 	public ErrorResponseDto assignmentNotFound(AssignmentNotFoundException e, HttpServletRequest request) {
 		return ErrorResponseDto.of(HttpStatus.NOT_FOUND, e.getMessage(), request.getRequestURI());
+	}
+
+	@ExceptionHandler(DeliveryPhotoNotFoundException.class)
+	@ResponseStatus(HttpStatus.NOT_FOUND)
+	public ErrorResponseDto deliveryPhotoNotFound(DeliveryPhotoNotFoundException e, HttpServletRequest request) {
+		return ErrorResponseDto.of(HttpStatus.NOT_FOUND, e.getMessage(), request.getRequestURI());
+	}
+
+	@ExceptionHandler(InvalidDeliveryPhotoException.class)
+	@ResponseStatus(HttpStatus.BAD_REQUEST)
+	public ErrorResponseDto invalidDeliveryPhoto(InvalidDeliveryPhotoException e, HttpServletRequest request) {
+		return ErrorResponseDto.of(HttpStatus.BAD_REQUEST, e.getMessage(), request.getRequestURI());
 	}
 
 	// 409 y no 400: el request está bien formado, lo que no encaja es el momento del circuito

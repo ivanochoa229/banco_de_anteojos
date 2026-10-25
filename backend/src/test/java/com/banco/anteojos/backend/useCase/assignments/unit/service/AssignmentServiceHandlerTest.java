@@ -3,7 +3,10 @@ package com.banco.anteojos.backend.useCase.assignments.unit.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.startsWith;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -21,13 +24,19 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.banco.anteojos.backend.business.assignments.AssignmentServiceHandler;
 import com.banco.anteojos.backend.business.assignments.dto.request.AssignmentCreationRequestDto;
+import com.banco.anteojos.backend.business.assignments.dto.request.DeliveryPhotoUploadRequestDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentCreationResponseDto;
+import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentDeliveryResponseDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentResponseDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.MonthlyDeliveryResponseDto;
 import com.banco.anteojos.backend.business.assignments.entities.Assignment;
 import com.banco.anteojos.backend.business.assignments.exception.AssignmentNotFoundException;
+import com.banco.anteojos.backend.business.assignments.exception.DeliveryPhotoNotFoundException;
+import com.banco.anteojos.backend.business.assignments.exception.InvalidAssignmentTransitionException;
+import com.banco.anteojos.backend.business.assignments.exception.InvalidDeliveryPhotoException;
 import com.banco.anteojos.backend.persistence.assignments.AssignmentPostgresSqlRepository;
 import com.banco.anteojos.backend.persistence.assignments.MonthlyDeliveryProjection;
+import com.banco.anteojos.backend.thirdPartyServiceComunication.storage.R2StorageClient;
 
 @Tag("unit")
 @ExtendWith(MockitoExtension.class)
@@ -35,6 +44,9 @@ class AssignmentServiceHandlerTest {
 
 	@Mock
 	private AssignmentPostgresSqlRepository assignmentRepository;
+
+	@Mock
+	private R2StorageClient r2StorageClient;
 
 	@InjectMocks
 	private AssignmentServiceHandler assignmentServiceHandler;
@@ -108,7 +120,82 @@ class AssignmentServiceHandlerTest {
 		assignment.returnFromOptician();
 		mockFind(assignment);
 
-		assertThat(assignmentServiceHandler.deliver(10L).deliveredAt()).isNotNull();
+		AssignmentDeliveryResponseDto response = assignmentServiceHandler.deliver(10L, null, false);
+
+		assertThat(response.assignment().deliveredAt()).isNotNull();
+		assertThat(response.assignment().deliveryPhotoOriginalName()).isNull();
+		assertThat(response.photoForDonor()).isNull();
+		verify(r2StorageClient, never()).upload(any(), any(), any());
+	}
+
+	private Assignment returned() {
+		Assignment assignment = assignment();
+		assignment.sendToOptician();
+		assignment.returnFromOptician();
+		return assignment;
+	}
+
+	private DeliveryPhotoUploadRequestDto photo(String contentType) {
+		return new DeliveryPhotoUploadRequestDto(new byte[] { 1, 2, 3 }, contentType, "entrega.jpg");
+	}
+
+	@Test
+	void Deliver_WithPhotoAndConsent() {
+		mockFind(returned());
+
+		AssignmentDeliveryResponseDto response = assignmentServiceHandler.deliver(10L,
+				photo("image/jpeg; charset=binary"), true);
+
+		verify(r2StorageClient).upload(startsWith("deliveries/10/"), eq(new byte[] { 1, 2, 3 }), eq("image/jpeg"));
+		assertThat(response.assignment().deliveryPhotoOriginalName()).isEqualTo("entrega.jpg");
+		assertThat(response.assignment().deliveryPhotoConsent()).isTrue();
+		// Con permiso, la foto viaja al donante.
+		assertThat(response.photoForDonor()).isNotNull();
+		assertThat(response.photoForDonor().contentType()).isEqualTo("image/jpeg");
+		assertThat(response.photoForDonor().fileName()).isEqualTo("entrega.jpg");
+	}
+
+	@Test
+	void Deliver_WithPhotoWithoutConsent() {
+		mockFind(returned());
+
+		AssignmentDeliveryResponseDto response = assignmentServiceHandler.deliver(10L, photo("image/png"), false);
+
+		// Sin permiso, la foto queda en el registro pero no se le manda al donante.
+		verify(r2StorageClient).upload(startsWith("deliveries/10/"), any(), eq("image/png"));
+		assertThat(response.assignment().deliveryPhotoOriginalName()).isEqualTo("entrega.jpg");
+		assertThat(response.assignment().deliveryPhotoConsent()).isFalse();
+		assertThat(response.photoForDonor()).isNull();
+	}
+
+	@Test
+	void Deliver_WhenPhotoIsNotAnImage() {
+		when(assignmentRepository.findById(10L)).thenReturn(Optional.of(returned()));
+
+		assertThatThrownBy(() -> assignmentServiceHandler.deliver(10L, photo("application/pdf"), true))
+				.isInstanceOf(InvalidDeliveryPhotoException.class);
+		verify(r2StorageClient, never()).upload(any(), any(), any());
+		verify(assignmentRepository, never()).save(any());
+	}
+
+	@Test
+	void Deliver_WhenNotReturned_DoesNotUploadPhoto() {
+		when(assignmentRepository.findById(10L)).thenReturn(Optional.of(assignment()));
+
+		// Una entrega fuera de orden no puede dejar una foto huérfana en R2.
+		assertThatThrownBy(() -> assignmentServiceHandler.deliver(10L, photo("image/jpeg"), true))
+				.isInstanceOf(InvalidAssignmentTransitionException.class);
+		verify(r2StorageClient, never()).upload(any(), any(), any());
+	}
+
+	@Test
+	void GetDeliveryPhoto_WhenThereIsNone() {
+		Assignment assignment = returned();
+		assignment.deliver();
+		when(assignmentRepository.findById(10L)).thenReturn(Optional.of(assignment));
+
+		assertThatThrownBy(() -> assignmentServiceHandler.getDeliveryPhoto(10L))
+				.isInstanceOf(DeliveryPhotoNotFoundException.class);
 	}
 
 	@Test

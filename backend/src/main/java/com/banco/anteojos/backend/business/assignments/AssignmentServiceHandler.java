@@ -3,21 +3,31 @@ package com.banco.anteojos.backend.business.assignments;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.function.Consumer;
 
 import org.springframework.stereotype.Service;
 
 import com.banco.anteojos.backend.business.applicants.dto.response.ApplicantResponseDto;
 import com.banco.anteojos.backend.business.assignments.dto.request.AssignmentCreationRequestDto;
+import com.banco.anteojos.backend.business.assignments.dto.request.DeliveryPhotoUploadRequestDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentCreationResponseDto;
+import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentDeliveryResponseDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentDetailResponseDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentResponseDto;
+import com.banco.anteojos.backend.business.assignments.dto.response.DeliveryPhotoResponseDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.MonthlyDeliveryResponseDto;
 import com.banco.anteojos.backend.business.assignments.entities.Assignment;
 import com.banco.anteojos.backend.business.assignments.exception.AssignmentNotFoundException;
+import com.banco.anteojos.backend.business.assignments.exception.DeliveryPhotoNotFoundException;
+import com.banco.anteojos.backend.business.assignments.exception.InvalidDeliveryPhotoException;
 import com.banco.anteojos.backend.business.donors.dto.response.DonorResponseDto;
 import com.banco.anteojos.backend.business.frames.dto.response.FrameResponseDto;
 import com.banco.anteojos.backend.persistence.assignments.AssignmentPostgresSqlRepository;
+import com.banco.anteojos.backend.thirdPartyServiceComunication.notifications.EmailAttachment;
+import com.banco.anteojos.backend.thirdPartyServiceComunication.storage.PresignedUrl;
+import com.banco.anteojos.backend.thirdPartyServiceComunication.storage.R2StorageClient;
 
 import lombok.RequiredArgsConstructor;
 
@@ -25,7 +35,14 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class AssignmentServiceHandler implements AssignmentService {
 
+	// Foto sacada con el celular en la sede: lo que generan las cámaras y los navegadores.
+	private static final Map<String, String> ALLOWED_PHOTO_TYPES = Map.of(
+			"image/jpeg", "jpg",
+			"image/png", "png",
+			"image/webp", "webp");
+
 	private final AssignmentPostgresSqlRepository assignmentRepository;
+	private final R2StorageClient r2StorageClient;
 
 	@Override
 	public AssignmentCreationResponseDto createAssignment(Long applicantId,
@@ -65,8 +82,59 @@ public class AssignmentServiceHandler implements AssignmentService {
 	}
 
 	@Override
-	public AssignmentResponseDto deliver(Long assignmentId) {
-		return transition(assignmentId, Assignment::deliver);
+	public AssignmentDeliveryResponseDto deliver(Long assignmentId, DeliveryPhotoUploadRequestDto photo,
+			boolean photoConsent) {
+		Assignment assignment = findAssignment(assignmentId);
+		// La foto se valida antes de tocar nada, y la transición antes de subirla: ni un
+		// archivo inválido ni una entrega fuera de orden dejan un huérfano en R2.
+		String extension = photo == null ? null : validatePhoto(photo);
+		assignment.deliver();
+		if (photo == null) {
+			return new AssignmentDeliveryResponseDto(toResponse(assignmentRepository.save(assignment)), null);
+		}
+
+		String contentType = normalizeContentType(photo.contentType());
+		String key = "deliveries/%d/%s.%s".formatted(assignmentId, UUID.randomUUID(), extension);
+		r2StorageClient.upload(key, photo.content(), contentType);
+		assignment.attachDeliveryPhoto(key, contentType, photo.originalName(), photoConsent);
+
+		AssignmentResponseDto response = toResponse(assignmentRepository.save(assignment));
+		// Sin el permiso del beneficiario la foto queda en el registro pero no sale de la fundación.
+		EmailAttachment photoForDonor = photoConsent
+				? new EmailAttachment(photo.content(), contentType, photo.originalName())
+				: null;
+		return new AssignmentDeliveryResponseDto(response, photoForDonor);
+	}
+
+	@Override
+	public DeliveryPhotoResponseDto getDeliveryPhoto(Long assignmentId) {
+		Assignment assignment = findAssignment(assignmentId);
+		if (!assignment.hasDeliveryPhoto()) {
+			throw new DeliveryPhotoNotFoundException();
+		}
+		PresignedUrl presigned = r2StorageClient.presignedGetUrl(assignment.getDeliveryPhotoKey());
+		return new DeliveryPhotoResponseDto(presigned.url(), presigned.expiresAt(),
+				assignment.getDeliveryPhotoOriginalName(), assignment.getDeliveryPhotoContentType());
+	}
+
+	/** Devuelve la extensión que le corresponde al tipo de archivo. */
+	private String validatePhoto(DeliveryPhotoUploadRequestDto photo) {
+		if (photo.content() == null || photo.content().length == 0) {
+			throw new InvalidDeliveryPhotoException("El archivo está vacío");
+		}
+		String extension = ALLOWED_PHOTO_TYPES.get(normalizeContentType(photo.contentType()));
+		if (extension == null) {
+			throw new InvalidDeliveryPhotoException("La foto de la entrega debe ser JPG, PNG o WEBP");
+		}
+		return extension;
+	}
+
+	// El navegador puede mandar parámetros ("image/jpeg; charset=..."): queda solo el tipo.
+	private String normalizeContentType(String contentType) {
+		if (contentType == null) {
+			return "";
+		}
+		return contentType.split(";")[0].trim().toLowerCase();
 	}
 
 	/** Cada hito valida dentro de la entidad que el circuito esté en el punto que corresponde. */
@@ -115,6 +183,7 @@ public class AssignmentServiceHandler implements AssignmentService {
 		return new AssignmentResponseDto(assignment.getId(), assignment.getApplicantId(),
 				assignment.getFrameId(), assignment.getPrescriptionId(), assignment.getAssignedAt(),
 				assignment.getSentToOpticianAt(), assignment.getReturnedAt(), assignment.getDeliveredAt(),
-				assignment.getCancelledAt(), assignment.getCancellationReason(), assignment.getNotes());
+				assignment.getCancelledAt(), assignment.getCancellationReason(), assignment.getNotes(),
+				assignment.getDeliveryPhotoOriginalName(), assignment.isDeliveryPhotoConsent());
 	}
 }

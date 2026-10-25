@@ -10,6 +10,7 @@ import { FRAME_MATERIAL_LABELS, FRAME_TYPE_LABELS } from '../../frames/labels'
 import { AssignmentActions } from '../components/AssignmentActions'
 import { AssignmentStageBadge } from '../components/AssignmentStageBadge'
 import { AssignmentTimeline } from '../components/AssignmentTimeline'
+import { DeliveryPhotoLink } from '../components/DeliveryPhotoLink'
 
 function Card({ title, children }) {
   return (
@@ -44,7 +45,7 @@ export function AssignmentDetailPage() {
   }
 
   const milestoneMutation = useMutation({
-    mutationFn: (action) => assignmentsApi[action](assignmentId),
+    mutationFn: ({ action, payload }) => assignmentsApi[action](assignmentId, payload),
     onSuccess: invalidateCircuit,
   })
 
@@ -100,7 +101,7 @@ export function AssignmentDetailPage() {
         <AssignmentActions
           assignment={assignment}
           isPending={isPending}
-          onMilestone={(action) => milestoneMutation.mutate(action)}
+          onMilestone={(action, payload) => milestoneMutation.mutate({ action, payload })}
           onCancel={(reason) => cancelMutation.mutate(reason)}
         />
       </div>
@@ -113,6 +114,19 @@ export function AssignmentDetailPage() {
           <div className="mt-4">
             <AssignmentTimeline assignment={assignment} />
           </div>
+          {assignment.deliveryPhotoOriginalName && (
+            <dl className="mt-2 space-y-2 border-t border-slate-100 pt-3 text-sm">
+              <Field label="Foto de la entrega">
+                <DeliveryPhotoLink
+                  assignmentId={assignment.id}
+                  fileName={assignment.deliveryPhotoOriginalName}
+                />
+              </Field>
+              <Field label="Compartida con el donante">
+                {assignment.deliveryPhotoConsent ? 'Sí, con autorización' : 'No'}
+              </Field>
+            </dl>
+          )}
           {assignment.notes && (
             <p className="mt-2 border-t border-slate-100 pt-3 text-sm text-slate-600">
               <span className="font-medium text-slate-700">Observaciones:</span> {assignment.notes}
