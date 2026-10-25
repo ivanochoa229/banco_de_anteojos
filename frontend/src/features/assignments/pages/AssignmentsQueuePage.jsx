@@ -42,7 +42,7 @@ export function AssignmentsQueuePage() {
   }
 
   const milestoneMutation = useMutation({
-    mutationFn: ({ assignmentId, action }) => assignmentsApi[action](assignmentId),
+    mutationFn: ({ assignmentId, action, payload }) => assignmentsApi[action](assignmentId, payload),
     onSuccess: invalidateCircuit,
   })
 
@@ -139,8 +139,8 @@ export function AssignmentsQueuePage() {
                         <AssignmentActions
                           assignment={assignment}
                           isPending={isRowPending(assignment.id)}
-                          onMilestone={(action) =>
-                            milestoneMutation.mutate({ assignmentId: assignment.id, action })
+                          onMilestone={(action, payload) =>
+                            milestoneMutation.mutate({ assignmentId: assignment.id, action, payload })
                           }
                           onCancel={(reason) =>
                             cancelMutation.mutate({ assignmentId: assignment.id, reason })

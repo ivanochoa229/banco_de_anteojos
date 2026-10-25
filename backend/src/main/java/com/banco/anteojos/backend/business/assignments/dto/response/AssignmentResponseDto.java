@@ -14,5 +14,7 @@ public record AssignmentResponseDto(
 		LocalDateTime deliveredAt,
 		LocalDateTime cancelledAt,
 		String cancellationReason,
-		String notes) {
+		String notes,
+		String deliveryPhotoOriginalName,
+		boolean deliveryPhotoConsent) {
 }

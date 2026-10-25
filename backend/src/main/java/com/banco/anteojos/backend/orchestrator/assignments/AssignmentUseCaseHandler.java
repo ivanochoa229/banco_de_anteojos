@@ -10,12 +10,17 @@ import com.banco.anteojos.backend.business.applicants.dto.response.ApplicantResp
 import com.banco.anteojos.backend.business.applicants.dto.response.EligibilityResponseDto;
 import com.banco.anteojos.backend.business.assignments.AssignmentService;
 import com.banco.anteojos.backend.business.assignments.dto.request.AssignmentCreationRequestDto;
+import com.banco.anteojos.backend.business.assignments.dto.request.DeliveryPhotoUploadRequestDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentCreationResponseDto;
+import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentDeliveryResponseDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentDetailResponseDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentResponseDto;
+import com.banco.anteojos.backend.business.assignments.dto.response.DeliveryPhotoResponseDto;
 import com.banco.anteojos.backend.business.donors.DonorService;
+import com.banco.anteojos.backend.business.donors.dto.response.DonorResponseDto;
 import com.banco.anteojos.backend.business.frames.FrameService;
 import com.banco.anteojos.backend.business.frames.dto.response.FrameResponseDto;
+import com.banco.anteojos.backend.thirdPartyServiceComunication.notifications.NotificationClient;
 
 import lombok.RequiredArgsConstructor;
 
@@ -32,6 +37,7 @@ public class AssignmentUseCaseHandler implements AssignmentUseCaseOrchestrator {
 	private final ApplicantService applicantService;
 	private final FrameService frameService;
 	private final DonorService donorService;
+	private final NotificationClient notificationClient;
 
 	@Override
 	@Transactional
@@ -81,12 +87,23 @@ public class AssignmentUseCaseHandler implements AssignmentUseCaseOrchestrator {
 		return assignment;
 	}
 
+	// El aviso al donante va después de persistir la entrega y el marco: es best effort y
+	// nunca la corta (sin email o con el SMTP caído, la entrega queda registrada igual).
 	@Override
 	@Transactional
-	public AssignmentResponseDto deliver(Long assignmentId) {
-		AssignmentResponseDto assignment = assignmentService.deliver(assignmentId);
-		frameService.markAsDelivered(assignment.frameId());
-		return assignment;
+	public AssignmentResponseDto deliver(Long assignmentId, DeliveryPhotoUploadRequestDto photo,
+			boolean photoConsent) {
+		AssignmentDeliveryResponseDto delivery = assignmentService.deliver(assignmentId, photo, photoConsent);
+		FrameResponseDto frame = frameService.markAsDelivered(delivery.assignment().frameId());
+		DonorResponseDto donor = donorService.getDonor(frame.donorId());
+		notificationClient.sendFrameDelivered(donor.email(), donor.name(), frame.sealCode(),
+				delivery.photoForDonor());
+		return delivery.assignment();
+	}
+
+	@Override
+	public DeliveryPhotoResponseDto getDeliveryPhoto(Long assignmentId) {
+		return assignmentService.getDeliveryPhoto(assignmentId);
 	}
 
 	@Override

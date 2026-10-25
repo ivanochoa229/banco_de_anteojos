@@ -12,7 +12,17 @@ export const assignmentsApi = {
     apiFetch(`/v1/assignments/${assignmentId}/optician-dispatch`, { method: 'PUT' }),
   returnFromOptician: (assignmentId) =>
     apiFetch(`/v1/assignments/${assignmentId}/optician-return`, { method: 'PUT' }),
-  deliver: (assignmentId) => apiFetch(`/v1/assignments/${assignmentId}/delivery`, { method: 'PUT' }),
+  // La foto del beneficiario con sus anteojos es opcional; photoConsent es su permiso para que
+  // se le mande al donante.
+  deliver: (assignmentId, { photo, photoConsent } = {}) => {
+    if (!photo) return apiFetch(`/v1/assignments/${assignmentId}/delivery`, { method: 'PUT' })
+    const body = new FormData()
+    body.append('photo', photo)
+    body.append('photoConsent', String(Boolean(photoConsent)))
+    return apiFetch(`/v1/assignments/${assignmentId}/delivery`, { method: 'PUT', body })
+  },
+  // Devuelve una URL firmada que vence: se pide en el momento de abrirla, no se guarda.
+  getDeliveryPhoto: (assignmentId) => apiFetch(`/v1/assignments/${assignmentId}/delivery-photo`),
   cancel: (assignmentId, reason) =>
     apiFetch(`/v1/assignments/${assignmentId}/cancellation`, { method: 'PUT', body: { reason } }),
   // Autogestión: el applicantId sale del JWT en el backend, no se manda acá.

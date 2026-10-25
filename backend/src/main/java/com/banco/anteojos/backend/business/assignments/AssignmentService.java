@@ -5,9 +5,12 @@ import java.util.List;
 
 import com.banco.anteojos.backend.business.applicants.dto.response.ApplicantResponseDto;
 import com.banco.anteojos.backend.business.assignments.dto.request.AssignmentCreationRequestDto;
+import com.banco.anteojos.backend.business.assignments.dto.request.DeliveryPhotoUploadRequestDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentCreationResponseDto;
+import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentDeliveryResponseDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentDetailResponseDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentResponseDto;
+import com.banco.anteojos.backend.business.assignments.dto.response.DeliveryPhotoResponseDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.MonthlyDeliveryResponseDto;
 import com.banco.anteojos.backend.business.donors.dto.response.DonorResponseDto;
 import com.banco.anteojos.backend.business.frames.dto.response.FrameResponseDto;
@@ -31,7 +34,14 @@ public interface AssignmentService {
 
 	AssignmentResponseDto returnFromOptician(Long assignmentId);
 
-	AssignmentResponseDto deliver(Long assignmentId);
+	/**
+	 * @param photo foto del beneficiario con sus anteojos, o null si no la sacaron.
+	 * @param photoConsent si el beneficiario autorizó mandarle la foto al donante.
+	 */
+	AssignmentDeliveryResponseDto deliver(Long assignmentId, DeliveryPhotoUploadRequestDto photo,
+			boolean photoConsent);
+
+	DeliveryPhotoResponseDto getDeliveryPhoto(Long assignmentId);
 
 	AssignmentResponseDto cancel(Long assignmentId, String reason);
 

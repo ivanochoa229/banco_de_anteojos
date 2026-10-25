@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 
 import com.banco.anteojos.backend.business.assignments.exception.InvalidAssignmentTransitionException;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -46,6 +47,15 @@ public class Assignment {
 
 	private String notes;
 
+	private String deliveryPhotoKey;
+
+	private String deliveryPhotoContentType;
+
+	private String deliveryPhotoOriginalName;
+
+	@Column(name = "has_delivery_photo_consent")
+	private boolean deliveryPhotoConsent;
+
 	protected Assignment() {
 	}
 
@@ -85,6 +95,25 @@ public class Assignment {
 					"No se puede entregar: el marco todavía no volvió de la óptica con los cristales");
 		}
 		this.deliveredAt = LocalDateTime.now();
+	}
+
+	/**
+	 * Foto del beneficiario con sus anteojos, sacada al entregarlos. Solo tiene sentido sobre una
+	 * entrega ya registrada.
+	 */
+	public void attachDeliveryPhoto(String key, String contentType, String originalName, boolean consent) {
+		if (deliveredAt == null) {
+			throw new InvalidAssignmentTransitionException(
+					"La foto de la entrega se carga al registrar la entrega");
+		}
+		this.deliveryPhotoKey = key;
+		this.deliveryPhotoContentType = contentType;
+		this.deliveryPhotoOriginalName = originalName;
+		this.deliveryPhotoConsent = consent;
+	}
+
+	public boolean hasDeliveryPhoto() {
+		return deliveryPhotoKey != null;
 	}
 
 	public void cancel(String reason) {
