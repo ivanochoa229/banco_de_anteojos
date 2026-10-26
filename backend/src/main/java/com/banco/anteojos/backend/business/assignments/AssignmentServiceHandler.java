@@ -7,6 +7,8 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.function.Consumer;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import com.banco.anteojos.backend.business.applicants.dto.response.ApplicantResponseDto;
@@ -15,6 +17,7 @@ import com.banco.anteojos.backend.business.assignments.dto.request.DeliveryPhoto
 import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentCreationResponseDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentDeliveryResponseDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentDetailResponseDto;
+import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentListItemResponseDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentResponseDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.DeliveryPhotoResponseDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.MonthlyDeliveryResponseDto;
@@ -22,6 +25,7 @@ import com.banco.anteojos.backend.business.assignments.entities.Assignment;
 import com.banco.anteojos.backend.business.assignments.exception.AssignmentNotFoundException;
 import com.banco.anteojos.backend.business.assignments.exception.DeliveryPhotoNotFoundException;
 import com.banco.anteojos.backend.business.assignments.exception.InvalidDeliveryPhotoException;
+import com.banco.anteojos.backend.business.common.dto.response.PageResponseDto;
 import com.banco.anteojos.backend.business.donors.dto.response.DonorResponseDto;
 import com.banco.anteojos.backend.business.frames.dto.response.FrameResponseDto;
 import com.banco.anteojos.backend.persistence.assignments.AssignmentPostgresSqlRepository;
@@ -58,11 +62,19 @@ public class AssignmentServiceHandler implements AssignmentService {
 	}
 
 	@Override
-	public List<AssignmentResponseDto> listAssignments(boolean onlyLive) {
-		List<Assignment> assignments = onlyLive
-				? assignmentRepository.findLive()
-				: assignmentRepository.findAllByOrderByAssignedAtDesc();
-		return assignments.stream().map(this::toResponse).toList();
+	public PageResponseDto<AssignmentResponseDto> listAssignments(boolean onlyLive, Pageable pageable) {
+		Page<Assignment> assignments = onlyLive
+				? assignmentRepository.findLive(pageable)
+				: assignmentRepository.findAllByOrderByAssignedAtDescIdDesc(pageable);
+		return PageResponseDto.from(assignments.map(this::toResponse));
+	}
+
+	@Override
+	public PageResponseDto<AssignmentListItemResponseDto> buildListItems(
+			PageResponseDto<AssignmentResponseDto> assignments, Map<Long, String> applicantNames,
+			Map<Long, String> frameSealCodes) {
+		return assignments.map(assignment -> new AssignmentListItemResponseDto(assignment,
+				applicantNames.get(assignment.applicantId()), frameSealCodes.get(assignment.frameId())));
 	}
 
 	@Override

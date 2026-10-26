@@ -1,7 +1,6 @@
 package com.banco.anteojos.backend.presentation.controllers.catalog;
 
-import java.util.List;
-
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -17,9 +16,13 @@ import com.banco.anteojos.backend.business.catalog.dto.request.ProductCreationRe
 import com.banco.anteojos.backend.business.catalog.dto.request.ProductUpdateRequestDto;
 import com.banco.anteojos.backend.business.catalog.dto.response.ProductResponseDto;
 import com.banco.anteojos.backend.business.catalog.entities.ProductStatus;
+import com.banco.anteojos.backend.business.common.dto.response.PageResponseDto;
 import com.banco.anteojos.backend.orchestrator.catalog.CatalogUseCaseOrchestrator;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.PositiveOrZero;
 import lombok.RequiredArgsConstructor;
 
 @RestController
@@ -37,8 +40,10 @@ public class ProductController {
 
 	/** Sin el parámetro devuelve el catálogo completo; con ?status=ACTIVE, lo disponible (RF-28). */
 	@GetMapping
-	public List<ProductResponseDto> list(@RequestParam(required = false) ProductStatus status) {
-		return catalogOrchestrator.listProducts(status);
+	public PageResponseDto<ProductResponseDto> list(@RequestParam(required = false) ProductStatus status,
+			@RequestParam(defaultValue = "0") @PositiveOrZero int page,
+			@RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
+		return catalogOrchestrator.listProducts(status, PageRequest.of(page, size));
 	}
 
 	@GetMapping("/{productId}")

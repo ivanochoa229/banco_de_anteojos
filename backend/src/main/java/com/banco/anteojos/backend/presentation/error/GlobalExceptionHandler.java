@@ -8,6 +8,8 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import com.banco.anteojos.backend.business.applicants.exception.AnsesCertificateNotFoundException;
@@ -304,6 +306,28 @@ public class GlobalExceptionHandler {
 				.sorted()
 				.collect(Collectors.joining("; "));
 		return ErrorResponseDto.of(HttpStatus.BAD_REQUEST, message, request.getRequestURI());
+	}
+
+	// ?size=500 o ?page=-1: lo rechazan las restricciones del parámetro en el controller.
+	@ExceptionHandler(HandlerMethodValidationException.class)
+	@ResponseStatus(HttpStatus.BAD_REQUEST)
+	public ErrorResponseDto invalidParameter(HandlerMethodValidationException e, HttpServletRequest request) {
+		String parameters = e.getParameterValidationResults().stream()
+				.map(result -> "«" + result.getMethodParameter().getParameterName() + "»")
+				.sorted()
+				.collect(Collectors.joining(", "));
+		return ErrorResponseDto.of(HttpStatus.BAD_REQUEST, "Parámetro inválido: " + parameters,
+				request.getRequestURI());
+	}
+
+	// ?page=abc o ?status=INEXISTENTE: el valor no se puede convertir al tipo del parámetro. Sin
+	// este handler terminaba en 500, y el detalle de la conversión expone tipos internos.
+	@ExceptionHandler(MethodArgumentTypeMismatchException.class)
+	@ResponseStatus(HttpStatus.BAD_REQUEST)
+	public ErrorResponseDto parameterTypeMismatch(MethodArgumentTypeMismatchException e,
+			HttpServletRequest request) {
+		return ErrorResponseDto.of(HttpStatus.BAD_REQUEST, "Parámetro inválido: «" + e.getName() + "»",
+				request.getRequestURI());
 	}
 
 	@ExceptionHandler(HttpMessageNotReadableException.class)

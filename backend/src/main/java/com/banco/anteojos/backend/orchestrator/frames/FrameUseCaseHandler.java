@@ -1,9 +1,9 @@
 package com.banco.anteojos.backend.orchestrator.frames;
 
-import java.util.List;
-
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
+import com.banco.anteojos.backend.business.common.dto.response.PageResponseDto;
 import com.banco.anteojos.backend.business.donors.DonorService;
 import com.banco.anteojos.backend.business.frames.FrameService;
 import com.banco.anteojos.backend.business.frames.dto.request.FrameCreationRequestDto;
@@ -58,13 +58,15 @@ public class FrameUseCaseHandler implements FrameUseCaseOrchestrator {
 	}
 
 	@Override
-	public List<FrameResponseDto> listFrames(FrameStatus status) {
-		return frameService.listFrames(status);
+	public PageResponseDto<FrameResponseDto> listFrames(FrameStatus status, String search, boolean withImage,
+			Pageable pageable) {
+		return frameService.listFrames(status, search, withImage, pageable);
 	}
 
 	@Override
-	public List<FrameResponseDto> listFramesByDonor(Long donorId) {
+	public PageResponseDto<FrameResponseDto> listFramesByDonor(Long donorId, FrameStatus status,
+			Pageable pageable) {
 		donorService.getDonor(donorId);
-		return frameService.listFramesByDonor(donorId);
+		return frameService.listFramesByDonor(donorId, status, pageable);
 	}
 }

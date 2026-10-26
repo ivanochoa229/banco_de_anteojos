@@ -412,12 +412,12 @@ class AssignmentE2ETest {
 		mockMvc.perform(get("/v1/assignments?live=true")
 						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.length()").value(0));
+				.andExpect(jsonPath("$.content.length()").value(0));
 
 		mockMvc.perform(get("/v1/assignments")
 						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.length()").value(1));
+				.andExpect(jsonPath("$.content.length()").value(1));
 	}
 
 	@Test
@@ -437,5 +437,18 @@ class AssignmentE2ETest {
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(creationBody(AVAILABLE_FRAME_ID)))
 				.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void ListAssignments_IncludesApplicantNameAndSealCode() throws Exception {
+		createAssignment(AVAILABLE_FRAME_ID);
+
+		mockMvc.perform(get("/v1/assignments")
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.totalElements").value(1))
+				.andExpect(jsonPath("$.content[0].assignment.frameId").value(AVAILABLE_FRAME_ID))
+				.andExpect(jsonPath("$.content[0].applicantName").value("Pérez, Juana"))
+				.andExpect(jsonPath("$.content[0].frameSealCode").value("A-1001"));
 	}
 }

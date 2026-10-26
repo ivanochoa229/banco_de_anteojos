@@ -2,29 +2,21 @@ import { useState } from 'react'
 import { Alert } from '../../../components/Alert'
 import { Button } from '../../../components/Button'
 import { Input } from '../../../components/Input'
-import { FrameStatusBadge } from '../../frames/components/FrameStatusBadge'
+import { FramePicker } from '../../frames/components/FramePicker'
 
 /**
- * Los marcos se eligen con checkboxes y no con un multi-select nativo: el paquete suele llevar
- * varios y el select múltiple del navegador se opera con ctrl+click, que es justo lo que no se
- * le puede pedir al personal de la fundación (RNF-05).
+ * El paquete suele llevar varios marcos: se eligen con el buscador del inventario y la selección
+ * se mantiene aunque se cambie la búsqueda o la página.
+ *
+ * fetchFrames({ q, page, size }): la página del inventario de donde se eligen.
  */
-export function ShipmentForm({ frameOptions, onSubmit, isPending, submitError }) {
+export function ShipmentForm({ fetchFrames, noFramesMessage, onSubmit, isPending, submitError }) {
   const [values, setValues] = useState({ originBranch: '', destinationBranch: '', notes: '' })
-  const [selectedIds, setSelectedIds] = useState([])
-  const [search, setSearch] = useState('')
+  const [selectedFrames, setSelectedFrames] = useState([])
   const [fieldErrors, setFieldErrors] = useState({})
 
   function setField(name) {
     return (event) => setValues((current) => ({ ...current, [name]: event.target.value }))
-  }
-
-  function toggleFrame(frameId) {
-    setSelectedIds((current) =>
-      current.includes(frameId)
-        ? current.filter((id) => id !== frameId)
-        : [...current, frameId],
-    )
   }
 
   function handleSubmit(event) {
@@ -39,7 +31,7 @@ export function ShipmentForm({ frameOptions, onSubmit, isPending, submitError })
         : destination.toLowerCase() === origin.toLowerCase()
           ? 'El destino tiene que ser distinto del origen'
           : null,
-      frames: selectedIds.length === 0 ? 'El paquete tiene que llevar al menos un marco' : null,
+      frames: selectedFrames.length === 0 ? 'El paquete tiene que llevar al menos un marco' : null,
     }
     setFieldErrors(errors)
     if (Object.values(errors).some(Boolean)) return
@@ -47,15 +39,10 @@ export function ShipmentForm({ frameOptions, onSubmit, isPending, submitError })
     onSubmit({
       originBranch: origin,
       destinationBranch: destination,
-      frameIds: selectedIds,
+      frameIds: selectedFrames.map((frame) => frame.id),
       notes: values.notes.trim() || null,
     })
   }
-
-  const term = search.trim().toLowerCase()
-  const visibleFrames = term
-    ? frameOptions.filter((frame) => frame.label.toLowerCase().includes(term))
-    : frameOptions
 
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-4">
@@ -84,48 +71,21 @@ export function ShipmentForm({ frameOptions, onSubmit, isPending, submitError })
         <div className="mb-1 flex items-end justify-between gap-4">
           <span className="block text-sm font-medium text-slate-700">Marcos del paquete</span>
           <span className="text-sm text-slate-500">
-            {selectedIds.length} seleccionado{selectedIds.length === 1 ? '' : 's'}
+            {selectedFrames.length} seleccionado{selectedFrames.length === 1 ? '' : 's'}
           </span>
         </div>
 
-        <input
-          type="search"
-          aria-label="Buscar marco por precinto"
-          placeholder="Buscar por precinto…"
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          className="mb-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+        <FramePicker
+          id="frames"
+          queryKey={['frames', 'picker']}
+          fetchPage={fetchFrames}
+          selected={selectedFrames}
+          onChange={setSelectedFrames}
+          multiple
+          showStatus
+          error={fieldErrors.frames}
+          emptyMessage={noFramesMessage}
         />
-
-        <div
-          className={`max-h-64 overflow-y-auto rounded-lg border ${
-            fieldErrors.frames ? 'border-red-400' : 'border-slate-300'
-          }`}
-        >
-          {visibleFrames.length === 0 ? (
-            <p className="px-3 py-4 text-sm text-slate-500">
-              Ningún marco coincide con la búsqueda.
-            </p>
-          ) : (
-            <ul className="divide-y divide-slate-100">
-              {visibleFrames.map((frame) => (
-                <li key={frame.value}>
-                  <label className="flex cursor-pointer items-center gap-3 px-3 py-2.5 hover:bg-slate-50">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.includes(frame.value)}
-                      onChange={() => toggleFrame(frame.value)}
-                      className="h-4 w-4 rounded border-slate-300 text-sky-700 focus:ring-sky-500"
-                    />
-                    <span className="flex-1 text-sm text-slate-700">{frame.label}</span>
-                    <FrameStatusBadge status={frame.status} />
-                  </label>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-        {fieldErrors.frames && <p className="mt-1 text-sm text-red-600">{fieldErrors.frames}</p>}
       </div>
 
       <div>

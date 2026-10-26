@@ -1,9 +1,10 @@
-import { apiFetch } from '../lib/apiClient'
+import { apiFetch, withQuery } from '../lib/apiClient'
 
 export const catalogApi = {
-  // Sin status devuelve el catálogo completo; con 'ACTIVE', solo lo disponible (RF-28).
-  listProducts: (status) =>
-    apiFetch(`/v1/catalog/products${status ? `?status=${status}` : ''}`),
+  // Paginado (page desde 0). Sin status devuelve el catálogo completo; con 'ACTIVE', solo lo
+  // disponible (RF-28).
+  listProducts: ({ status, page, size } = {}) =>
+    apiFetch(withQuery('/v1/catalog/products', { status, page, size })),
   getProduct: (productId) => apiFetch(`/v1/catalog/products/${productId}`),
   createProduct: (data) => apiFetch('/v1/catalog/products', { method: 'POST', body: data }),
   updateProduct: (productId, data) =>
@@ -20,5 +21,6 @@ export const catalogApi = {
   // Registra la venta y descuenta el stock en la misma operación (RF-29).
   sellProduct: (productId, data) =>
     apiFetch(`/v1/catalog/products/${productId}/sales`, { method: 'POST', body: data }),
-  listSales: (productId) => apiFetch(`/v1/catalog/products/${productId}/sales`),
+  listSales: (productId, { page, size } = {}) =>
+    apiFetch(withQuery(`/v1/catalog/products/${productId}/sales`, { page, size })),
 }

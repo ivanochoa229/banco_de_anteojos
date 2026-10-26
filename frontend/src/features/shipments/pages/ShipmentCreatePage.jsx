@@ -1,32 +1,18 @@
 import { Link } from 'react-router-dom'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { framesApi } from '../../../api/framesApi'
 import { shipmentsApi } from '../../../api/shipmentsApi'
-import { Alert } from '../../../components/Alert'
 import { Layout } from '../../../components/Layout'
-import { FRAME_MATERIAL_LABELS, FRAME_TYPE_LABELS } from '../../frames/labels'
 import { ShipmentForm } from '../components/ShipmentForm'
-
-function frameLabel(frame) {
-  const type = FRAME_TYPE_LABELS[frame.frameType] ?? frame.frameType
-  const material = FRAME_MATERIAL_LABELS[frame.material] ?? frame.material
-  return `${frame.sealCode} · ${type} · ${material}`
-}
 
 export function ShipmentCreatePage() {
   const queryClient = useQueryClient()
-
-  // Se ofrece el inventario completo: un marco puede viajar entre sucursales en cualquier estado,
-  // y el envío no le cambia el estado (el inventario dice qué se puede hacer con el marco, no
-  // dónde está parado). El backend solo exige que exista.
-  const framesQuery = useQuery({ queryKey: ['frames', ''], queryFn: () => framesApi.list('') })
 
   const createMutation = useMutation({
     mutationFn: (data) => shipmentsApi.create(data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['shipments'] }),
   })
 
-  const frames = framesQuery.data ?? []
   const created = createMutation.data
 
   return (
@@ -64,30 +50,23 @@ export function ShipmentCreatePage() {
           </div>
         ) : (
           <div className="rounded-lg border border-slate-200 bg-white p-6">
-            {framesQuery.isPending && <p className="text-slate-500">Cargando el inventario…</p>}
-            {framesQuery.isError && <Alert>{framesQuery.error.message}</Alert>}
-
-            {framesQuery.isSuccess && frames.length === 0 && (
-              <p className="text-slate-500">
-                No hay marcos en el inventario.{' '}
-                <Link to="/donors" className="font-medium text-sky-700 hover:underline">
-                  Cargá los marcos de una donación.
-                </Link>
-              </p>
-            )}
-
-            {frames.length > 0 && (
-              <ShipmentForm
-                frameOptions={frames.map((frame) => ({
-                  value: frame.id,
-                  label: frameLabel(frame),
-                  status: frame.status,
-                }))}
-                onSubmit={(data) => createMutation.mutate(data)}
-                isPending={createMutation.isPending}
-                submitError={createMutation.error?.message}
-              />
-            )}
+            {/* Se ofrece el inventario completo: un marco puede viajar entre sucursales en cualquier
+                estado, y el envío no le cambia el estado (el inventario dice qué se puede hacer con
+                el marco, no dónde está parado). El backend solo exige que exista. */}
+            <ShipmentForm
+              fetchFrames={framesApi.list}
+              noFramesMessage={
+                <>
+                  No hay marcos en el inventario.{' '}
+                  <Link to="/donors" className="font-medium text-sky-700 hover:underline">
+                    Cargá los marcos de una donación.
+                  </Link>
+                </>
+              }
+              onSubmit={(data) => createMutation.mutate(data)}
+              isPending={createMutation.isPending}
+              submitError={createMutation.error?.message}
+            />
           </div>
         )}
       </section>

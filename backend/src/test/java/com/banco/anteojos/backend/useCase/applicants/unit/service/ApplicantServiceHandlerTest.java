@@ -13,7 +13,9 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -22,6 +24,10 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import com.banco.anteojos.backend.business.applicants.AnsesCertificateHelper;
 import com.banco.anteojos.backend.business.applicants.ApplicantServiceHandler;
@@ -47,6 +53,7 @@ import com.banco.anteojos.backend.business.applicants.exception.InvalidAnsesCert
 import com.banco.anteojos.backend.business.applicants.exception.InvalidPrescriptionFileException;
 import com.banco.anteojos.backend.business.applicants.exception.PrescriptionFileNotFoundException;
 import com.banco.anteojos.backend.business.applicants.exception.PrescriptionNotFoundException;
+import com.banco.anteojos.backend.business.common.dto.response.PageResponseDto;
 import com.banco.anteojos.backend.persistence.applicants.AnsesCertificatePostgresSqlRepository;
 import com.banco.anteojos.backend.persistence.applicants.ApplicantPostgresSqlRepository;
 import com.banco.anteojos.backend.persistence.applicants.PrescriptionPostgresSqlRepository;
@@ -520,5 +527,26 @@ class ApplicantServiceHandlerTest {
 
 		assertThatThrownBy(() -> applicantServiceHandler.getPrescription(1L, 7L))
 				.isInstanceOf(PrescriptionNotFoundException.class);
+	}
+
+	@Test
+	void ListApplicants_SearchesWithNormalizedTerm() {
+		Pageable page = PageRequest.of(0, 20);
+		when(applicantRepository.search("perez", page)).thenReturn(new PageImpl<>(List.of(applicant()), page, 1));
+
+		PageResponseDto<ApplicantResponseDto> response = applicantServiceHandler.listApplicants(" Pérez ", page);
+
+		assertThat(response.content()).singleElement()
+				.satisfies(applicant -> assertThat(applicant.dni()).isEqualTo("30123456"));
+	}
+
+	@Test
+	void GetFullNames_Successful() {
+		Applicant applicant = applicant();
+		ReflectionTestUtils.setField(applicant, "id", 1L);
+		when(applicantRepository.findAllById(Set.of(1L, 99L))).thenReturn(List.of(applicant));
+
+		assertThat(applicantServiceHandler.getFullNames(Set.of(1L, 99L)))
+				.containsExactly(Map.entry(1L, "Pérez, Juana"));
 	}
 }

@@ -1,15 +1,24 @@
 import { Link } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { applicantsApi } from '../../../api/applicantsApi'
 import { Alert } from '../../../components/Alert'
 import { Layout } from '../../../components/Layout'
+import { Pagination } from '../../../components/Pagination'
+import { SearchInput } from '../../../components/SearchInput'
 import { formatDate } from '../../../lib/dates'
+import { useListParams } from '../../../lib/useListParams'
 
 export function ApplicantsListPage() {
-  const { data: applicants, isPending, isError, error } = useQuery({
-    queryKey: ['applicants'],
-    queryFn: applicantsApi.list,
+  const { q, page, setFilters, setPage } = useListParams({ q: '' })
+
+  // keepPreviousData: al pasar de página o tipear en el buscador la tabla sigue a la vista hasta
+  // que llega la nueva, en vez de parpadear con el "Cargando…".
+  const { data, isPending, isError, error } = useQuery({
+    queryKey: ['applicants', { q, page }],
+    queryFn: () => applicantsApi.list({ q, page }),
+    placeholderData: keepPreviousData,
   })
+  const applicants = data?.content
 
   return (
     <Layout>
@@ -23,12 +32,22 @@ export function ApplicantsListPage() {
         </Link>
       </div>
 
+      <div className="mt-6 max-w-md">
+        <SearchInput
+          id="applicant-search"
+          label="Buscar"
+          placeholder="Apellido, nombre o DNI"
+          value={q}
+          onSearch={(term) => setFilters({ q: term })}
+        />
+      </div>
+
       <div className="mt-6">
         {isPending && <p className="text-slate-500">Cargando solicitantes…</p>}
         {isError && <Alert>{error.message}</Alert>}
-        {applicants?.length === 0 && (
+        {data?.totalElements === 0 && (
           <p className="rounded-lg border border-dashed border-slate-300 bg-white px-6 py-10 text-center text-slate-500">
-            No hay solicitantes cargados todavía.
+            {q ? `Ningún solicitante coincide con «${q}».` : 'No hay solicitantes cargados todavía.'}
           </p>
         )}
         {applicants?.length > 0 && (
@@ -106,6 +125,7 @@ export function ApplicantsListPage() {
             </table>
           </div>
         )}
+        <Pagination pageData={data} onPageChange={setPage} />
       </div>
     </Layout>
   )

@@ -19,6 +19,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import com.banco.anteojos.backend.business.catalog.CatalogServiceHandler;
 import com.banco.anteojos.backend.business.catalog.dto.request.ProductCreationRequestDto;
@@ -34,6 +37,7 @@ import com.banco.anteojos.backend.business.catalog.exception.InsufficientStockEx
 import com.banco.anteojos.backend.business.catalog.exception.InvalidProductImageException;
 import com.banco.anteojos.backend.business.catalog.exception.ProductImageNotFoundException;
 import com.banco.anteojos.backend.business.catalog.exception.ProductNotFoundException;
+import com.banco.anteojos.backend.business.common.dto.response.PageResponseDto;
 import com.banco.anteojos.backend.persistence.catalog.ProductPostgresSqlRepository;
 import com.banco.anteojos.backend.persistence.catalog.SalePostgresSqlRepository;
 import com.banco.anteojos.backend.thirdPartyServiceComunication.storage.PresignedUrl;
@@ -54,6 +58,8 @@ class CatalogServiceHandlerTest {
 
 	@InjectMocks
 	private CatalogServiceHandler catalogServiceHandler;
+
+	private static final Pageable PAGE = PageRequest.of(0, 20);
 
 	private Product product() {
 		return new Product("Ray-Ban Aviator", "clásico", new BigDecimal("25000.00"), 10);
@@ -86,23 +92,23 @@ class CatalogServiceHandlerTest {
 
 	@Test
 	void ListProducts_WithoutStatusReturnsWholeCatalog() {
-		when(productRepository.findAllByOrderByNameAsc()).thenReturn(List.of(product()));
+		when(productRepository.findAllByOrderByNameAscIdAsc(PAGE)).thenReturn(new PageImpl<>(List.of(product()), PAGE, 1));
 
-		List<ProductResponseDto> response = catalogServiceHandler.listProducts(null);
+		PageResponseDto<ProductResponseDto> response = catalogServiceHandler.listProducts(null, PAGE);
 
-		assertThat(response).hasSize(1);
-		verify(productRepository, never()).findByStatusOrderByNameAsc(any());
+		assertThat(response.content()).hasSize(1);
+		verify(productRepository, never()).findByStatusOrderByNameAscIdAsc(any(), any());
 	}
 
 	@Test
 	void ListProducts_FilteredByStatus() {
-		when(productRepository.findByStatusOrderByNameAsc(ProductStatus.ACTIVE))
-				.thenReturn(List.of(product()));
+		when(productRepository.findByStatusOrderByNameAscIdAsc(ProductStatus.ACTIVE, PAGE))
+				.thenReturn(new PageImpl<>(List.of(product()), PAGE, 1));
 
-		List<ProductResponseDto> response = catalogServiceHandler.listProducts(ProductStatus.ACTIVE);
+		PageResponseDto<ProductResponseDto> response = catalogServiceHandler.listProducts(ProductStatus.ACTIVE, PAGE);
 
-		assertThat(response).hasSize(1);
-		verify(productRepository, never()).findAllByOrderByNameAsc();
+		assertThat(response.content()).hasSize(1);
+		verify(productRepository, never()).findAllByOrderByNameAscIdAsc(any());
 	}
 
 	@Test
@@ -152,10 +158,10 @@ class CatalogServiceHandlerTest {
 
 	@Test
 	void ListSales_Successful() {
-		when(saleRepository.findByProductIdOrderBySoldAtDesc(1L))
-				.thenReturn(List.of(new Sale(1L, 1, new BigDecimal("25000.00"), null, null)));
+		when(saleRepository.findByProductIdOrderBySoldAtDescIdDesc(1L, PAGE))
+				.thenReturn(new PageImpl<>(List.of(new Sale(1L, 1, new BigDecimal("25000.00"), null, null)), PAGE, 1));
 
-		assertThat(catalogServiceHandler.listSales(1L)).hasSize(1);
+		assertThat(catalogServiceHandler.listSales(1L, PAGE).content()).hasSize(1);
 	}
 
 	// --- Foto del producto ---

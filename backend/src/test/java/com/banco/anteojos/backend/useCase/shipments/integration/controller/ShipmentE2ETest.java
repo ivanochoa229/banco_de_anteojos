@@ -441,14 +441,14 @@ class ShipmentE2ETest {
 		mockMvc.perform(get("/v1/shipments")
 						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.length()").value(1))
-				.andExpect(jsonPath("$[0].direction").value("OUTBOUND"));
+				.andExpect(jsonPath("$.content.length()").value(1))
+				.andExpect(jsonPath("$.content[0].shipment.direction").value("OUTBOUND"));
 
 		mockMvc.perform(get("/v1/shipments").param("direction", "INBOUND")
 						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.length()").value(1))
-				.andExpect(jsonPath("$[0].donorId").value(300000));
+				.andExpect(jsonPath("$.content.length()").value(1))
+				.andExpect(jsonPath("$.content[0].shipment.donorId").value(300000));
 	}
 
 	@Test
@@ -458,8 +458,8 @@ class ShipmentE2ETest {
 		mockMvc.perform(get("/v1/shipments")
 						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.length()").value(1))
-				.andExpect(jsonPath("$[0].destinationBranch").value("Concepción"));
+				.andExpect(jsonPath("$.content.length()").value(1))
+				.andExpect(jsonPath("$.content[0].shipment.destinationBranch").value("Concepción"));
 	}
 
 	@Test
@@ -468,5 +468,56 @@ class ShipmentE2ETest {
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(creationBody()))
 				.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void ListShipments_OnlyLive() throws Exception {
+		Long cancelled = createShipment();
+		mockMvc.perform(put("/v1/shipments/" + cancelled + "/cancellation")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"reason\": \"prueba\"}")
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isOk());
+		createShipment();
+
+		mockMvc.perform(get("/v1/shipments").param("live", "true")
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.totalElements").value(1))
+				.andExpect(jsonPath("$.content[0].shipment.status").value("PENDING"));
+
+		mockMvc.perform(get("/v1/shipments")
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.totalElements").value(2));
+	}
+
+	@Test
+	void ListShipments_DonationsIncludeDonorName() throws Exception {
+		createInboundShipment(300000L);
+
+		mockMvc.perform(get("/v1/shipments").param("direction", "INBOUND")
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.content[0].donorName").value("Rotary Club Tucumán"));
+	}
+
+	@Test
+	void ListShipmentsByDonor_Successful() throws Exception {
+		createInboundShipment(300000L);
+		createShipment();
+
+		mockMvc.perform(get("/v1/donors/300000/shipments")
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.totalElements").value(1))
+				.andExpect(jsonPath("$.content[0].trackingNumber").value(DONATION_GUIDE));
+	}
+
+	@Test
+	void ListShipmentsByDonor_WhenDonorDoesNotExist() throws Exception {
+		mockMvc.perform(get("/v1/donors/999999/shipments")
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isNotFound());
 	}
 }

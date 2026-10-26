@@ -1,8 +1,10 @@
-import { apiFetch } from '../lib/apiClient'
+import { apiFetch, withQuery } from '../lib/apiClient'
 
 export const assignmentsApi = {
-  // Con live=true trae solo las que siguen en curso: la cola de trabajo del día.
-  list: (live) => apiFetch(live ? '/v1/assignments?live=true' : '/v1/assignments'),
+  // Paginado (page desde 0). Con live=true trae solo las que siguen en curso: la cola de trabajo
+  // del día. Cada ítem es { assignment, applicantName, frameSealCode }.
+  list: ({ live, page, size } = {}) =>
+    apiFetch(withQuery('/v1/assignments', { live: live || undefined, page, size })),
   get: (assignmentId) => apiFetch(`/v1/assignments/${assignmentId}`),
   // La asignación se crea colgando del beneficiario, igual que en el backend.
   listByApplicant: (applicantId) => apiFetch(`/v1/applicants/${applicantId}/assignments`),

@@ -2,6 +2,7 @@ package com.banco.anteojos.backend.orchestrator.applicants;
 
 import java.util.List;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 import com.banco.anteojos.backend.business.applicants.ApplicantService;
@@ -16,6 +17,7 @@ import com.banco.anteojos.backend.business.applicants.dto.response.ApplicantResp
 import com.banco.anteojos.backend.business.applicants.dto.response.EligibilityResponseDto;
 import com.banco.anteojos.backend.business.applicants.dto.response.PrescriptionFileResponseDto;
 import com.banco.anteojos.backend.business.applicants.dto.response.PrescriptionResponseDto;
+import com.banco.anteojos.backend.business.common.dto.response.PageResponseDto;
 
 import lombok.RequiredArgsConstructor;
 
@@ -37,8 +39,8 @@ public class ApplicantUseCaseHandler implements ApplicantUseCaseOrchestrator {
 	}
 
 	@Override
-	public List<ApplicantResponseDto> listApplicants() {
-		return applicantService.listApplicants();
+	public PageResponseDto<ApplicantResponseDto> listApplicants(String search, Pageable pageable) {
+		return applicantService.listApplicants(search, pageable);
 	}
 
 	@Override

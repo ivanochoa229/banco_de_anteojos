@@ -1,8 +1,13 @@
 package com.banco.anteojos.backend.business.frames;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
+import org.springframework.data.domain.Pageable;
+
+import com.banco.anteojos.backend.business.common.dto.response.PageResponseDto;
 import com.banco.anteojos.backend.business.frames.dto.request.FrameCreationRequestDto;
 import com.banco.anteojos.backend.business.frames.dto.request.FrameImageUploadRequestDto;
 import com.banco.anteojos.backend.business.frames.dto.response.FrameImageResponseDto;
@@ -29,10 +34,18 @@ public interface FrameService {
 
 	FrameImageResponseDto getFrameImage(Long frameId);
 
-	/** Con status en null devuelve el inventario completo. */
-	List<FrameResponseDto> listFrames(FrameStatus status);
+	/**
+	 * Con status en null no filtra por estado. {@code search} busca en el precinto (null o en
+	 * blanco no filtra). Con {@code withImage}, solo los que tienen foto para el probador.
+	 */
+	PageResponseDto<FrameResponseDto> listFrames(FrameStatus status, String search, boolean withImage,
+			Pageable pageable);
 
-	List<FrameResponseDto> listFramesByDonor(Long donorId);
+	/** Con status en null no filtra por estado. */
+	PageResponseDto<FrameResponseDto> listFramesByDonor(Long donorId, FrameStatus status, Pageable pageable);
+
+	/** Precinto por id, para mostrar en listados de otros dominios. Los ids inexistentes no vienen. */
+	Map<Long, String> getSealCodes(Collection<Long> frameIds);
 
 	/** Donaciones recibidas en el rango, para el panel de indicadores (RF-26). */
 	long countReceived(LocalDateTime from, LocalDateTime to);

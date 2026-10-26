@@ -10,7 +10,9 @@ import static org.mockito.Mockito.when;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -18,7 +20,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
+import com.banco.anteojos.backend.business.common.dto.response.PageResponseDto;
 import com.banco.anteojos.backend.business.frames.dto.response.FrameResponseDto;
 import com.banco.anteojos.backend.business.frames.entities.FrameMaterial;
 import com.banco.anteojos.backend.business.frames.entities.FrameStatus;
@@ -28,6 +34,7 @@ import com.banco.anteojos.backend.business.shipments.TrackingUpdate;
 import com.banco.anteojos.backend.business.shipments.TrackingWebhookHelper;
 import com.banco.anteojos.backend.business.shipments.dto.request.InboundShipmentCreationRequestDto;
 import com.banco.anteojos.backend.business.shipments.dto.request.ShipmentCreationRequestDto;
+import com.banco.anteojos.backend.business.shipments.dto.response.ShipmentListItemResponseDto;
 import com.banco.anteojos.backend.business.shipments.dto.response.ShipmentResponseDto;
 import com.banco.anteojos.backend.business.shipments.entities.Shipment;
 import com.banco.anteojos.backend.business.shipments.entities.ShipmentDirection;
@@ -59,6 +66,8 @@ class ShipmentServiceHandlerTest {
 
 	@InjectMocks
 	private ShipmentServiceHandler shipmentServiceHandler;
+
+	private static final Pageable PAGE = PageRequest.of(0, 20);
 
 	private Shipment shipment() {
 		return new Shipment("San Miguel de Tucumán", "Concepción", List.of(7L, 9L), null);
@@ -155,13 +164,60 @@ class ShipmentServiceHandlerTest {
 
 	@Test
 	void ListShipments_FiltersByDirection() {
-		when(shipmentRepository.findByDirectionOrderByCreatedAtDesc(ShipmentDirection.INBOUND))
-				.thenReturn(List.of(Shipment.inbound(3L, "999038143994", null)));
+		when(shipmentRepository.findByDirectionOrderByCreatedAtDescIdDesc(ShipmentDirection.INBOUND, PAGE))
+				.thenReturn(new PageImpl<>(List.of(Shipment.inbound(3L, "999038143994", null)), PAGE, 1));
 
-		List<ShipmentResponseDto> response = shipmentServiceHandler.listShipments(ShipmentDirection.INBOUND);
+		PageResponseDto<ShipmentResponseDto> response = shipmentServiceHandler.listShipments(ShipmentDirection.INBOUND,
+				false, PAGE);
 
-		assertThat(response).singleElement()
+		assertThat(response.content()).singleElement()
 				.satisfies(shipment -> assertThat(shipment.direction()).isEqualTo("INBOUND"));
+	}
+
+	@Test
+	void ListShipments_WhenOnlyLiveOutbound() {
+		when(shipmentRepository.findByDirectionAndStatusNotInOrderByCreatedAtDescIdDesc(any(), any(), any()))
+				.thenReturn(new PageImpl<>(List.of(), PAGE, 0));
+
+		shipmentServiceHandler.listShipments(ShipmentDirection.OUTBOUND, true, PAGE);
+
+		verify(shipmentRepository).findByDirectionAndStatusNotInOrderByCreatedAtDescIdDesc(ShipmentDirection.OUTBOUND,
+				Set.of(ShipmentStatus.CANCELLED, ShipmentStatus.DELIVERED, ShipmentStatus.EXPIRED), PAGE);
+	}
+
+	// Una donación que el correo dio por entregada sigue en curso hasta que se abre en la fundación.
+	@Test
+	void ListShipments_WhenOnlyLiveInbound() {
+		when(shipmentRepository.findByDirectionAndStatusNotInOrderByCreatedAtDescIdDesc(any(), any(), any()))
+				.thenReturn(new PageImpl<>(List.of(), PAGE, 0));
+
+		shipmentServiceHandler.listShipments(ShipmentDirection.INBOUND, true, PAGE);
+
+		verify(shipmentRepository).findByDirectionAndStatusNotInOrderByCreatedAtDescIdDesc(ShipmentDirection.INBOUND,
+				Set.of(ShipmentStatus.RECEIVED), PAGE);
+	}
+
+	@Test
+	void BuildListItems_AttachesDonorNameOnlyToDonations() {
+		when(shipmentRepository.findByDirectionOrderByCreatedAtDescIdDesc(ShipmentDirection.INBOUND, PAGE))
+				.thenReturn(new PageImpl<>(List.of(Shipment.inbound(3L, "999038143994", null),
+						new Shipment("Sede Centro", "Concepción", List.of(1L), null)), PAGE, 2));
+		PageResponseDto<ShipmentResponseDto> shipments = shipmentServiceHandler.listShipments(ShipmentDirection.INBOUND,
+				false, PAGE);
+
+		PageResponseDto<ShipmentListItemResponseDto> response = shipmentServiceHandler.buildListItems(shipments,
+				Map.of(3L, "Óptica Norte"));
+
+		assertThat(response.content()).extracting(ShipmentListItemResponseDto::donorName)
+				.containsExactly("Óptica Norte", null);
+	}
+
+	@Test
+	void ListShipmentsByDonor_Successful() {
+		when(shipmentRepository.findByDonorIdOrderByCreatedAtDescIdDesc(3L, PAGE))
+				.thenReturn(new PageImpl<>(List.of(Shipment.inbound(3L, "999038143994", null)), PAGE, 1));
+
+		assertThat(shipmentServiceHandler.listShipmentsByDonor(3L, PAGE).content()).hasSize(1);
 	}
 
 	@Test

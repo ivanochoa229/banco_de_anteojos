@@ -2,6 +2,9 @@ package com.banco.anteojos.backend.business.assignments;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+
+import org.springframework.data.domain.Pageable;
 
 import com.banco.anteojos.backend.business.applicants.dto.response.ApplicantResponseDto;
 import com.banco.anteojos.backend.business.assignments.dto.request.AssignmentCreationRequestDto;
@@ -9,9 +12,11 @@ import com.banco.anteojos.backend.business.assignments.dto.request.DeliveryPhoto
 import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentCreationResponseDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentDeliveryResponseDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentDetailResponseDto;
+import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentListItemResponseDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentResponseDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.DeliveryPhotoResponseDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.MonthlyDeliveryResponseDto;
+import com.banco.anteojos.backend.business.common.dto.response.PageResponseDto;
 import com.banco.anteojos.backend.business.donors.dto.response.DonorResponseDto;
 import com.banco.anteojos.backend.business.frames.dto.response.FrameResponseDto;
 
@@ -26,7 +31,14 @@ public interface AssignmentService {
 
 	AssignmentResponseDto getAssignment(Long assignmentId);
 
-	List<AssignmentResponseDto> listAssignments(boolean onlyLive);
+	PageResponseDto<AssignmentResponseDto> listAssignments(boolean onlyLive, Pageable pageable);
+
+	/**
+	 * Arma las filas de la cola con los nombres que el orchestrator ya resolvió en applicants y
+	 * frames, indexados por id.
+	 */
+	PageResponseDto<AssignmentListItemResponseDto> buildListItems(PageResponseDto<AssignmentResponseDto> assignments,
+			Map<Long, String> applicantNames, Map<Long, String> frameSealCodes);
 
 	List<AssignmentResponseDto> listAssignmentsByApplicant(Long applicantId);
 

@@ -438,13 +438,13 @@ class AppointmentE2ETest {
 		mockMvc.perform(get("/v1/appointments?date=" + SCHEDULED_AT.toLocalDate())
 						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.length()").value(1))
-				.andExpect(jsonPath("$[0].scheduledAt").value(SCHEDULED_AT.toString()));
+				.andExpect(jsonPath("$.content.length()").value(1))
+				.andExpect(jsonPath("$.content[0].appointment.scheduledAt").value(SCHEDULED_AT.toString()));
 
 		mockMvc.perform(get("/v1/appointments")
 						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.length()").value(2));
+				.andExpect(jsonPath("$.content.length()").value(2));
 	}
 
 	@Test
@@ -456,8 +456,8 @@ class AppointmentE2ETest {
 		mockMvc.perform(get("/v1/appointments?from=" + LocalDate.now())
 						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.length()").value(1))
-				.andExpect(jsonPath("$[0].scheduledAt").value(SCHEDULED_AT.toString()));
+				.andExpect(jsonPath("$.content.length()").value(1))
+				.andExpect(jsonPath("$.content[0].appointment.scheduledAt").value(SCHEDULED_AT.toString()));
 	}
 
 	@Test
@@ -477,5 +477,39 @@ class AppointmentE2ETest {
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(creationBody(dayId)))
 				.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void ListAppointments_IncludesApplicantName() throws Exception {
+		createAppointment();
+
+		mockMvc.perform(get("/v1/appointments")
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.totalElements").value(1))
+				.andExpect(jsonPath("$.content[0].appointment.applicantId").value(APPLICANT_ID))
+				.andExpect(jsonPath("$.content[0].applicantName").value("Pérez, Juana"));
+	}
+
+	@Test
+	void ListAppointments_FromTodayExcludingCancelled() throws Exception {
+		Long cancelled = createAppointment();
+		confirmAppointment(cancelled);
+		mockMvc.perform(put("/v1/appointments/" + cancelled + "/cancellation")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"reason\": \"no puede venir\"}")
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isOk());
+
+		mockMvc.perform(get("/v1/appointments").param("from", LocalDate.now().toString())
+						.param("excludeCancelled", "true")
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.totalElements").value(0));
+
+		mockMvc.perform(get("/v1/appointments").param("from", LocalDate.now().toString())
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.totalElements").value(1));
 	}
 }

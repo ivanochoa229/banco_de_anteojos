@@ -1,7 +1,10 @@
 package com.banco.anteojos.backend.orchestrator.donors;
 
-import java.util.List;
+import java.util.Collection;
 
+import org.springframework.data.domain.Pageable;
+
+import com.banco.anteojos.backend.business.common.dto.response.PageResponseDto;
 import com.banco.anteojos.backend.business.donors.dto.request.DonorCreationRequestDto;
 import com.banco.anteojos.backend.business.donors.dto.response.DonorResponseDto;
 
@@ -11,5 +14,5 @@ public interface DonorUseCaseOrchestrator {
 
 	DonorResponseDto getDonor(Long donorId);
 
-	List<DonorResponseDto> listDonors();
+	PageResponseDto<DonorResponseDto> listDonors(String search, Collection<Long> ids, Pageable pageable);
 }

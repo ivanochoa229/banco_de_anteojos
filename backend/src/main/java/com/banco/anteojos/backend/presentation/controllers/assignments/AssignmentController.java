@@ -1,8 +1,8 @@
 package com.banco.anteojos.backend.presentation.controllers.assignments;
 
 import java.io.IOException;
-import java.util.List;
 
+import org.springframework.data.domain.PageRequest;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -15,12 +15,17 @@ import org.springframework.web.multipart.MultipartFile;
 import com.banco.anteojos.backend.business.assignments.dto.request.AssignmentCancellationRequestDto;
 import com.banco.anteojos.backend.business.assignments.dto.request.DeliveryPhotoUploadRequestDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentDetailResponseDto;
+import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentListItemResponseDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentResponseDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.DeliveryPhotoResponseDto;
 import com.banco.anteojos.backend.business.assignments.exception.InvalidDeliveryPhotoException;
+import com.banco.anteojos.backend.business.common.dto.response.PageResponseDto;
 import com.banco.anteojos.backend.orchestrator.assignments.AssignmentUseCaseOrchestrator;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.PositiveOrZero;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -34,10 +39,15 @@ public class AssignmentController {
 
 	private final AssignmentUseCaseOrchestrator assignmentOrchestrator;
 
-	/** Con {@code ?live=true} devuelve solo las que están en curso: la cola de trabajo del día. */
+	/**
+	 * Con {@code ?live=true} devuelve solo las que están en curso: la cola de trabajo del día. Cada
+	 * fila trae el nombre del beneficiario y el precinto para no tener que cruzarlos en el front.
+	 */
 	@GetMapping
-	public List<AssignmentResponseDto> list(@RequestParam(defaultValue = "false") boolean live) {
-		return assignmentOrchestrator.listAssignments(live);
+	public PageResponseDto<AssignmentListItemResponseDto> list(@RequestParam(defaultValue = "false") boolean live,
+			@RequestParam(defaultValue = "0") @PositiveOrZero int page,
+			@RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
+		return assignmentOrchestrator.listAssignments(live, PageRequest.of(page, size));
 	}
 
 	/** Trazabilidad end-to-end del par de anteojos: donante, marco, beneficiario y cada hito (RF-16). */

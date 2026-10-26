@@ -1,16 +1,23 @@
 package com.banco.anteojos.backend.business.shipments;
 
 import java.time.LocalDateTime;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import com.banco.anteojos.backend.business.common.dto.response.PageResponseDto;
 import com.banco.anteojos.backend.business.frames.dto.response.FrameResponseDto;
 import com.banco.anteojos.backend.business.shipments.dto.request.InboundShipmentCreationRequestDto;
 import com.banco.anteojos.backend.business.shipments.dto.request.ShipmentCreationRequestDto;
 import com.banco.anteojos.backend.business.shipments.dto.response.ShipmentDetailResponseDto;
 import com.banco.anteojos.backend.business.shipments.dto.response.ShipmentEventResponseDto;
+import com.banco.anteojos.backend.business.shipments.dto.response.ShipmentListItemResponseDto;
 import com.banco.anteojos.backend.business.shipments.dto.response.ShipmentResponseDto;
 import com.banco.anteojos.backend.business.shipments.entities.Shipment;
 import com.banco.anteojos.backend.business.shipments.entities.ShipmentDirection;
@@ -29,6 +36,15 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 @Slf4j
 public class ShipmentServiceHandler implements ShipmentService {
+
+	/**
+	 * Lo que ya no va a cambiar, por dirección. Una donación sigue en curso aunque el correo la dé
+	 * por entregada: se cierra recién cuando el operador la abre y confirma la recepción.
+	 */
+	private static final Map<ShipmentDirection, Set<ShipmentStatus>> CLOSED_STATUSES = Map.of(
+			ShipmentDirection.OUTBOUND, EnumSet.of(ShipmentStatus.CANCELLED, ShipmentStatus.DELIVERED,
+					ShipmentStatus.EXPIRED),
+			ShipmentDirection.INBOUND, EnumSet.of(ShipmentStatus.RECEIVED));
 
 	private final ShipmentPostgresSqlRepository shipmentRepository;
 	private final ShipmentEventPostgresSqlRepository eventRepository;
@@ -60,9 +76,26 @@ public class ShipmentServiceHandler implements ShipmentService {
 	}
 
 	@Override
-	public List<ShipmentResponseDto> listShipments(ShipmentDirection direction) {
-		return shipmentRepository.findByDirectionOrderByCreatedAtDesc(direction).stream().map(this::toResponse)
-				.toList();
+	public PageResponseDto<ShipmentResponseDto> listShipments(ShipmentDirection direction, boolean onlyLive,
+			Pageable pageable) {
+		Page<Shipment> shipments = onlyLive
+				? shipmentRepository.findByDirectionAndStatusNotInOrderByCreatedAtDescIdDesc(direction,
+						CLOSED_STATUSES.get(direction), pageable)
+				: shipmentRepository.findByDirectionOrderByCreatedAtDescIdDesc(direction, pageable);
+		return PageResponseDto.from(shipments.map(this::toResponse));
+	}
+
+	@Override
+	public PageResponseDto<ShipmentResponseDto> listShipmentsByDonor(Long donorId, Pageable pageable) {
+		return PageResponseDto.from(
+				shipmentRepository.findByDonorIdOrderByCreatedAtDescIdDesc(donorId, pageable).map(this::toResponse));
+	}
+
+	@Override
+	public PageResponseDto<ShipmentListItemResponseDto> buildListItems(PageResponseDto<ShipmentResponseDto> shipments,
+			Map<Long, String> donorNames) {
+		return shipments.map(shipment -> new ShipmentListItemResponseDto(shipment,
+				shipment.donorId() == null ? null : donorNames.get(shipment.donorId())));
 	}
 
 	@Override

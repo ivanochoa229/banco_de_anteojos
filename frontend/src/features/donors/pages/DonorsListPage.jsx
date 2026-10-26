@@ -1,16 +1,23 @@
 import { Link } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { donorsApi } from '../../../api/donorsApi'
 import { Alert } from '../../../components/Alert'
 import { Layout } from '../../../components/Layout'
+import { Pagination } from '../../../components/Pagination'
+import { SearchInput } from '../../../components/SearchInput'
 import { formatDateTime } from '../../../lib/dates'
+import { useListParams } from '../../../lib/useListParams'
 import { DONOR_TYPE_LABELS } from '../labels'
 
 export function DonorsListPage() {
-  const { data: donors, isPending, isError, error } = useQuery({
-    queryKey: ['donors'],
-    queryFn: donorsApi.list,
+  const { q, page, setFilters, setPage } = useListParams({ q: '' })
+
+  const { data, isPending, isError, error } = useQuery({
+    queryKey: ['donors', { q, page }],
+    queryFn: () => donorsApi.list({ q, page }),
+    placeholderData: keepPreviousData,
   })
+  const donors = data?.content
 
   return (
     <Layout>
@@ -24,12 +31,22 @@ export function DonorsListPage() {
         </Link>
       </div>
 
+      <div className="mt-6 max-w-md">
+        <SearchInput
+          id="donor-search"
+          label="Buscar"
+          placeholder="Nombre del donante"
+          value={q}
+          onSearch={(term) => setFilters({ q: term })}
+        />
+      </div>
+
       <div className="mt-6">
         {isPending && <p className="text-slate-500">Cargando donantes…</p>}
         {isError && <Alert>{error.message}</Alert>}
-        {donors?.length === 0 && (
+        {data?.totalElements === 0 && (
           <p className="rounded-lg border border-dashed border-slate-300 bg-white px-6 py-10 text-center text-slate-500">
-            No hay donantes cargados todavía.
+            {q ? `Ningún donante coincide con «${q}».` : 'No hay donantes cargados todavía.'}
           </p>
         )}
         {donors?.length > 0 && (
@@ -71,6 +88,7 @@ export function DonorsListPage() {
             </table>
           </div>
         )}
+        <Pagination pageData={data} onPageChange={setPage} />
       </div>
     </Layout>
   )

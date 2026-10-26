@@ -2,15 +2,19 @@ import { useState } from 'react'
 import { Alert } from '../../../components/Alert'
 import { Button } from '../../../components/Button'
 import { Select } from '../../../components/Select'
+import { FramePicker } from '../../frames/components/FramePicker'
 
+// fetchAvailableFrames({ q, page, size }): la página de marcos que se pueden asignar.
 export function AssignmentForm({
   prescriptionOptions,
-  frameOptions,
+  fetchAvailableFrames,
+  noFramesMessage,
   onSubmit,
   isPending,
   submitError,
 }) {
-  const [values, setValues] = useState({ prescriptionId: '', frameId: '', notes: '' })
+  const [values, setValues] = useState({ prescriptionId: '', notes: '' })
+  const [selectedFrames, setSelectedFrames] = useState([])
   const [fieldErrors, setFieldErrors] = useState({})
 
   function setField(name) {
@@ -22,14 +26,14 @@ export function AssignmentForm({
 
     const errors = {
       prescriptionId: values.prescriptionId ? null : 'Elegí la receta que se manda a la óptica',
-      frameId: values.frameId ? null : 'Elegí el marco a asignar',
+      frameId: selectedFrames.length > 0 ? null : 'Elegí el marco a asignar',
     }
     setFieldErrors(errors)
     if (Object.values(errors).some(Boolean)) return
 
     onSubmit({
       prescriptionId: Number(values.prescriptionId),
-      frameId: Number(values.frameId),
+      frameId: selectedFrames[0].id,
       notes: values.notes.trim() || null,
     })
   }
@@ -46,15 +50,18 @@ export function AssignmentForm({
         error={fieldErrors.prescriptionId}
       />
 
-      <Select
-        id="frameId"
-        label="Marco disponible"
-        options={frameOptions}
-        placeholder="Elegí un marco"
-        value={values.frameId}
-        onChange={setField('frameId')}
-        error={fieldErrors.frameId}
-      />
+      <div>
+        <span className="mb-1.5 block text-sm font-semibold text-slate-700">Marco disponible</span>
+        <FramePicker
+          id="frameId"
+          queryKey={['frames', 'AVAILABLE', 'picker']}
+          fetchPage={fetchAvailableFrames}
+          selected={selectedFrames}
+          onChange={setSelectedFrames}
+          error={fieldErrors.frameId}
+          emptyMessage={noFramesMessage}
+        />
+      </div>
 
       <div>
         <label htmlFor="notes" className="mb-1 block text-sm font-medium text-slate-700">

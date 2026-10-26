@@ -17,6 +17,7 @@ import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.banco.anteojos.backend.business.donors.entities.Donor;
 import com.banco.anteojos.backend.business.donors.entities.DonorType;
 import com.banco.anteojos.backend.business.security.JwtService;
 import com.banco.anteojos.backend.business.security.entities.Role;
@@ -62,7 +63,7 @@ class DonorControllerE2ETest {
 				.andExpect(jsonPath("$.city").value("San Miguel de Tucumán"))
 				.andExpect(jsonPath("$.province").value("Tucumán"));
 
-		assertThat(donorRepository.findAllByOrderByNameAsc())
+		assertThat(donorRepository.findAll())
 				.anySatisfy(donor -> {
 					assertThat(donor.getName()).isEqualTo("Ana Ruiz");
 					assertThat(donor.getDonorType()).isEqualTo(DonorType.INDIVIDUAL);
@@ -99,8 +100,8 @@ class DonorControllerE2ETest {
 		mockMvc.perform(get("/v1/donors")
 						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.length()").value(1))
-				.andExpect(jsonPath("$[0].name").value("Rotary Club Tucumán"));
+				.andExpect(jsonPath("$.content.length()").value(1))
+				.andExpect(jsonPath("$.content[0].name").value("Rotary Club Tucumán"));
 	}
 
 	@Test
@@ -124,5 +125,29 @@ class DonorControllerE2ETest {
 		mockMvc.perform(get("/v1/donors"))
 				.andExpect(status().isUnauthorized())
 				.andExpect(jsonPath("$.message").value("No autenticado"));
+	}
+
+	@Test
+	void ListDonors_SearchesByNameWithoutAccents() throws Exception {
+		donorRepository.save(new Donor(DonorType.ORGANIZATION, "Óptica Muñoz", null, null, null, null, null, null,
+				null));
+
+		mockMvc.perform(get("/v1/donors").param("q", "optica")
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.totalElements").value(1))
+				.andExpect(jsonPath("$.content[0].name").value("Óptica Muñoz"));
+	}
+
+	@Test
+	void ListDonors_ByIds() throws Exception {
+		donorRepository.save(new Donor(DonorType.ORGANIZATION, "Óptica Muñoz", null, null, null, null, null, null,
+				null));
+
+		mockMvc.perform(get("/v1/donors").param("ids", "300000")
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.totalElements").value(1))
+				.andExpect(jsonPath("$.content[0].name").value("Rotary Club Tucumán"));
 	}
 }

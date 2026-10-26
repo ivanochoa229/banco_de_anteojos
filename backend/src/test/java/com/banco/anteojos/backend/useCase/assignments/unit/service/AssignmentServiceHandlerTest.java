@@ -13,6 +13,7 @@ import static org.mockito.Mockito.when;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Tag;
@@ -21,12 +22,16 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import com.banco.anteojos.backend.business.assignments.AssignmentServiceHandler;
 import com.banco.anteojos.backend.business.assignments.dto.request.AssignmentCreationRequestDto;
 import com.banco.anteojos.backend.business.assignments.dto.request.DeliveryPhotoUploadRequestDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentCreationResponseDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentDeliveryResponseDto;
+import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentListItemResponseDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentResponseDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.MonthlyDeliveryResponseDto;
 import com.banco.anteojos.backend.business.assignments.entities.Assignment;
@@ -34,6 +39,7 @@ import com.banco.anteojos.backend.business.assignments.exception.AssignmentNotFo
 import com.banco.anteojos.backend.business.assignments.exception.DeliveryPhotoNotFoundException;
 import com.banco.anteojos.backend.business.assignments.exception.InvalidAssignmentTransitionException;
 import com.banco.anteojos.backend.business.assignments.exception.InvalidDeliveryPhotoException;
+import com.banco.anteojos.backend.business.common.dto.response.PageResponseDto;
 import com.banco.anteojos.backend.persistence.assignments.AssignmentPostgresSqlRepository;
 import com.banco.anteojos.backend.persistence.assignments.MonthlyDeliveryProjection;
 import com.banco.anteojos.backend.thirdPartyServiceComunication.storage.R2StorageClient;
@@ -50,6 +56,8 @@ class AssignmentServiceHandlerTest {
 
 	@InjectMocks
 	private AssignmentServiceHandler assignmentServiceHandler;
+
+	private static final Pageable PAGE = PageRequest.of(0, 20);
 
 	private Assignment assignment() {
 		return new Assignment(1L, 7L, 3L, null);
@@ -211,17 +219,46 @@ class AssignmentServiceHandlerTest {
 
 	@Test
 	void ListAssignments_WhenOnlyLive() {
-		when(assignmentRepository.findLive()).thenReturn(List.of(assignment()));
+		when(assignmentRepository.findLive(PAGE)).thenReturn(new PageImpl<>(List.of(assignment()), PAGE, 1));
 
-		assertThat(assignmentServiceHandler.listAssignments(true)).hasSize(1);
-		verify(assignmentRepository).findLive();
+		assertThat(assignmentServiceHandler.listAssignments(true, PAGE).content()).hasSize(1);
+		verify(assignmentRepository).findLive(PAGE);
 	}
 
 	@Test
 	void ListAssignments_WhenAll() {
-		when(assignmentRepository.findAllByOrderByAssignedAtDesc()).thenReturn(List.of(assignment()));
+		when(assignmentRepository.findAllByOrderByAssignedAtDescIdDesc(PAGE))
+				.thenReturn(new PageImpl<>(List.of(assignment()), PAGE, 1));
 
-		assertThat(assignmentServiceHandler.listAssignments(false)).hasSize(1);
+		assertThat(assignmentServiceHandler.listAssignments(false, PAGE).content()).hasSize(1);
+	}
+
+	@Test
+	void BuildListItems_AttachesApplicantNameAndSealCode() {
+		when(assignmentRepository.findLive(PAGE)).thenReturn(new PageImpl<>(List.of(assignment()), PAGE, 1));
+		PageResponseDto<AssignmentResponseDto> assignments = assignmentServiceHandler.listAssignments(true, PAGE);
+
+		PageResponseDto<AssignmentListItemResponseDto> response = assignmentServiceHandler.buildListItems(
+				assignments, Map.of(1L, "Pérez, Juan"), Map.of(7L, "PR-0007"));
+
+		assertThat(response.content()).singleElement().satisfies(item -> {
+			assertThat(item.applicantName()).isEqualTo("Pérez, Juan");
+			assertThat(item.frameSealCode()).isEqualTo("PR-0007");
+		});
+	}
+
+	@Test
+	void BuildListItems_WhenReferenceNoLongerExists() {
+		when(assignmentRepository.findLive(PAGE)).thenReturn(new PageImpl<>(List.of(assignment()), PAGE, 1));
+		PageResponseDto<AssignmentResponseDto> assignments = assignmentServiceHandler.listAssignments(true, PAGE);
+
+		PageResponseDto<AssignmentListItemResponseDto> response = assignmentServiceHandler.buildListItems(
+				assignments, Map.of(), Map.of());
+
+		assertThat(response.content()).singleElement().satisfies(item -> {
+			assertThat(item.applicantName()).isNull();
+			assertThat(item.frameSealCode()).isNull();
+		});
 	}
 
 	@Test

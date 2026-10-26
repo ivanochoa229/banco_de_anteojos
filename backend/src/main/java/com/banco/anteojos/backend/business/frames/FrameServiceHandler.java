@@ -1,14 +1,19 @@
 package com.banco.anteojos.backend.business.frames;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import com.banco.anteojos.backend.business.common.SearchTerms;
+import com.banco.anteojos.backend.business.common.dto.response.PageResponseDto;
 import com.banco.anteojos.backend.business.frames.dto.request.FrameCreationRequestDto;
 import com.banco.anteojos.backend.business.frames.dto.request.FrameImageUploadRequestDto;
 import com.banco.anteojos.backend.business.frames.dto.response.FrameImageResponseDto;
@@ -136,16 +141,22 @@ public class FrameServiceHandler implements FrameService {
 	}
 
 	@Override
-	public List<FrameResponseDto> listFrames(FrameStatus status) {
-		List<Frame> frames = status == null
-				? frameRepository.findAllByOrderByReceivedAtDesc()
-				: frameRepository.findByStatusOrderByReceivedAtDesc(status);
-		return frames.stream().map(this::toResponse).toList();
+	public PageResponseDto<FrameResponseDto> listFrames(FrameStatus status, String search, boolean withImage,
+			Pageable pageable) {
+		return PageResponseDto.from(frameRepository
+				.search(status, withImage, SearchTerms.normalize(search), pageable).map(this::toResponse));
 	}
 
 	@Override
-	public List<FrameResponseDto> listFramesByDonor(Long donorId) {
-		return frameRepository.findByDonorIdOrderByReceivedAtDesc(donorId).stream().map(this::toResponse).toList();
+	public PageResponseDto<FrameResponseDto> listFramesByDonor(Long donorId, FrameStatus status,
+			Pageable pageable) {
+		return PageResponseDto.from(frameRepository.findByDonor(donorId, status, pageable).map(this::toResponse));
+	}
+
+	@Override
+	public Map<Long, String> getSealCodes(Collection<Long> frameIds) {
+		return frameRepository.findAllById(frameIds).stream()
+				.collect(Collectors.toMap(Frame::getId, Frame::getSealCode));
 	}
 
 	@Override
