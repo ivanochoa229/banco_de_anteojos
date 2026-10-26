@@ -217,6 +217,10 @@ class FrameServiceHandlerTest {
 		if (status == FrameStatus.AVAILABLE) {
 			return frame;
 		}
+		if (status == FrameStatus.RESERVED) {
+			frame.reserve();
+			return frame;
+		}
 		frame.markAsAssigned();
 		if (status == FrameStatus.ASSIGNED) {
 			return frame;
@@ -242,7 +246,7 @@ class FrameServiceHandlerTest {
 	void MarkAsAssigned_Successful() {
 		mockFind(frameAt(FrameStatus.AVAILABLE));
 
-		assertThat(frameServiceHandler.markAsAssigned(1L).status()).isEqualTo(FrameStatus.ASSIGNED);
+		assertThat(frameServiceHandler.markAsAssigned(1L, null).status()).isEqualTo(FrameStatus.ASSIGNED);
 	}
 
 	@Test
@@ -250,7 +254,7 @@ class FrameServiceHandlerTest {
 		when(frameRepository.findById(1L)).thenReturn(Optional.of(frameAt(FrameStatus.ASSIGNED)));
 
 		// Es el chequeo que evita que dos beneficiarios se lleven el mismo marco.
-		assertThatThrownBy(() -> frameServiceHandler.markAsAssigned(1L))
+		assertThatThrownBy(() -> frameServiceHandler.markAsAssigned(1L, null))
 				.isInstanceOf(InvalidFrameTransitionException.class)
 				.hasMessageContaining("no está disponible");
 		verify(frameRepository, never()).save(any());
@@ -260,8 +264,63 @@ class FrameServiceHandlerTest {
 	void MarkAsAssigned_WhenFrameDoesNotExist() {
 		when(frameRepository.findById(999L)).thenReturn(Optional.empty());
 
-		assertThatThrownBy(() -> frameServiceHandler.markAsAssigned(999L))
+		assertThatThrownBy(() -> frameServiceHandler.markAsAssigned(999L, null))
 				.isInstanceOf(FrameNotFoundException.class);
+	}
+
+	@Test
+	void MarkAsAssigned_WhenApplicantHadReservedIt() {
+		mockFind(frameAt(FrameStatus.RESERVED));
+
+		assertThat(frameServiceHandler.markAsAssigned(1L, 1L).status()).isEqualTo(FrameStatus.ASSIGNED);
+	}
+
+	@Test
+	void MarkAsAssigned_WhenReservedByAnotherApplicant() {
+		when(frameRepository.findById(1L)).thenReturn(Optional.of(frameAt(FrameStatus.RESERVED)));
+
+		assertThatThrownBy(() -> frameServiceHandler.markAsAssigned(1L, null))
+				.isInstanceOf(InvalidFrameTransitionException.class)
+				.hasMessageContaining("reservado por otro beneficiario");
+		verify(frameRepository, never()).save(any());
+	}
+
+	// El operador le asignó otro marco: el que había elegido en el probador vuelve al inventario.
+	@Test
+	void MarkAsAssigned_ReleasesTheFrameTheApplicantHadReserved() {
+		Frame reserved = frameAt(FrameStatus.RESERVED);
+		mockFind(frameAt(FrameStatus.AVAILABLE));
+		when(frameRepository.findById(2L)).thenReturn(Optional.of(reserved));
+
+		assertThat(frameServiceHandler.markAsAssigned(1L, 2L).status()).isEqualTo(FrameStatus.ASSIGNED);
+		assertThat(reserved.getStatus()).isEqualTo(FrameStatus.AVAILABLE);
+	}
+
+	@Test
+	void Reserve_Successful() {
+		mockFind(frameAt(FrameStatus.AVAILABLE));
+
+		assertThat(frameServiceHandler.reserve(1L).status()).isEqualTo(FrameStatus.RESERVED);
+	}
+
+	@Test
+	void Reserve_WhenFrameIsNotAvailable() {
+		when(frameRepository.findById(1L)).thenReturn(Optional.of(frameAt(FrameStatus.RESERVED)));
+
+		assertThatThrownBy(() -> frameServiceHandler.reserve(1L))
+				.isInstanceOf(InvalidFrameTransitionException.class)
+				.hasMessageContaining("ya no está disponible");
+	}
+
+	@Test
+	void ReleaseReservations_ReturnsFramesToInventory() {
+		Frame reserved = frameAt(FrameStatus.RESERVED);
+		when(frameRepository.findAllById(List.of(1L))).thenReturn(List.of(reserved));
+
+		frameServiceHandler.releaseReservations(List.of(1L));
+
+		assertThat(reserved.getStatus()).isEqualTo(FrameStatus.AVAILABLE);
+		verify(frameRepository).saveAll(List.of(reserved));
 	}
 
 	@Test

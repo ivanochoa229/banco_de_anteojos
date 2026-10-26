@@ -45,8 +45,7 @@ export function PrescriptionFileCell({ applicantId, prescription }) {
     <div>
       {prescription.fileOriginalName ? (
         <PrescriptionFileLink
-          applicantId={applicantId}
-          prescriptionId={prescription.id}
+          fetchFile={() => applicantsApi.getPrescriptionFile(applicantId, prescription.id)}
           fileName={prescription.fileOriginalName}
         />
       ) : (

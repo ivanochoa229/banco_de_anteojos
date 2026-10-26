@@ -31,6 +31,8 @@ public interface ApplicantUseCaseOrchestrator {
 
 	PrescriptionResponseDto addPrescription(Long applicantId, PrescriptionCreationRequestDto request);
 
+	PrescriptionResponseDto addPrescriptionFromFile(Long applicantId, PrescriptionFileUploadRequestDto request);
+
 	List<PrescriptionResponseDto> listPrescriptions(Long applicantId);
 
 	PrescriptionResponseDto uploadPrescriptionFile(Long applicantId, Long prescriptionId,

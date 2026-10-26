@@ -123,6 +123,15 @@
   trazabilidad desde la donación (RF-16). Los donantes guardan además domicilio, CP, localidad y
   provincia, que pide la etiqueta. **Pendiente:** reflejarlo en la Matriz de Trazabilidad.
 
+- **Reserva desde el probador y receta del beneficiario (2026-10-26).** Amplía RF-19 y RF-07 en
+  la autogestión del beneficiario. Desde el probador puede **reservar** el marco que le gustó
+  (`POST /v1/me/frames/{id}/reservation`): el marco pasa a `RESERVED` y sale del inventario
+  disponible durante 7 días; vence solo (tarea programada) o se cierra cuando el operador le
+  asigna ese marco (RF-15) o lo cancela. Para reservar necesita la negativa de ANSES vigente y una
+  receta cargada, y tiene una sola reserva activa: el registro es público y sin esos requisitos
+  cualquiera podría bloquear marcos. La receta la sube él mismo como archivo, sin graduación
+  (`POST /v1/me/prescriptions`). **Pendiente:** reflejarlo en la Matriz de Trazabilidad.
+
 - Los criterios de aceptación asociados (CA1–CA13, con CA3 dividido en **CA3a/CA3b/CA3c** para la
   validación ANSES y CA9 ampliado para stock del catálogo) están enunciados en la Declaración de
   Alcance v4. Esa es la fuente textual exacta.

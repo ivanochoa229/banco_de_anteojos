@@ -53,7 +53,19 @@ public interface FrameService {
 	// Transiciones del ciclo de vida. Las dispara el dominio assignments a través del
 	// orchestrator: acá solo se valida el estado de origen y se mueve el marco.
 
-	FrameResponseDto markAsAssigned(Long frameId);
+	/**
+	 * Asigna el marco al beneficiario. Si lo tenía reservado, la reserva se concreta; si había
+	 * reservado otro, ese otro vuelve al inventario.
+	 *
+	 * @param applicantReservedFrameId el marco que el beneficiario tenía reservado, o null.
+	 */
+	FrameResponseDto markAsAssigned(Long frameId, Long applicantReservedFrameId);
+
+	/** El beneficiario lo eligió en el probador. Solo desde el inventario disponible. */
+	FrameResponseDto reserve(Long frameId);
+
+	/** Reservas canceladas o vencidas: los marcos vuelven al inventario. */
+	void releaseReservations(Collection<Long> frameIds);
 
 	FrameResponseDto markAsAtOptician(Long frameId);
 

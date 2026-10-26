@@ -3,8 +3,10 @@ import { useQuery } from '@tanstack/react-query'
 import { framesApi } from '../../../api/framesApi'
 import { Alert } from '../../../components/Alert'
 import { Layout } from '../../../components/Layout'
+import { useAuth } from '../../../context/useAuth'
 import { FramePicker } from '../../frames/components/FramePicker'
 import { CameraCapture } from '../components/CameraCapture'
+import { ReservationPanel } from '../components/ReservationPanel'
 import { TryOnCanvas } from '../components/TryOnCanvas'
 import { computeFramePlacement } from '../framePlacement'
 import { loadImage } from '../loadImage'
@@ -23,6 +25,11 @@ export function TryOnPage() {
   const [photo, setPhoto] = useState(null)
   const [placement, setPlacement] = useState(null)
   const [photoError, setPhotoError] = useState(null)
+
+  // Reservar es del beneficiario: el personal usa el probador con la persona delante y le
+  // asigna el marco directamente.
+  const { role } = useAuth()
+  const isApplicant = role === 'APPLICANT'
 
   const [selectedFrames, setSelectedFrames] = useState([])
   const selectedFrameId = selectedFrames[0]?.id ?? null
@@ -215,6 +222,14 @@ export function TryOnPage() {
                   emptyMessage="Ningún marco disponible tiene foto cargada todavía. Se suben desde el inventario."
                 />
               </div>
+              {isApplicant && (
+                <div className="mt-4">
+                  <ReservationPanel
+                    selectedFrame={selectedFrames[0] ?? null}
+                    onTryOn={(frame) => setSelectedFrames([frame])}
+                  />
+                </div>
+              )}
               {frameError && (
                 <div className="mt-3">
                   <Alert>{frameError}</Alert>

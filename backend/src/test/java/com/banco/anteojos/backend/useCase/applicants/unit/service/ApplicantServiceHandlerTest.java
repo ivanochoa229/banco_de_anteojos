@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.startsWith;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -224,6 +225,31 @@ class ApplicantServiceHandlerTest {
 		// El prefijo por solicitante es lo que permitiría mover el resto a un bucket público.
 		assertThat(key.getValue()).startsWith("prescriptions/1/").endsWith(".pdf");
 		assertThat(response.fileOriginalName()).isEqualTo("receta.pdf");
+	}
+
+	@Test
+	void AddPrescriptionFromFile_Successful() {
+		when(applicantRepository.findById(1L)).thenReturn(Optional.of(applicant()));
+		when(prescriptionRepository.save(any(Prescription.class))).thenAnswer(inv -> inv.getArgument(0));
+
+		PrescriptionResponseDto response = applicantServiceHandler.addPrescriptionFromFile(1L, pdfUpload());
+
+		verify(r2StorageClient).upload(startsWith("prescriptions/1/"), any(), eq("application/pdf"));
+		assertThat(response.fileOriginalName()).isEqualTo("receta.pdf");
+		// La graduación la lee la óptica del archivo: el beneficiario no la tipea.
+		assertThat(response.rightSphere()).isNull();
+		assertThat(response.leftSphere()).isNull();
+	}
+
+	@Test
+	void AddPrescriptionFromFile_WhenFileIsInvalid() {
+		when(applicantRepository.findById(1L)).thenReturn(Optional.of(applicant()));
+
+		assertThatThrownBy(() -> applicantServiceHandler.addPrescriptionFromFile(1L,
+				new PrescriptionFileUploadRequestDto(new byte[] { 1 }, "text/plain", "receta.txt")))
+				.isInstanceOf(InvalidPrescriptionFileException.class);
+		verify(r2StorageClient, never()).upload(any(), any(), any());
+		verify(prescriptionRepository, never()).save(any());
 	}
 
 	@Test
