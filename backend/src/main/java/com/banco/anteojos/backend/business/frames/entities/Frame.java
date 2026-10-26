@@ -103,9 +103,30 @@ public class Frame {
 		this.templeLengthMm = templeLengthMm;
 	}
 
-	/** Reserva el marco para un beneficiario: solo se puede sacar del inventario disponible. */
+	/** Lo reserva un beneficiario desde el probador: solo se puede sacar del inventario disponible. */
+	public void reserve() {
+		requireStatus(FrameStatus.AVAILABLE, "El marco ya no está disponible");
+		this.status = FrameStatus.RESERVED;
+	}
+
+	/** La reserva se canceló o venció: el marco vuelve al inventario. */
+	public void releaseReservation() {
+		requireStatus(FrameStatus.RESERVED, "El marco no está reservado");
+		this.status = FrameStatus.AVAILABLE;
+	}
+
+	/** Lo asigna el operador sacándolo del inventario disponible. */
 	public void markAsAssigned() {
+		if (status == FrameStatus.RESERVED) {
+			throw new InvalidFrameTransitionException("El marco está reservado por otro beneficiario");
+		}
 		requireStatus(FrameStatus.AVAILABLE, "El marco no está disponible en el inventario");
+		this.status = FrameStatus.ASSIGNED;
+	}
+
+	/** Se le asigna al beneficiario que lo había reservado: la reserva se concreta. */
+	public void assignReserved() {
+		requireStatus(FrameStatus.RESERVED, "El marco no está reservado");
 		this.status = FrameStatus.ASSIGNED;
 	}
 

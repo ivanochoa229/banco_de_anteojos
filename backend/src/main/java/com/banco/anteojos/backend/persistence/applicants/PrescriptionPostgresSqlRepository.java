@@ -11,6 +11,8 @@ public interface PrescriptionPostgresSqlRepository extends JpaRepository<Prescri
 
 	List<Prescription> findByApplicantId(Long applicantId);
 
+	boolean existsByApplicantId(Long applicantId);
+
 	// Filtrar también por applicant valida la pertenencia: evita leer la receta de otro
 	// solicitante armando una URL con IDs cruzados.
 	Optional<Prescription> findByIdAndApplicantId(Long id, Long applicantId);

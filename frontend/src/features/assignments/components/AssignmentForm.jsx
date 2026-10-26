@@ -5,16 +5,19 @@ import { Select } from '../../../components/Select'
 import { FramePicker } from '../../frames/components/FramePicker'
 
 // fetchAvailableFrames({ q, page, size }): la página de marcos que se pueden asignar.
+// initialFrame: el que el beneficiario reservó en el probador, ya elegido (no figura entre los
+// disponibles porque está reservado para él).
 export function AssignmentForm({
   prescriptionOptions,
   fetchAvailableFrames,
+  initialFrame,
   noFramesMessage,
   onSubmit,
   isPending,
   submitError,
 }) {
   const [values, setValues] = useState({ prescriptionId: '', notes: '' })
-  const [selectedFrames, setSelectedFrames] = useState([])
+  const [selectedFrames, setSelectedFrames] = useState(initialFrame ? [initialFrame] : [])
   const [fieldErrors, setFieldErrors] = useState({})
 
   function setField(name) {

@@ -10,6 +10,7 @@ import com.banco.anteojos.backend.business.applicants.ApplicantService;
 import com.banco.anteojos.backend.business.applicants.dto.response.ApplicantResponseDto;
 import com.banco.anteojos.backend.business.applicants.dto.response.EligibilityResponseDto;
 import com.banco.anteojos.backend.business.assignments.AssignmentService;
+import com.banco.anteojos.backend.business.assignments.FrameReservationService;
 import com.banco.anteojos.backend.business.assignments.dto.request.AssignmentCreationRequestDto;
 import com.banco.anteojos.backend.business.assignments.dto.request.DeliveryPhotoUploadRequestDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentCreationResponseDto;
@@ -37,6 +38,7 @@ import lombok.RequiredArgsConstructor;
 public class AssignmentUseCaseHandler implements AssignmentUseCaseOrchestrator {
 
 	private final AssignmentService assignmentService;
+	private final FrameReservationService frameReservationService;
 	private final ApplicantService applicantService;
 	private final FrameService frameService;
 	private final DonorService donorService;
@@ -47,9 +49,12 @@ public class AssignmentUseCaseHandler implements AssignmentUseCaseOrchestrator {
 	public AssignmentCreationResponseDto createAssignment(Long applicantId, AssignmentCreationRequestDto request) {
 		// Pertenencia primero: que la receta sea de este solicitante y no de otro.
 		applicantService.getPrescription(applicantId, request.prescriptionId());
-		// Reservar el marco antes de crear la asignación: es el paso que puede fallar por
-		// estado (ya asignado) y así no queda una asignación colgada.
-		frameService.markAsAssigned(request.frameId());
+		// La reserva del beneficiario se cierra al asignarle un marco: se concreta si es el que
+		// eligió en el probador y, si el operador le asigna otro, el reservado vuelve al inventario.
+		Long reservedFrameId = frameReservationService.closeForAssignment(applicantId, request.frameId());
+		// Mover el marco antes de crear la asignación: es el paso que puede fallar por estado (ya
+		// asignado, reservado por otro) y así no queda una asignación colgada.
+		frameService.markAsAssigned(request.frameId(), reservedFrameId);
 		EligibilityResponseDto eligibility = applicantService.checkEligibility(applicantId);
 		return assignmentService.createAssignment(applicantId, request, eligibility.warning());
 	}

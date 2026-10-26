@@ -8,6 +8,8 @@ public enum FrameStatus {
 
 	/** En inventario, sin asignar. */
 	AVAILABLE,
+	/** Lo eligió un beneficiario en el probador: fuera del inventario hasta que se asigne o venza. */
+	RESERVED,
 	/** Reservado para un beneficiario. */
 	ASSIGNED,
 	/** En la óptica, que le coloca los cristales según la receta. */

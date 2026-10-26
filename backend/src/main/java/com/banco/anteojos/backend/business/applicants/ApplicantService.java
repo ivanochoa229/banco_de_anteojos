@@ -46,6 +46,8 @@ public interface ApplicantService {
 
 	List<PrescriptionResponseDto> listPrescriptions(Long applicantId);
 
+	boolean hasPrescriptions(Long applicantId);
+
 	/** Falla si la receta no existe o no es del solicitante: valida pertenencia. */
 	PrescriptionResponseDto getPrescription(Long applicantId, Long prescriptionId);
 

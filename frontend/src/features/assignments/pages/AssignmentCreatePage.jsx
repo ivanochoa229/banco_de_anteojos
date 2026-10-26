@@ -50,9 +50,25 @@ export function AssignmentCreatePage() {
     queryFn: () => assignmentsApi.listByApplicant(applicantId),
   })
 
+  // El marco que eligió en el probador, si reservó uno: se ofrece ya elegido.
+  const reservationQuery = useQuery({
+    queryKey: ['applicants', applicantId, 'reservation'],
+    queryFn: () => assignmentsApi.getReservation(applicantId),
+  })
+
+  const releaseMutation = useMutation({
+    mutationFn: () => assignmentsApi.cancelReservation(applicantId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['applicants', applicantId, 'reservation'] })
+      queryClient.invalidateQueries({ queryKey: ['frames'] })
+    },
+  })
+
   const createMutation = useMutation({
     mutationFn: (data) => assignmentsApi.create(applicantId, data),
     onSuccess: () => {
+      // Asignar cierra la reserva: se concreta, o el marco reservado vuelve al inventario.
+      queryClient.invalidateQueries({ queryKey: ['applicants', applicantId, 'reservation'] })
       queryClient.invalidateQueries({ queryKey: ['applicants', applicantId, 'assignments'] })
       queryClient.invalidateQueries({ queryKey: ['assignments'] })
       // El marco pasa de disponible a asignado.
@@ -64,6 +80,7 @@ export function AssignmentCreatePage() {
   const prescriptions = prescriptionsQuery.data ?? []
   const assignments = assignmentsQuery.data ?? []
   const created = createMutation.data
+  const reservation = reservationQuery.data
 
   return (
     <Layout>
@@ -143,6 +160,30 @@ export function AssignmentCreatePage() {
               El marco se manda a la óptica junto con la receta elegida: la óptica le coloca los
               cristales según esa graduación.
             </p>
+            {reservation && (
+              <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                <p>
+                  Eligió en el probador el marco{' '}
+                  <span className="font-semibold">{reservation.frame.sealCode}</span> y lo tiene
+                  reservado hasta el {formatDateTime(reservation.reservation.expiresAt)}. Ya está
+                  elegido abajo; si le asignás otro, el reservado vuelve al inventario.
+                </p>
+                <button
+                  type="button"
+                  disabled={releaseMutation.isPending}
+                  onClick={() => releaseMutation.mutate()}
+                  className="mt-2 font-medium text-amber-800 underline hover:text-amber-950 disabled:opacity-60"
+                >
+                  {releaseMutation.isPending ? 'Liberando…' : 'Liberar la reserva'}
+                </button>
+                {releaseMutation.error && <p className="mt-1 text-red-700">{releaseMutation.error.message}</p>}
+              </div>
+            )}
+            {reservationQuery.isError && (
+              <div className="mt-3">
+                <Alert>{reservationQuery.error.message}</Alert>
+              </div>
+            )}
             <div className="mt-3 rounded-lg border border-slate-200 bg-white p-6">
               {prescriptionsQuery.isPending && <p className="text-slate-500">Cargando recetas…</p>}
               {prescriptionsQuery.isError && <Alert>{prescriptionsQuery.error.message}</Alert>}
@@ -159,8 +200,11 @@ export function AssignmentCreatePage() {
                 </p>
               )}
 
-              {prescriptions.length > 0 && (
+              {prescriptions.length > 0 && !reservationQuery.isPending && (
                 <AssignmentForm
+                  // Liberar la reserva desde acá vuelve a empezar la elección del marco.
+                  key={reservation?.reservation.id ?? 'sin-reserva'}
+                  initialFrame={reservation?.frame}
                   prescriptionOptions={prescriptions.map((prescription) => ({
                     value: prescription.id,
                     label: prescriptionLabel(prescription),

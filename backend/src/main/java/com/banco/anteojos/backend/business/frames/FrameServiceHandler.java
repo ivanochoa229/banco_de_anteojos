@@ -165,8 +165,26 @@ public class FrameServiceHandler implements FrameService {
 	}
 
 	@Override
-	public FrameResponseDto markAsAssigned(Long frameId) {
+	public FrameResponseDto markAsAssigned(Long frameId, Long applicantReservedFrameId) {
+		if (frameId.equals(applicantReservedFrameId)) {
+			return transition(frameId, Frame::assignReserved);
+		}
+		if (applicantReservedFrameId != null) {
+			transition(applicantReservedFrameId, Frame::releaseReservation);
+		}
 		return transition(frameId, Frame::markAsAssigned);
+	}
+
+	@Override
+	public FrameResponseDto reserve(Long frameId) {
+		return transition(frameId, Frame::reserve);
+	}
+
+	@Override
+	public void releaseReservations(Collection<Long> frameIds) {
+		List<Frame> frames = frameRepository.findAllById(frameIds);
+		frames.forEach(Frame::releaseReservation);
+		frameRepository.saveAll(frames);
 	}
 
 	@Override

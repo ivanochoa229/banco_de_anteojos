@@ -28,6 +28,8 @@ import com.banco.anteojos.backend.business.appointments.exception.InvalidAppoint
 import com.banco.anteojos.backend.business.appointments.exception.InvalidAppointmentTransitionException;
 import com.banco.anteojos.backend.business.assignments.exception.AssignmentNotFoundException;
 import com.banco.anteojos.backend.business.assignments.exception.DeliveryPhotoNotFoundException;
+import com.banco.anteojos.backend.business.assignments.exception.FrameReservationNotAllowedException;
+import com.banco.anteojos.backend.business.assignments.exception.FrameReservationNotFoundException;
 import com.banco.anteojos.backend.business.assignments.exception.InvalidDeliveryPhotoException;
 import com.banco.anteojos.backend.business.assignments.exception.InvalidAssignmentTransitionException;
 import com.banco.anteojos.backend.business.catalog.exception.InsufficientStockException;
@@ -141,6 +143,13 @@ public class GlobalExceptionHandler {
 		return ErrorResponseDto.of(HttpStatus.NOT_FOUND, e.getMessage(), request.getRequestURI());
 	}
 
+	@ExceptionHandler(FrameReservationNotFoundException.class)
+	@ResponseStatus(HttpStatus.NOT_FOUND)
+	public ErrorResponseDto frameReservationNotFound(FrameReservationNotFoundException e,
+			HttpServletRequest request) {
+		return ErrorResponseDto.of(HttpStatus.NOT_FOUND, e.getMessage(), request.getRequestURI());
+	}
+
 	@ExceptionHandler(DeliveryPhotoNotFoundException.class)
 	@ResponseStatus(HttpStatus.NOT_FOUND)
 	public ErrorResponseDto deliveryPhotoNotFound(DeliveryPhotoNotFoundException e, HttpServletRequest request) {
@@ -155,8 +164,10 @@ public class GlobalExceptionHandler {
 
 	// 409 y no 400: el request está bien formado, lo que no encaja es el momento del circuito
 	// en el que está el marco o la asignación, o el estado del turno, del envío o del producto,
-	// o el cupo y los turnos ya dados de un día de atención.
+	// o el cupo y los turnos ya dados de un día de atención, o lo que le falta al beneficiario
+	// para reservar un marco.
 	@ExceptionHandler({ InvalidAssignmentTransitionException.class, InvalidFrameTransitionException.class,
+			FrameReservationNotAllowedException.class,
 			InvalidAppointmentTransitionException.class, InvalidShipmentTransitionException.class,
 			InvalidProductTransitionException.class, InsufficientStockException.class,
 			InvalidAppointmentDayException.class, AppointmentDayUnavailableException.class })

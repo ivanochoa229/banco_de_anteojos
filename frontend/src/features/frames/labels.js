@@ -16,6 +16,7 @@ export const FRAME_MATERIAL_LABELS = {
 
 export const FRAME_STATUS_LABELS = {
   AVAILABLE: 'Disponible',
+  RESERVED: 'Reservado',
   ASSIGNED: 'Asignado',
   AT_OPTICIAN: 'En la óptica',
   READY: 'Listo para entregar',
@@ -27,6 +28,7 @@ export const FRAME_STATUS_LABELS = {
 // gris lo que ya salió del circuito.
 export const FRAME_STATUS_STYLES = {
   AVAILABLE: 'bg-green-50 text-green-700',
+  RESERVED: 'bg-amber-50 text-amber-700',
   ASSIGNED: 'bg-amber-50 text-amber-700',
   AT_OPTICIAN: 'bg-amber-50 text-amber-700',
   READY: 'bg-sky-50 text-sky-700',

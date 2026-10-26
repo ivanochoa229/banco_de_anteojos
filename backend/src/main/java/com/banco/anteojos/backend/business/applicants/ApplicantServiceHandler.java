@@ -143,6 +143,11 @@ public class ApplicantServiceHandler implements ApplicantService {
 	}
 
 	@Override
+	public boolean hasPrescriptions(Long applicantId) {
+		return prescriptionRepository.existsByApplicantId(applicantId);
+	}
+
+	@Override
 	public PrescriptionResponseDto getPrescription(Long applicantId, Long prescriptionId) {
 		return toResponse(findPrescription(applicantId, prescriptionId));
 	}

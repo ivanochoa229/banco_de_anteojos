@@ -21,6 +21,11 @@ jwt:
 cors:
   allowed-origins: https://front.test
 
+# Sin tareas programadas: el vencimiento de reservas se prueba llamando al caso de uso, no
+# esperando a que corra solo en el medio de otro test.
+scheduling:
+  enabled: false
+
 # En blanco a propósito: AdminBootstrap se saltea y no ensucia la tabla users.
 bootstrap:
   admin:
