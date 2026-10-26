@@ -116,6 +116,17 @@ class AppointmentServiceHandlerTest {
 		return pdfWithText("Comprobante de pago - Bono contribución");
 	}
 
+	private byte[] pdfWithoutText() {
+		try (PDDocument document = new PDDocument()) {
+			document.addPage(new PDPage());
+			ByteArrayOutputStream out = new ByteArrayOutputStream();
+			document.save(out);
+			return out.toByteArray();
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
+	}
+
 	private byte[] pdfWithText(String text) {
 		try (PDDocument document = new PDDocument()) {
 			PDPage page = new PDPage();
@@ -268,6 +279,42 @@ class AppointmentServiceHandlerTest {
 				new AppointmentReceiptUploadRequestDto(pdfWithText("una foto de unos anteojos"),
 						"application/pdf", "anteojos.pdf")))
 				.isInstanceOf(InvalidAppointmentReceiptException.class);
+	}
+
+	// Así titulan los bancos sus comprobantes: no dicen "pago" ni "monto" y antes se rechazaban.
+	@Test
+	void SubmitReceiptForReview_WhenPdfIsABankTransfer() {
+		mockFind(appointment());
+
+		AppointmentResponseDto response = appointmentServiceHandler.submitReceiptForReview(10L,
+				new AppointmentReceiptUploadRequestDto(pdfWithText("Transferencia realizada - Importe $ 5.000,00"),
+						"application/pdf", "transferencia.pdf"));
+
+		assertThat(response.status()).isEqualTo("PENDING_REVIEW");
+	}
+
+	@Test
+	void SubmitReceiptForReview_WhenKeywordIsUppercaseWithAccent() {
+		mockFind(appointment());
+
+		AppointmentResponseDto response = appointmentServiceHandler.submitReceiptForReview(10L,
+				new AppointmentReceiptUploadRequestDto(pdfWithText("OPERACIÓN APROBADA"), "application/pdf",
+						"operacion.pdf"));
+
+		assertThat(response.status()).isEqualTo("PENDING_REVIEW");
+	}
+
+	// Billeteras como Ualá exportan el comprobante como una imagen dentro del PDF: sin texto para
+	// chequear, se acepta igual que una foto y lo revisa el operador.
+	@Test
+	void SubmitReceiptForReview_WhenPdfHasNoText() {
+		mockFind(appointment());
+
+		AppointmentResponseDto response = appointmentServiceHandler.submitReceiptForReview(10L,
+				new AppointmentReceiptUploadRequestDto(pdfWithoutText(), "application/pdf", "comprobante.pdf"));
+
+		assertThat(response.status()).isEqualTo("PENDING_REVIEW");
+		verify(r2StorageClient).upload(anyString(), any(byte[].class), any());
 	}
 
 	@Test

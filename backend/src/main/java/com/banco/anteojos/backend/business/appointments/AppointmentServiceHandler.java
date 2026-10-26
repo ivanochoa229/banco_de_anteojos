@@ -53,9 +53,14 @@ public class AppointmentServiceHandler implements AppointmentService {
 
 	// Solo para PDF: la foto no da texto para chequear (queda a criterio del operador, que ve
 	// el comprobante antes del turno, igual que la validación final de RENAPER/ANSES).
+	// Incluye cómo titulan los bancos y billeteras sus comprobantes ("Transferencia realizada",
+	// "Importe", "Operación", "CBU/CVU destino"): sin esas palabras se rechazaban pagos reales.
+	// UNICODE_CASE porque CASE_INSENSITIVE solo ignora mayúsculas en ASCII: sin él,
+	// "TRANSACCIÓN" no matcheaba [oó].
 	private static final Pattern RECEIPT_KEYWORDS = Pattern.compile(
-			"comprobante|recibo|bono|contribuci[oó]n|transacci[oó]n|pago|monto|total",
-			Pattern.CASE_INSENSITIVE);
+			"comprobante|recibo|bono|contribuci[oó]n|transacci[oó]n|transferencia|operaci[oó]n|pago|importe"
+					+ "|monto|total|cbu|cvu",
+			Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
 
 	private final AppointmentPostgresSqlRepository appointmentRepository;
 	private final AppointmentDayPostgresSqlRepository appointmentDayRepository;
@@ -192,6 +197,11 @@ public class AppointmentServiceHandler implements AppointmentService {
 			text = new PDFTextStripper().getText(document);
 		} catch (IOException e) {
 			throw new InvalidAppointmentReceiptException("El PDF no se pudo leer");
+		}
+		// PDF sin capa de texto (una captura o un escaneo guardados como PDF): no hay nada que
+		// chequear sin OCR, así que se trata como una foto y lo revisa el operador.
+		if (text.isBlank()) {
+			return;
 		}
 		if (!RECEIPT_KEYWORDS.matcher(text).find()) {
 			throw new InvalidAppointmentReceiptException("El PDF no parece ser un comprobante de pago");
