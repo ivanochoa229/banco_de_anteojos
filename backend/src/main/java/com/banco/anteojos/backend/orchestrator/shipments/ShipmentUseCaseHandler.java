@@ -1,9 +1,9 @@
 package com.banco.anteojos.backend.orchestrator.shipments;
 
-import java.util.List;
-
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
+import com.banco.anteojos.backend.business.common.dto.response.PageResponseDto;
 import com.banco.anteojos.backend.business.donors.DonorService;
 import com.banco.anteojos.backend.business.frames.FrameService;
 import com.banco.anteojos.backend.business.shipments.ShipmentService;
@@ -11,6 +11,7 @@ import com.banco.anteojos.backend.business.shipments.dto.request.InboundShipment
 import com.banco.anteojos.backend.business.shipments.dto.request.ShipmentCreationRequestDto;
 import com.banco.anteojos.backend.business.shipments.dto.request.ShipmentReceptionRequestDto;
 import com.banco.anteojos.backend.business.shipments.dto.response.ShipmentDetailResponseDto;
+import com.banco.anteojos.backend.business.shipments.dto.response.ShipmentListItemResponseDto;
 import com.banco.anteojos.backend.business.shipments.dto.response.ShipmentResponseDto;
 import com.banco.anteojos.backend.business.shipments.entities.ShipmentDirection;
 
@@ -39,8 +40,17 @@ public class ShipmentUseCaseHandler implements ShipmentUseCaseOrchestrator {
 	}
 
 	@Override
-	public List<ShipmentResponseDto> listShipments(ShipmentDirection direction) {
-		return shipmentService.listShipments(direction);
+	public PageResponseDto<ShipmentListItemResponseDto> listShipments(ShipmentDirection direction, boolean onlyLive,
+			Pageable pageable) {
+		PageResponseDto<ShipmentResponseDto> shipments = shipmentService.listShipments(direction, onlyLive, pageable);
+		return shipmentService.buildListItems(shipments,
+				donorService.getNames(shipments.distinctValues(ShipmentResponseDto::donorId)));
+	}
+
+	@Override
+	public PageResponseDto<ShipmentResponseDto> listShipmentsByDonor(Long donorId, Pageable pageable) {
+		donorService.getDonor(donorId);
+		return shipmentService.listShipmentsByDonor(donorId, pageable);
 	}
 
 	@Override

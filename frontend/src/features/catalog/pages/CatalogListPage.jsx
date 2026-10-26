@@ -1,13 +1,15 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { catalogApi } from '../../../api/catalogApi'
 import { Alert } from '../../../components/Alert'
 import { Button } from '../../../components/Button'
 import { Layout } from '../../../components/Layout'
+import { Pagination } from '../../../components/Pagination'
 import { Select } from '../../../components/Select'
 import { useAuth } from '../../../context/useAuth'
 import { formatCurrency } from '../../../lib/currency'
+import { useListParams } from '../../../lib/useListParams'
 import { ProductStatusBadge } from '../components/ProductStatusBadge'
 import { SaleForm } from '../components/SaleForm'
 import { isActive } from '../labels'
@@ -19,13 +21,14 @@ const SCOPE_OPTIONS = [
 
 export function CatalogListPage() {
   const { role } = useAuth()
-  const [scope, setScope] = useState('active')
+  const { scope, page, setFilters, setPage } = useListParams({ scope: 'active' })
   const [sellingProductId, setSellingProductId] = useState(null)
   const queryClient = useQueryClient()
 
   const productsQuery = useQuery({
-    queryKey: ['catalog', 'products', scope],
-    queryFn: () => catalogApi.listProducts(scope === 'active' ? 'ACTIVE' : undefined),
+    queryKey: ['catalog', 'products', { scope, page }],
+    queryFn: () => catalogApi.listProducts({ status: scope === 'active' ? 'ACTIVE' : undefined, page }),
+    placeholderData: keepPreviousData,
   })
 
   const sellMutation = useMutation({
@@ -36,7 +39,7 @@ export function CatalogListPage() {
     },
   })
 
-  const products = productsQuery.data ?? []
+  const products = productsQuery.data?.content ?? []
 
   return (
     <Layout>
@@ -54,7 +57,7 @@ export function CatalogListPage() {
               label="Mostrar"
               options={SCOPE_OPTIONS}
               value={scope}
-              onChange={(event) => setScope(event.target.value)}
+              onChange={(event) => setFilters({ scope: event.target.value })}
             />
           </div>
           {role === 'ADMIN' && (
@@ -68,7 +71,7 @@ export function CatalogListPage() {
       <div className="mt-6">
         {productsQuery.isPending && <p className="text-slate-500">Cargando catálogo…</p>}
         {productsQuery.isError && <Alert>{productsQuery.error.message}</Alert>}
-        {productsQuery.isSuccess && products.length === 0 && (
+        {productsQuery.data?.totalElements === 0 && (
           <p className="rounded-lg border border-dashed border-slate-300 bg-white px-6 py-10 text-center text-slate-500">
             {scope === 'active' ? 'No hay productos activos.' : 'Todavía no se cargó ningún producto.'}
           </p>
@@ -142,6 +145,7 @@ export function CatalogListPage() {
             </table>
           </div>
         )}
+        <Pagination pageData={productsQuery.data} onPageChange={setPage} />
       </div>
     </Layout>
   )

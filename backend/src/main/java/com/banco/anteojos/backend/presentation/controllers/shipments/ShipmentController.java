@@ -1,7 +1,6 @@
 package com.banco.anteojos.backend.presentation.controllers.shipments;
 
-import java.util.List;
-
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -13,16 +12,21 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.banco.anteojos.backend.business.common.dto.response.PageResponseDto;
 import com.banco.anteojos.backend.business.shipments.dto.request.ShipmentCancellationRequestDto;
 import com.banco.anteojos.backend.business.shipments.dto.request.ShipmentCreationRequestDto;
 import com.banco.anteojos.backend.business.shipments.dto.request.ShipmentDispatchRequestDto;
 import com.banco.anteojos.backend.business.shipments.dto.request.ShipmentReceptionRequestDto;
 import com.banco.anteojos.backend.business.shipments.dto.response.ShipmentDetailResponseDto;
+import com.banco.anteojos.backend.business.shipments.dto.response.ShipmentListItemResponseDto;
 import com.banco.anteojos.backend.business.shipments.dto.response.ShipmentResponseDto;
 import com.banco.anteojos.backend.business.shipments.entities.ShipmentDirection;
 import com.banco.anteojos.backend.orchestrator.shipments.ShipmentUseCaseOrchestrator;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.PositiveOrZero;
 import lombok.RequiredArgsConstructor;
 
 /** Como en assignments, cada acción es un sub-recurso en sustantivo y PUT. */
@@ -39,11 +43,17 @@ public class ShipmentController {
 		return shipmentOrchestrator.createShipment(request);
 	}
 
-	/** OUTBOUND por defecto: la lista de envíos entre sucursales no se mezcla con las donaciones. */
+	/**
+	 * OUTBOUND por defecto: la lista de envíos entre sucursales no se mezcla con las donaciones.
+	 * Con {@code ?live=true}, solo lo que sigue en curso. Las donaciones traen el nombre del donante.
+	 */
 	@GetMapping
-	public List<ShipmentResponseDto> list(
-			@RequestParam(defaultValue = "OUTBOUND") ShipmentDirection direction) {
-		return shipmentOrchestrator.listShipments(direction);
+	public PageResponseDto<ShipmentListItemResponseDto> list(
+			@RequestParam(defaultValue = "OUTBOUND") ShipmentDirection direction,
+			@RequestParam(defaultValue = "false") boolean live,
+			@RequestParam(defaultValue = "0") @PositiveOrZero int page,
+			@RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
+		return shipmentOrchestrator.listShipments(direction, live, PageRequest.of(page, size));
 	}
 
 	/** Trazabilidad del envío (RF-25): paquete, marcos y el historial que empujó el carrier. */

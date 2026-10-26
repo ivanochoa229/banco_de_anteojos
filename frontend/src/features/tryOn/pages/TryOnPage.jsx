@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { framesApi } from '../../../api/framesApi'
 import { Alert } from '../../../components/Alert'
 import { Layout } from '../../../components/Layout'
-import { FRAME_MATERIAL_LABELS, FRAME_TYPE_LABELS } from '../../frames/labels'
+import { FramePicker } from '../../frames/components/FramePicker'
 import { CameraCapture } from '../components/CameraCapture'
 import { TryOnCanvas } from '../components/TryOnCanvas'
 import { computeFramePlacement } from '../framePlacement'
@@ -24,18 +24,12 @@ export function TryOnPage() {
   const [placement, setPlacement] = useState(null)
   const [photoError, setPhotoError] = useState(null)
 
-  const [selectedFrameId, setSelectedFrameId] = useState(null)
+  const [selectedFrames, setSelectedFrames] = useState([])
+  const selectedFrameId = selectedFrames[0]?.id ?? null
 
   const [scale, setScale] = useState(1)
   const [verticalOffset, setVerticalOffset] = useState(0)
   const [rotationOffsetDegrees, setRotationOffsetDegrees] = useState(0)
-
-  // Solo los marcos disponibles y con foto: sin foto no hay nada que superponer.
-  const framesQuery = useQuery({
-    queryKey: ['frames', 'AVAILABLE'],
-    queryFn: () => framesApi.list('AVAILABLE'),
-  })
-  const frames = (framesQuery.data ?? []).filter((frame) => frame.imageOriginalName)
 
   /**
    * Único punto por el que entra una foto, venga de la cámara o de un archivo: detecta el
@@ -208,37 +202,19 @@ export function TryOnPage() {
               <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
                 Marcos con foto
               </h3>
-              {framesQuery.isError && (
-                <div className="mt-3">
-                  <Alert>{framesQuery.error.message}</Alert>
-                </div>
-              )}
-              {framesQuery.isSuccess && frames.length === 0 && (
-                <p className="mt-3 rounded-lg border border-dashed border-slate-300 bg-white px-4 py-6 text-center text-sm text-slate-500">
-                  Ningún marco disponible tiene foto cargada todavía. Se suben desde el inventario.
-                </p>
-              )}
-              <ul className="mt-3 space-y-2">
-                {frames.map((frame) => (
-                  <li key={frame.id}>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedFrameId(frame.id)}
-                      className={`w-full rounded-lg border px-4 py-3 text-left text-sm transition ${
-                        selectedFrameId === frame.id
-                          ? 'border-sky-500 bg-sky-50'
-                          : 'border-slate-200 bg-white hover:border-sky-300'
-                      }`}
-                    >
-                      <span className="font-medium text-slate-900">{frame.sealCode}</span>
-                      <span className="mt-0.5 block text-slate-500">
-                        {FRAME_TYPE_LABELS[frame.frameType] ?? frame.frameType} ·{' '}
-                        {FRAME_MATERIAL_LABELS[frame.material] ?? frame.material}
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
+              <div className="mt-3">
+                {/* Solo los disponibles y con foto: sin foto no hay nada que superponer. */}
+                <FramePicker
+                  id="tryOnFrame"
+                  queryKey={['frames', 'AVAILABLE', 'withImage']}
+                  fetchPage={(params) =>
+                    framesApi.list({ ...params, status: 'AVAILABLE', withImage: true })
+                  }
+                  selected={selectedFrames}
+                  onChange={setSelectedFrames}
+                  emptyMessage="Ningún marco disponible tiene foto cargada todavía. Se suben desde el inventario."
+                />
+              </div>
               {frameError && (
                 <div className="mt-3">
                   <Alert>{frameError}</Alert>

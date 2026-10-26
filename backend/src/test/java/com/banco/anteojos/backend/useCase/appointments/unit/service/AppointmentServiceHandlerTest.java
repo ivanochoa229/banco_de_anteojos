@@ -16,6 +16,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -29,11 +30,15 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import com.banco.anteojos.backend.business.appointments.AppointmentServiceHandler;
 import com.banco.anteojos.backend.business.appointments.dto.request.AppointmentCreationRequestDto;
 import com.banco.anteojos.backend.business.appointments.dto.request.AppointmentReceiptUploadRequestDto;
+import com.banco.anteojos.backend.business.appointments.dto.response.AppointmentListItemResponseDto;
 import com.banco.anteojos.backend.business.appointments.dto.response.AppointmentReceiptResponseDto;
 import com.banco.anteojos.backend.business.appointments.dto.response.AppointmentResponseDto;
 import com.banco.anteojos.backend.business.appointments.entities.Appointment;
@@ -45,6 +50,7 @@ import com.banco.anteojos.backend.business.appointments.exception.AppointmentNot
 import com.banco.anteojos.backend.business.appointments.exception.AppointmentReceiptNotFoundException;
 import com.banco.anteojos.backend.business.appointments.exception.InvalidAppointmentReceiptException;
 import com.banco.anteojos.backend.business.appointments.exception.InvalidAppointmentTransitionException;
+import com.banco.anteojos.backend.business.common.dto.response.PageResponseDto;
 import com.banco.anteojos.backend.persistence.appointments.AppointmentDayPostgresSqlRepository;
 import com.banco.anteojos.backend.persistence.appointments.AppointmentPostgresSqlRepository;
 import com.banco.anteojos.backend.thirdPartyServiceComunication.storage.PresignedUrl;
@@ -67,6 +73,8 @@ class AppointmentServiceHandlerTest {
 
 	@InjectMocks
 	private AppointmentServiceHandler appointmentServiceHandler;
+
+	private static final Pageable PAGE = PageRequest.of(0, 20);
 
 	private Appointment appointment() {
 		return new Appointment(1L, null, 5L, SCHEDULED_AT, null);
@@ -362,27 +370,57 @@ class AppointmentServiceHandlerTest {
 	@Test
 	void ListAppointments_WhenDateIsGiven() {
 		LocalDate date = LocalDate.now().plusDays(3);
-		when(appointmentRepository.findByDay(date.atStartOfDay(), date.plusDays(1).atStartOfDay()))
-				.thenReturn(List.of(appointment()));
+		when(appointmentRepository.findByDay(date.atStartOfDay(), date.plusDays(1).atStartOfDay(), false, PAGE))
+				.thenReturn(new PageImpl<>(List.of(appointment()), PAGE, 1));
 
-		assertThat(appointmentServiceHandler.listAppointments(date, null)).hasSize(1);
-		verify(appointmentRepository).findByDay(date.atStartOfDay(), date.plusDays(1).atStartOfDay());
+		assertThat(appointmentServiceHandler.listAppointments(date, null, false, PAGE).content()).hasSize(1);
+		verify(appointmentRepository).findByDay(date.atStartOfDay(), date.plusDays(1).atStartOfDay(), false, PAGE);
 	}
 
 	@Test
 	void ListAppointments_WhenFromIsGiven() {
 		LocalDate from = LocalDate.now();
-		when(appointmentRepository.findByScheduledAtGreaterThanEqualOrderByScheduledAtAsc(from.atStartOfDay()))
-				.thenReturn(List.of(appointment()));
+		when(appointmentRepository.findFrom(from.atStartOfDay(), true, PAGE))
+				.thenReturn(new PageImpl<>(List.of(appointment()), PAGE, 1));
 
-		assertThat(appointmentServiceHandler.listAppointments(null, from)).hasSize(1);
+		assertThat(appointmentServiceHandler.listAppointments(null, from, true, PAGE).content()).hasSize(1);
 	}
 
 	@Test
 	void ListAppointments_WhenAll() {
-		when(appointmentRepository.findAllByOrderByScheduledAtDesc()).thenReturn(List.of(appointment()));
+		when(appointmentRepository.findAllLatestFirst(false, PAGE))
+				.thenReturn(new PageImpl<>(List.of(appointment()), PAGE, 1));
 
-		assertThat(appointmentServiceHandler.listAppointments(null, null)).hasSize(1);
+		assertThat(appointmentServiceHandler.listAppointments(null, null, false, PAGE).content()).hasSize(1);
+	}
+
+	@Test
+	void ListAppointments_ReportsTotalsOfThePage() {
+		Pageable secondPage = PageRequest.of(1, 2);
+		when(appointmentRepository.findAllLatestFirst(false, secondPage))
+				.thenReturn(new PageImpl<>(List.of(appointment()), secondPage, 3));
+
+		PageResponseDto<AppointmentResponseDto> response = appointmentServiceHandler.listAppointments(null, null,
+				false, secondPage);
+
+		assertThat(response.page()).isEqualTo(1);
+		assertThat(response.size()).isEqualTo(2);
+		assertThat(response.totalElements()).isEqualTo(3);
+		assertThat(response.totalPages()).isEqualTo(2);
+	}
+
+	@Test
+	void BuildListItems_AttachesApplicantName() {
+		when(appointmentRepository.findAllLatestFirst(false, PAGE))
+				.thenReturn(new PageImpl<>(List.of(appointment()), PAGE, 1));
+		PageResponseDto<AppointmentResponseDto> appointments = appointmentServiceHandler.listAppointments(null, null,
+				false, PAGE);
+
+		PageResponseDto<AppointmentListItemResponseDto> response = appointmentServiceHandler
+				.buildListItems(appointments, Map.of(1L, "Pérez, Juan"));
+
+		assertThat(response.content()).singleElement()
+				.satisfies(item -> assertThat(item.applicantName()).isEqualTo("Pérez, Juan"));
 	}
 
 	@Test

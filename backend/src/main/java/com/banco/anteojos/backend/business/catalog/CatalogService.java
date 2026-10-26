@@ -1,6 +1,6 @@
 package com.banco.anteojos.backend.business.catalog;
 
-import java.util.List;
+import org.springframework.data.domain.Pageable;
 
 import com.banco.anteojos.backend.business.catalog.dto.request.ProductCreationRequestDto;
 import com.banco.anteojos.backend.business.catalog.dto.request.ProductImageUploadRequestDto;
@@ -10,6 +10,7 @@ import com.banco.anteojos.backend.business.catalog.dto.response.ProductImageResp
 import com.banco.anteojos.backend.business.catalog.dto.response.ProductResponseDto;
 import com.banco.anteojos.backend.business.catalog.dto.response.SaleResponseDto;
 import com.banco.anteojos.backend.business.catalog.entities.ProductStatus;
+import com.banco.anteojos.backend.business.common.dto.response.PageResponseDto;
 
 public interface CatalogService {
 
@@ -18,7 +19,7 @@ public interface CatalogService {
 	ProductResponseDto getProduct(Long productId);
 
 	/** Con status en null devuelve el catálogo completo. */
-	List<ProductResponseDto> listProducts(ProductStatus status);
+	PageResponseDto<ProductResponseDto> listProducts(ProductStatus status, Pageable pageable);
 
 	ProductResponseDto updateProduct(Long productId, ProductUpdateRequestDto request);
 
@@ -31,5 +32,5 @@ public interface CatalogService {
 	/** Descuenta stock y registra la venta (RF-29) en una sola operación atómica del dominio. */
 	SaleResponseDto sellProduct(Long productId, SaleCreationRequestDto request);
 
-	List<SaleResponseDto> listSales(Long productId);
+	PageResponseDto<SaleResponseDto> listSales(Long productId, Pageable pageable);
 }

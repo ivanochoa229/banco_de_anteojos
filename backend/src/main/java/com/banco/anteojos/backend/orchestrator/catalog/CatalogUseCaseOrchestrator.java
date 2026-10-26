@@ -1,6 +1,6 @@
 package com.banco.anteojos.backend.orchestrator.catalog;
 
-import java.util.List;
+import org.springframework.data.domain.Pageable;
 
 import com.banco.anteojos.backend.business.catalog.dto.request.ProductCreationRequestDto;
 import com.banco.anteojos.backend.business.catalog.dto.request.ProductImageUploadRequestDto;
@@ -10,6 +10,7 @@ import com.banco.anteojos.backend.business.catalog.dto.response.ProductImageResp
 import com.banco.anteojos.backend.business.catalog.dto.response.ProductResponseDto;
 import com.banco.anteojos.backend.business.catalog.dto.response.SaleResponseDto;
 import com.banco.anteojos.backend.business.catalog.entities.ProductStatus;
+import com.banco.anteojos.backend.business.common.dto.response.PageResponseDto;
 
 public interface CatalogUseCaseOrchestrator {
 
@@ -17,7 +18,7 @@ public interface CatalogUseCaseOrchestrator {
 
 	ProductResponseDto getProduct(Long productId);
 
-	List<ProductResponseDto> listProducts(ProductStatus status);
+	PageResponseDto<ProductResponseDto> listProducts(ProductStatus status, Pageable pageable);
 
 	ProductResponseDto updateProduct(Long productId, ProductUpdateRequestDto request);
 
@@ -29,5 +30,5 @@ public interface CatalogUseCaseOrchestrator {
 
 	SaleResponseDto sellProduct(Long productId, SaleCreationRequestDto request);
 
-	List<SaleResponseDto> listSales(Long productId);
+	PageResponseDto<SaleResponseDto> listSales(Long productId, Pageable pageable);
 }

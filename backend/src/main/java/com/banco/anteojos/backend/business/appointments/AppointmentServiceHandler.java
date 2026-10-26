@@ -11,10 +11,13 @@ import java.util.regex.Pattern;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import com.banco.anteojos.backend.business.appointments.dto.request.AppointmentCreationRequestDto;
 import com.banco.anteojos.backend.business.appointments.dto.request.AppointmentReceiptUploadRequestDto;
+import com.banco.anteojos.backend.business.appointments.dto.response.AppointmentListItemResponseDto;
 import com.banco.anteojos.backend.business.appointments.dto.response.AppointmentReceiptResponseDto;
 import com.banco.anteojos.backend.business.appointments.dto.response.AppointmentResponseDto;
 import com.banco.anteojos.backend.business.appointments.entities.Appointment;
@@ -25,6 +28,7 @@ import com.banco.anteojos.backend.business.appointments.exception.AppointmentDay
 import com.banco.anteojos.backend.business.appointments.exception.AppointmentNotFoundException;
 import com.banco.anteojos.backend.business.appointments.exception.AppointmentReceiptNotFoundException;
 import com.banco.anteojos.backend.business.appointments.exception.InvalidAppointmentReceiptException;
+import com.banco.anteojos.backend.business.common.dto.response.PageResponseDto;
 import com.banco.anteojos.backend.persistence.appointments.AppointmentDayPostgresSqlRepository;
 import com.banco.anteojos.backend.persistence.appointments.AppointmentPostgresSqlRepository;
 import com.banco.anteojos.backend.thirdPartyServiceComunication.storage.PresignedUrl;
@@ -71,17 +75,25 @@ public class AppointmentServiceHandler implements AppointmentService {
 	}
 
 	@Override
-	public List<AppointmentResponseDto> listAppointments(LocalDate date, LocalDate from) {
-		List<Appointment> appointments;
+	public PageResponseDto<AppointmentResponseDto> listAppointments(LocalDate date, LocalDate from,
+			boolean excludeCancelled, Pageable pageable) {
+		Page<Appointment> appointments;
 		if (date != null) {
-			appointments = appointmentRepository.findByDay(date.atStartOfDay(), date.plusDays(1).atStartOfDay());
+			appointments = appointmentRepository.findByDay(date.atStartOfDay(), date.plusDays(1).atStartOfDay(),
+					excludeCancelled, pageable);
 		} else if (from != null) {
-			appointments = appointmentRepository.findByScheduledAtGreaterThanEqualOrderByScheduledAtAsc(
-					from.atStartOfDay());
+			appointments = appointmentRepository.findFrom(from.atStartOfDay(), excludeCancelled, pageable);
 		} else {
-			appointments = appointmentRepository.findAllByOrderByScheduledAtDesc();
+			appointments = appointmentRepository.findAllLatestFirst(excludeCancelled, pageable);
 		}
-		return appointments.stream().map(this::toResponse).toList();
+		return PageResponseDto.from(appointments.map(this::toResponse));
+	}
+
+	@Override
+	public PageResponseDto<AppointmentListItemResponseDto> buildListItems(
+			PageResponseDto<AppointmentResponseDto> appointments, Map<Long, String> applicantNames) {
+		return appointments.map(appointment -> new AppointmentListItemResponseDto(appointment,
+				applicantNames.get(appointment.applicantId())));
 	}
 
 	@Override

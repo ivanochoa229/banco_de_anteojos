@@ -1,16 +1,16 @@
-import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { donorsApi } from '../../../api/donorsApi'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { shipmentsApi } from '../../../api/shipmentsApi'
 import { Alert } from '../../../components/Alert'
 import { Button } from '../../../components/Button'
 import { Layout } from '../../../components/Layout'
+import { Pagination } from '../../../components/Pagination'
 import { Select } from '../../../components/Select'
 import { formatDateTime } from '../../../lib/dates'
+import { useListParams } from '../../../lib/useListParams'
 import { ShipmentActions } from '../components/ShipmentActions'
 import { ShipmentStatusBadge } from '../components/ShipmentStatusBadge'
-import { SHIPMENT_DIRECTION_OPTIONS, isInbound, isLive } from '../labels'
+import { SHIPMENT_DIRECTION_OPTIONS, isInbound } from '../labels'
 
 const SCOPE_OPTIONS = [
   { value: 'live', label: 'En curso' },
@@ -32,23 +32,19 @@ function ReceptionLink({ shipment }) {
 }
 
 export function ShipmentsListPage() {
-  const [scope, setScope] = useState('live')
-  const [direction, setDirection] = useState('OUTBOUND')
+  const { scope, direction, page, setFilters, setPage } = useListParams({
+    scope: 'live',
+    direction: 'OUTBOUND',
+  })
   const queryClient = useQueryClient()
   const showsDonations = direction === 'INBOUND'
 
+  // "En curso" lo resuelve el backend; las donaciones ya traen el nombre del donante.
   const shipmentsQuery = useQuery({
-    queryKey: ['shipments', direction],
-    queryFn: () => shipmentsApi.list(direction),
+    queryKey: ['shipments', { direction, scope, page }],
+    queryFn: () => shipmentsApi.list({ direction, live: scope === 'live', page }),
+    placeholderData: keepPreviousData,
   })
-
-  // Las donaciones solo traen el id del donante; el nombre sale de la lista de donantes.
-  const donorsQuery = useQuery({
-    queryKey: ['donors'],
-    queryFn: donorsApi.list,
-    enabled: showsDonations,
-  })
-  const donorNames = new Map((donorsQuery.data ?? []).map((donor) => [donor.id, donor.name]))
 
   function invalidateShipments() {
     queryClient.invalidateQueries({ queryKey: ['shipments'] })
@@ -71,8 +67,7 @@ export function ShipmentsListPage() {
     )
   }
 
-  const allShipments = shipmentsQuery.data ?? []
-  const shipments = scope === 'live' ? allShipments.filter(isLive) : allShipments
+  const items = shipmentsQuery.data?.content ?? []
   const actionError = dispatchMutation.error?.message ?? cancelMutation.error?.message
 
   return (
@@ -93,7 +88,7 @@ export function ShipmentsListPage() {
               label="Tipo"
               options={SHIPMENT_DIRECTION_OPTIONS}
               value={direction}
-              onChange={(event) => setDirection(event.target.value)}
+              onChange={(event) => setFilters({ direction: event.target.value })}
             />
           </div>
           <div className="w-40">
@@ -102,7 +97,7 @@ export function ShipmentsListPage() {
               label="Mostrar"
               options={SCOPE_OPTIONS}
               value={scope}
-              onChange={(event) => setScope(event.target.value)}
+              onChange={(event) => setFilters({ scope: event.target.value })}
             />
           </div>
           {!showsDonations && (
@@ -122,7 +117,7 @@ export function ShipmentsListPage() {
       <div className="mt-6">
         {shipmentsQuery.isPending && <p className="text-slate-500">Cargando envíos…</p>}
         {shipmentsQuery.isError && <Alert>{shipmentsQuery.error.message}</Alert>}
-        {shipmentsQuery.isSuccess && shipments.length === 0 && (
+        {shipmentsQuery.data?.totalElements === 0 && (
           <p className="rounded-lg border border-dashed border-slate-300 bg-white px-6 py-10 text-center text-slate-500">
             {showsDonations
               ? scope === 'live'
@@ -133,7 +128,7 @@ export function ShipmentsListPage() {
                 : 'Todavía no se armó ningún envío entre sucursales.'}
           </p>
         )}
-        {shipments.length > 0 && (
+        {items.length > 0 && (
           <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
             <table className="w-full text-left text-sm">
               <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase text-slate-500">
@@ -147,7 +142,7 @@ export function ShipmentsListPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {shipments.map((shipment) => (
+                {items.map(({ shipment, donorName }) => (
                   <tr key={shipment.id} className="hover:bg-slate-50">
                     <td className="px-4 py-3">
                       <Link
@@ -155,7 +150,7 @@ export function ShipmentsListPage() {
                         className="font-medium text-sky-700 hover:underline"
                       >
                         {isInbound(shipment)
-                          ? (donorNames.get(shipment.donorId) ?? `Donante #${shipment.donorId}`)
+                          ? (donorName ?? `Donante #${shipment.donorId}`)
                           : `${shipment.originBranch} → ${shipment.destinationBranch}`}
                       </Link>
                     </td>
@@ -189,6 +184,7 @@ export function ShipmentsListPage() {
             </table>
           </div>
         )}
+        <Pagination pageData={shipmentsQuery.data} onPageChange={setPage} />
       </div>
     </Layout>
   )

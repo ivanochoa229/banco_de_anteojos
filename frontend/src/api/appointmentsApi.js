@@ -1,13 +1,10 @@
-import { apiFetch } from '../lib/apiClient'
+import { apiFetch, withQuery } from '../lib/apiClient'
 
 export const appointmentsApi = {
-  // Con date (YYYY-MM-DD) trae la agenda de ese día; con from, de ese día en adelante; sin
-  // ninguno, todos los turnos.
-  list: ({ date, from } = {}) => {
-    if (date) return apiFetch(`/v1/appointments?date=${date}`)
-    if (from) return apiFetch(`/v1/appointments?from=${from}`)
-    return apiFetch('/v1/appointments')
-  },
+  // Paginado (page desde 0). Con date (YYYY-MM-DD) trae la agenda de ese día; con from, de ese
+  // día en adelante; sin ninguno, todos los turnos. Cada ítem es { appointment, applicantName }.
+  list: ({ date, from, page, size } = {}) =>
+    apiFetch(withQuery('/v1/appointments', { date, from, page, size })),
   // El turno se crea colgando del beneficiario, igual que en el backend.
   listByApplicant: (applicantId) => apiFetch(`/v1/applicants/${applicantId}/appointments`),
   create: (applicantId, data) =>

@@ -1,8 +1,10 @@
-import { apiFetch } from '../lib/apiClient'
+import { apiFetch, withQuery } from '../lib/apiClient'
 
 export const framesApi = {
-  // Sin status devuelve el inventario completo.
-  list: (status) => apiFetch(status ? `/v1/frames?status=${status}` : '/v1/frames'),
+  // Paginado (page desde 0). Sin status devuelve el inventario completo; q busca por precinto y
+  // withImage deja solo los que tienen foto para el probador.
+  list: ({ status, q, withImage, page, size } = {}) =>
+    apiFetch(withQuery('/v1/frames', { status, q, withImage, page, size })),
   get: (frameId) => apiFetch(`/v1/frames/${frameId}`),
   update: (frameId, data) => apiFetch(`/v1/frames/${frameId}`, { method: 'PUT', body: data }),
   // Baja definitiva (rotura, deterioro). Solo válida desde el inventario disponible.

@@ -1,9 +1,10 @@
 package com.banco.anteojos.backend.business.catalog;
 
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import com.banco.anteojos.backend.business.catalog.dto.request.ProductCreationRequestDto;
@@ -19,6 +20,7 @@ import com.banco.anteojos.backend.business.catalog.entities.Sale;
 import com.banco.anteojos.backend.business.catalog.exception.InvalidProductImageException;
 import com.banco.anteojos.backend.business.catalog.exception.ProductImageNotFoundException;
 import com.banco.anteojos.backend.business.catalog.exception.ProductNotFoundException;
+import com.banco.anteojos.backend.business.common.dto.response.PageResponseDto;
 import com.banco.anteojos.backend.persistence.catalog.ProductPostgresSqlRepository;
 import com.banco.anteojos.backend.persistence.catalog.SalePostgresSqlRepository;
 import com.banco.anteojos.backend.thirdPartyServiceComunication.storage.PresignedUrl;
@@ -58,11 +60,11 @@ public class CatalogServiceHandler implements CatalogService {
 	}
 
 	@Override
-	public List<ProductResponseDto> listProducts(ProductStatus status) {
-		List<Product> products = status == null
-				? productRepository.findAllByOrderByNameAsc()
-				: productRepository.findByStatusOrderByNameAsc(status);
-		return products.stream().map(this::toResponse).toList();
+	public PageResponseDto<ProductResponseDto> listProducts(ProductStatus status, Pageable pageable) {
+		Page<Product> products = status == null
+				? productRepository.findAllByOrderByNameAscIdAsc(pageable)
+				: productRepository.findByStatusOrderByNameAscIdAsc(status, pageable);
+		return PageResponseDto.from(products.map(this::toResponse));
 	}
 
 	@Override
@@ -125,9 +127,9 @@ public class CatalogServiceHandler implements CatalogService {
 	}
 
 	@Override
-	public List<SaleResponseDto> listSales(Long productId) {
-		return saleRepository.findByProductIdOrderBySoldAtDesc(productId).stream()
-				.map(this::toResponse).toList();
+	public PageResponseDto<SaleResponseDto> listSales(Long productId, Pageable pageable) {
+		return PageResponseDto.from(
+				saleRepository.findByProductIdOrderBySoldAtDescIdDesc(productId, pageable).map(this::toResponse));
 	}
 
 	/** Devuelve la extensión que corresponde al content type, ya validado. */

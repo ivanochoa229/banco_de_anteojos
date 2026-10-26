@@ -27,6 +27,18 @@ export function clearStoredToken() {
   localStorage.removeItem(TOKEN_KEY)
 }
 
+// Arma `path?clave=valor` salteando los parámetros vacíos (undefined, null o ''): un filtro que
+// el usuario no eligió no se manda. Los arrays van separados por coma (?ids=1,2,3).
+export function withQuery(path, params = {}) {
+  const query = new URLSearchParams()
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined || value === null || value === '') continue
+    query.set(key, Array.isArray(value) ? value.join(',') : String(value))
+  }
+  const queryString = query.toString()
+  return queryString ? `${path}?${queryString}` : path
+}
+
 export async function apiFetch(path, { method = 'GET', body } = {}) {
   const token = getStoredToken()
   const isFormData = body instanceof FormData

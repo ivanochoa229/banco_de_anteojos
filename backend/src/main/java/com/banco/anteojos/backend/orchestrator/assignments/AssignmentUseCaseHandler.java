@@ -2,6 +2,7 @@ package com.banco.anteojos.backend.orchestrator.assignments;
 
 import java.util.List;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,8 +15,10 @@ import com.banco.anteojos.backend.business.assignments.dto.request.DeliveryPhoto
 import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentCreationResponseDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentDeliveryResponseDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentDetailResponseDto;
+import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentListItemResponseDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentResponseDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.DeliveryPhotoResponseDto;
+import com.banco.anteojos.backend.business.common.dto.response.PageResponseDto;
 import com.banco.anteojos.backend.business.donors.DonorService;
 import com.banco.anteojos.backend.business.donors.dto.response.DonorResponseDto;
 import com.banco.anteojos.backend.business.frames.FrameService;
@@ -61,8 +64,11 @@ public class AssignmentUseCaseHandler implements AssignmentUseCaseOrchestrator {
 	}
 
 	@Override
-	public List<AssignmentResponseDto> listAssignments(boolean onlyLive) {
-		return assignmentService.listAssignments(onlyLive);
+	public PageResponseDto<AssignmentListItemResponseDto> listAssignments(boolean onlyLive, Pageable pageable) {
+		PageResponseDto<AssignmentResponseDto> assignments = assignmentService.listAssignments(onlyLive, pageable);
+		return assignmentService.buildListItems(assignments,
+				applicantService.getFullNames(assignments.distinctValues(AssignmentResponseDto::applicantId)),
+				frameService.getSealCodes(assignments.distinctValues(AssignmentResponseDto::frameId)));
 	}
 
 	@Override

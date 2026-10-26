@@ -2,6 +2,8 @@ package com.banco.anteojos.backend.orchestrator.applicants;
 
 import java.util.List;
 
+import org.springframework.data.domain.Pageable;
+
 import com.banco.anteojos.backend.business.applicants.dto.request.AnsesCertificateUploadRequestDto;
 import com.banco.anteojos.backend.business.applicants.dto.request.ApplicantCreationRequestDto;
 import com.banco.anteojos.backend.business.applicants.dto.request.ApplicantProfileUpdateRequestDto;
@@ -13,6 +15,7 @@ import com.banco.anteojos.backend.business.applicants.dto.response.ApplicantResp
 import com.banco.anteojos.backend.business.applicants.dto.response.EligibilityResponseDto;
 import com.banco.anteojos.backend.business.applicants.dto.response.PrescriptionFileResponseDto;
 import com.banco.anteojos.backend.business.applicants.dto.response.PrescriptionResponseDto;
+import com.banco.anteojos.backend.business.common.dto.response.PageResponseDto;
 
 public interface ApplicantUseCaseOrchestrator {
 
@@ -20,7 +23,7 @@ public interface ApplicantUseCaseOrchestrator {
 
 	ApplicantResponseDto getApplicant(Long applicantId);
 
-	List<ApplicantResponseDto> listApplicants();
+	PageResponseDto<ApplicantResponseDto> listApplicants(String search, Pageable pageable);
 
 	ApplicantResponseDto updateApplicant(Long applicantId, ApplicantUpdateRequestDto request);
 

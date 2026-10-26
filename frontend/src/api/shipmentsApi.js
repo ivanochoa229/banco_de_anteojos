@@ -1,8 +1,10 @@
-import { apiFetch } from '../lib/apiClient'
+import { apiFetch, withQuery } from '../lib/apiClient'
 
 export const shipmentsApi = {
-  // OUTBOUND: entre sucursales. INBOUND: donaciones que llegan por Vía Cargo.
-  list: (direction) => apiFetch(`/v1/shipments?direction=${direction}`),
+  // OUTBOUND: entre sucursales. INBOUND: donaciones que llegan por Vía Cargo. Paginado (page desde
+  // 0); con live=true solo lo que sigue en curso. Cada ítem es { shipment, donorName }.
+  list: ({ direction, live, page, size } = {}) =>
+    apiFetch(withQuery('/v1/shipments', { direction, live: live || undefined, page, size })),
   // Trae el paquete, los marcos que lleva y el historial que empujó el carrier (RF-25).
   get: (shipmentId) => apiFetch(`/v1/shipments/${shipmentId}`),
   create: (data) => apiFetch('/v1/shipments', { method: 'POST', body: data }),

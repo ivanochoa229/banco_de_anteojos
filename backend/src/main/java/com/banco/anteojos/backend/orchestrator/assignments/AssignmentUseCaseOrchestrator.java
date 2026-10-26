@@ -2,12 +2,16 @@ package com.banco.anteojos.backend.orchestrator.assignments;
 
 import java.util.List;
 
+import org.springframework.data.domain.Pageable;
+
 import com.banco.anteojos.backend.business.assignments.dto.request.AssignmentCreationRequestDto;
 import com.banco.anteojos.backend.business.assignments.dto.request.DeliveryPhotoUploadRequestDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentCreationResponseDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentDetailResponseDto;
+import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentListItemResponseDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentResponseDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.DeliveryPhotoResponseDto;
+import com.banco.anteojos.backend.business.common.dto.response.PageResponseDto;
 
 public interface AssignmentUseCaseOrchestrator {
 
@@ -15,7 +19,7 @@ public interface AssignmentUseCaseOrchestrator {
 
 	AssignmentDetailResponseDto getAssignment(Long assignmentId);
 
-	List<AssignmentResponseDto> listAssignments(boolean onlyLive);
+	PageResponseDto<AssignmentListItemResponseDto> listAssignments(boolean onlyLive, Pageable pageable);
 
 	List<AssignmentResponseDto> listAssignmentsByApplicant(Long applicantId);
 

@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { catalogApi } from '../../../api/catalogApi'
 import { Alert } from '../../../components/Alert'
 import { Button } from '../../../components/Button'
 import { Layout } from '../../../components/Layout'
+import { Pagination } from '../../../components/Pagination'
 import { formatCurrency } from '../../../lib/currency'
 import { formatDateTime } from '../../../lib/dates'
 import { ProductForm } from '../components/ProductForm'
@@ -16,6 +17,7 @@ export function ProductEditPage() {
   const { productId } = useParams()
   const queryClient = useQueryClient()
   const [confirmingDiscontinue, setConfirmingDiscontinue] = useState(false)
+  const [salesPage, setSalesPage] = useState(0)
 
   const productQuery = useQuery({
     queryKey: ['catalog', 'products', productId],
@@ -29,8 +31,9 @@ export function ProductEditPage() {
   })
 
   const salesQuery = useQuery({
-    queryKey: ['catalog', 'products', productId, 'sales'],
-    queryFn: () => catalogApi.listSales(productId),
+    queryKey: ['catalog', 'products', productId, 'sales', salesPage],
+    queryFn: () => catalogApi.listSales(productId, { page: salesPage }),
+    placeholderData: keepPreviousData,
   })
 
   function invalidateProduct() {
@@ -60,7 +63,7 @@ export function ProductEditPage() {
   })
 
   const product = productQuery.data
-  const sales = salesQuery.data ?? []
+  const sales = salesQuery.data?.content ?? []
 
   if (productQuery.isPending) {
     return (
@@ -134,7 +137,7 @@ export function ProductEditPage() {
         <div className="mt-3">
           {salesQuery.isPending && <p className="text-slate-500">Cargando ventas…</p>}
           {salesQuery.isError && <Alert>{salesQuery.error.message}</Alert>}
-          {salesQuery.isSuccess && sales.length === 0 && (
+          {salesQuery.data?.totalElements === 0 && (
             <p className="rounded-lg border border-dashed border-slate-300 bg-white px-6 py-10 text-center text-slate-500">
               Todavía no se vendió ninguna unidad.
             </p>
@@ -163,6 +166,7 @@ export function ProductEditPage() {
               </table>
             </div>
           )}
+          <Pagination pageData={salesQuery.data} onPageChange={setSalesPage} />
         </div>
       </section>
 

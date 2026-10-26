@@ -7,7 +7,6 @@ import { Alert } from '../../../components/Alert'
 import { Layout } from '../../../components/Layout'
 import { formatDateTime } from '../../../lib/dates'
 import { formatEye } from '../../applicants/prescriptionFormat'
-import { FRAME_MATERIAL_LABELS, FRAME_TYPE_LABELS } from '../../frames/labels'
 import { AssignmentForm } from '../components/AssignmentForm'
 import { AssignmentStageBadge } from '../components/AssignmentStageBadge'
 
@@ -32,12 +31,6 @@ function prescriptionLabel(prescription) {
   return `${formatDateTime(prescription.createdAt)} · ${eyes}`
 }
 
-function frameLabel(frame) {
-  const type = FRAME_TYPE_LABELS[frame.frameType] ?? frame.frameType
-  const material = FRAME_MATERIAL_LABELS[frame.material] ?? frame.material
-  return `${frame.sealCode} · ${type} · ${material}`
-}
-
 export function AssignmentCreatePage() {
   const { applicantId } = useParams()
   const queryClient = useQueryClient()
@@ -50,12 +43,6 @@ export function AssignmentCreatePage() {
   const prescriptionsQuery = useQuery({
     queryKey: ['applicants', applicantId, 'prescriptions'],
     queryFn: () => applicantsApi.listPrescriptions(applicantId),
-  })
-
-  // Solo los marcos disponibles: el backend rechaza cualquier otro, así que no se ofrecen.
-  const framesQuery = useQuery({
-    queryKey: ['frames', 'AVAILABLE'],
-    queryFn: () => framesApi.list('AVAILABLE'),
   })
 
   const assignmentsQuery = useQuery({
@@ -75,7 +62,6 @@ export function AssignmentCreatePage() {
 
   const applicant = applicantQuery.data
   const prescriptions = prescriptionsQuery.data ?? []
-  const frames = framesQuery.data ?? []
   const assignments = assignmentsQuery.data ?? []
   const created = createMutation.data
 
@@ -158,11 +144,8 @@ export function AssignmentCreatePage() {
               cristales según esa graduación.
             </p>
             <div className="mt-3 rounded-lg border border-slate-200 bg-white p-6">
-              {(prescriptionsQuery.isPending || framesQuery.isPending) && (
-                <p className="text-slate-500">Cargando recetas y marcos…</p>
-              )}
+              {prescriptionsQuery.isPending && <p className="text-slate-500">Cargando recetas…</p>}
               {prescriptionsQuery.isError && <Alert>{prescriptionsQuery.error.message}</Alert>}
-              {framesQuery.isError && <Alert>{framesQuery.error.message}</Alert>}
 
               {prescriptionsQuery.isSuccess && prescriptions.length === 0 && (
                 <p className="text-slate-500">
@@ -176,25 +159,22 @@ export function AssignmentCreatePage() {
                 </p>
               )}
 
-              {framesQuery.isSuccess && prescriptions.length > 0 && frames.length === 0 && (
-                <p className="text-slate-500">
-                  No hay marcos disponibles en el inventario.{' '}
-                  <Link to="/donors" className="font-medium text-sky-700 hover:underline">
-                    Cargá los marcos de una donación.
-                  </Link>
-                </p>
-              )}
-
-              {prescriptions.length > 0 && frames.length > 0 && (
+              {prescriptions.length > 0 && (
                 <AssignmentForm
                   prescriptionOptions={prescriptions.map((prescription) => ({
                     value: prescription.id,
                     label: prescriptionLabel(prescription),
                   }))}
-                  frameOptions={frames.map((frame) => ({
-                    value: frame.id,
-                    label: frameLabel(frame),
-                  }))}
+                  // Solo los disponibles: el backend rechaza cualquier otro, así que no se ofrecen.
+                  fetchAvailableFrames={(params) => framesApi.list({ ...params, status: 'AVAILABLE' })}
+                  noFramesMessage={
+                    <>
+                      No hay marcos disponibles en el inventario.{' '}
+                      <Link to="/donors" className="font-medium text-sky-700 hover:underline">
+                        Cargá los marcos de una donación.
+                      </Link>
+                    </>
+                  }
                   onSubmit={(data) => createMutation.mutate(data)}
                   isPending={createMutation.isPending}
                   submitError={createMutation.error?.message}

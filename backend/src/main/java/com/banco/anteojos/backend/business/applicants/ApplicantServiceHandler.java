@@ -2,10 +2,13 @@ package com.banco.anteojos.backend.business.applicants;
 
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import com.banco.anteojos.backend.business.applicants.dto.request.AnsesCertificateUploadRequestDto;
@@ -29,6 +32,8 @@ import com.banco.anteojos.backend.business.applicants.exception.InvalidAnsesCert
 import com.banco.anteojos.backend.business.applicants.exception.InvalidPrescriptionFileException;
 import com.banco.anteojos.backend.business.applicants.exception.PrescriptionFileNotFoundException;
 import com.banco.anteojos.backend.business.applicants.exception.PrescriptionNotFoundException;
+import com.banco.anteojos.backend.business.common.SearchTerms;
+import com.banco.anteojos.backend.business.common.dto.response.PageResponseDto;
 import com.banco.anteojos.backend.persistence.applicants.AnsesCertificatePostgresSqlRepository;
 import com.banco.anteojos.backend.persistence.applicants.ApplicantPostgresSqlRepository;
 import com.banco.anteojos.backend.persistence.applicants.PrescriptionPostgresSqlRepository;
@@ -78,8 +83,16 @@ public class ApplicantServiceHandler implements ApplicantService {
 	}
 
 	@Override
-	public List<ApplicantResponseDto> listApplicants() {
-		return applicantRepository.findAll().stream().map(this::toResponse).toList();
+	public PageResponseDto<ApplicantResponseDto> listApplicants(String search, Pageable pageable) {
+		return PageResponseDto.from(
+				applicantRepository.search(SearchTerms.normalize(search), pageable).map(this::toResponse));
+	}
+
+	@Override
+	public Map<Long, String> getFullNames(Collection<Long> applicantIds) {
+		return applicantRepository.findAllById(applicantIds).stream()
+				.collect(Collectors.toMap(Applicant::getId,
+						applicant -> applicant.getLastName() + ", " + applicant.getFirstName()));
 	}
 
 	@Override

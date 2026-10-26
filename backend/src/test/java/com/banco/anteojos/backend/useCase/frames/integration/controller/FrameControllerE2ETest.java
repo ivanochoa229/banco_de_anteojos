@@ -176,7 +176,7 @@ class FrameControllerE2ETest {
 		mockMvc.perform(get("/v1/frames")
 						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.length()").value(2));
+				.andExpect(jsonPath("$.content.length()").value(2));
 	}
 
 	@Test
@@ -184,8 +184,8 @@ class FrameControllerE2ETest {
 		mockMvc.perform(get("/v1/frames").param("status", "AVAILABLE")
 						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.length()").value(1))
-				.andExpect(jsonPath("$[0].sealCode").value("A-1001"));
+				.andExpect(jsonPath("$.content.length()").value(1))
+				.andExpect(jsonPath("$.content[0].sealCode").value("A-1001"));
 	}
 
 	@Test
@@ -193,7 +193,7 @@ class FrameControllerE2ETest {
 		mockMvc.perform(get("/v1/donors/300000/frames")
 						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.length()").value(2));
+				.andExpect(jsonPath("$.content.length()").value(2));
 	}
 
 	@Test
@@ -240,5 +240,40 @@ class FrameControllerE2ETest {
 								{"sealCode": " a-1001 ", "frameType": "FULL_RIM", "material": "OTHER"}
 								"""))
 				.andExpect(status().isConflict());
+	}
+
+	@Test
+	void ListFrames_SearchesBySealCode() throws Exception {
+		mockMvc.perform(get("/v1/frames").param("q", "a-1002")
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.totalElements").value(1))
+				.andExpect(jsonPath("$.content[0].sealCode").value("A-1002"));
+	}
+
+	// Sin foto no hay nada que superponer en el probador: el template no tiene marcos con foto.
+	@Test
+	void ListFrames_OnlyWithImage() throws Exception {
+		mockMvc.perform(get("/v1/frames").param("status", "AVAILABLE").param("withImage", "true")
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.totalElements").value(0));
+	}
+
+	@Test
+	void ListFrames_WhenStatusDoesNotExist() throws Exception {
+		mockMvc.perform(get("/v1/frames").param("status", "LOST")
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.message").value("Parámetro inválido: «status»"));
+	}
+
+	@Test
+	void ListFramesByDonor_FilteredByStatus() throws Exception {
+		mockMvc.perform(get("/v1/donors/300000/frames").param("status", "AVAILABLE")
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.totalElements").value(1))
+				.andExpect(jsonPath("$.content[0].sealCode").value("A-1001"));
 	}
 }

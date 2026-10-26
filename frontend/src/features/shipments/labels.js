@@ -64,19 +64,6 @@ export function isPending(shipment) {
   return shipment.status === 'PENDING'
 }
 
-// "En curso" es todo lo que todavía puede cambiar. Se filtra acá y no en la API porque
-// GET /v1/shipments solo filtra por dirección, no por estado.
-const CLOSED_STATUSES = ['CANCELLED', 'DELIVERED', 'EXPIRED']
-
-/**
- * Una donación sigue en curso aunque el correo la dé por entregada: se cierra recién cuando el
- * operador la abre y confirma la recepción.
- */
-export function isLive(shipment) {
-  if (isInbound(shipment)) return shipment.status !== 'RECEIVED'
-  return !CLOSED_STATUSES.includes(shipment.status)
-}
-
 // Hitos propios del paquete, en el orden del circuito. El detalle del viaje lo aporta el
 // historial del carrier, que es una lista abierta.
 export const SHIPMENT_MILESTONES = [

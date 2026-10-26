@@ -1,7 +1,8 @@
-import { apiFetch } from '../lib/apiClient'
+import { apiFetch, withQuery } from '../lib/apiClient'
 
 export const applicantsApi = {
-  list: () => apiFetch('/v1/applicants'),
+  // Paginado (page desde 0). q busca por apellido y nombre (sin importar tildes) o por DNI.
+  list: ({ q, page, size } = {}) => apiFetch(withQuery('/v1/applicants', { q, page, size })),
   get: (applicantId) => apiFetch(`/v1/applicants/${applicantId}`),
   create: (data) => apiFetch('/v1/applicants', { method: 'POST', body: data }),
   update: (applicantId, data) => apiFetch(`/v1/applicants/${applicantId}`, { method: 'PUT', body: data }),

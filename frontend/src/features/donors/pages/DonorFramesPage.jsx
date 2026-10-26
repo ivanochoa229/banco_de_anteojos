@@ -1,9 +1,10 @@
+import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { donorsApi } from '../../../api/donorsApi'
-import { shipmentsApi } from '../../../api/shipmentsApi'
 import { Alert } from '../../../components/Alert'
 import { Layout } from '../../../components/Layout'
+import { Pagination } from '../../../components/Pagination'
 import { formatDateTime } from '../../../lib/dates'
 import { FramesTable } from '../../frames/components/FramesTable'
 import { InboundShipmentForm } from '../../shipments/components/InboundShipmentForm'
@@ -14,6 +15,9 @@ import { FrameForm } from '../components/FrameForm'
 export function DonorFramesPage() {
   const { donorId } = useParams()
   const queryClient = useQueryClient()
+  // Dos listados en la misma pantalla: cada uno con su página, en estado local y no en la URL.
+  const [framesPage, setFramesPage] = useState(0)
+  const [donationsPage, setDonationsPage] = useState(0)
 
   const donorQuery = useQuery({
     queryKey: ['donors', donorId],
@@ -21,8 +25,9 @@ export function DonorFramesPage() {
   })
 
   const framesQuery = useQuery({
-    queryKey: ['donors', donorId, 'frames'],
-    queryFn: () => donorsApi.listFrames(donorId),
+    queryKey: ['donors', donorId, 'frames', { page: framesPage }],
+    queryFn: () => donorsApi.listFrames(donorId, { page: framesPage }),
+    placeholderData: keepPreviousData,
   })
 
   const createMutation = useMutation({
@@ -34,10 +39,10 @@ export function DonorFramesPage() {
     },
   })
 
-  // No hay endpoint de donaciones por donante: se filtra la lista de entrantes, que es chica.
   const donationsQuery = useQuery({
-    queryKey: ['shipments', 'INBOUND'],
-    queryFn: () => shipmentsApi.list('INBOUND'),
+    queryKey: ['shipments', 'donor', donorId, { page: donationsPage }],
+    queryFn: () => donorsApi.listShipments(donorId, { page: donationsPage }),
+    placeholderData: keepPreviousData,
   })
 
   const createShipmentMutation = useMutation({
@@ -46,18 +51,14 @@ export function DonorFramesPage() {
   })
 
   const donor = donorQuery.data
-  const donations = (donationsQuery.data ?? []).filter(
-    (shipment) => String(shipment.donorId) === donorId,
-  )
+  const donations = donationsQuery.data?.content ?? []
   const location = donor
     ? [donor.address, donor.city, donor.province, donor.postalCode && `CP ${donor.postalCode}`]
         .filter(Boolean)
         .join(', ')
     : ''
-  // El endpoint no garantiza orden; el último cargado va primero.
-  const frames = framesQuery.data
-    ? [...framesQuery.data].sort((a, b) => b.receivedAt.localeCompare(a.receivedAt))
-    : []
+  // El backend ya los devuelve del último cargado al primero.
+  const frames = framesQuery.data?.content ?? []
 
   return (
     <Layout>
@@ -90,12 +91,13 @@ export function DonorFramesPage() {
         <div className="mt-3">
           {framesQuery.isPending && <p className="text-slate-500">Cargando marcos…</p>}
           {framesQuery.isError && <Alert>{framesQuery.error.message}</Alert>}
-          {framesQuery.isSuccess && frames.length === 0 && (
+          {framesQuery.data?.totalElements === 0 && (
             <p className="rounded-lg border border-dashed border-slate-300 bg-white px-6 py-10 text-center text-slate-500">
               Este donante todavía no tiene marcos cargados.
             </p>
           )}
           {frames.length > 0 && <FramesTable frames={frames} />}
+          <Pagination pageData={framesQuery.data} onPageChange={setFramesPage} />
         </div>
       </section>
 
@@ -141,6 +143,7 @@ export function DonorFramesPage() {
             ))}
           </ul>
         )}
+        <Pagination pageData={donationsQuery.data} onPageChange={setDonationsPage} />
         <div className="mt-3 rounded-lg border border-slate-200 bg-white p-6">
           <InboundShipmentForm
             onSubmit={(data) => createShipmentMutation.mutateAsync(data)}

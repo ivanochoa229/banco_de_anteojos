@@ -1,9 +1,15 @@
 package com.banco.anteojos.backend.business.donors;
 
-import java.util.List;
+import java.util.Collection;
+import java.util.Map;
+import java.util.stream.Collectors;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import com.banco.anteojos.backend.business.common.SearchTerms;
+import com.banco.anteojos.backend.business.common.dto.response.PageResponseDto;
 import com.banco.anteojos.backend.business.donors.dto.request.DonorCreationRequestDto;
 import com.banco.anteojos.backend.business.donors.dto.response.DonorResponseDto;
 import com.banco.anteojos.backend.business.donors.entities.Donor;
@@ -32,8 +38,16 @@ public class DonorServiceHandler implements DonorService {
 	}
 
 	@Override
-	public List<DonorResponseDto> listDonors() {
-		return donorRepository.findAllByOrderByNameAsc().stream().map(this::toResponse).toList();
+	public PageResponseDto<DonorResponseDto> listDonors(String search, Collection<Long> ids, Pageable pageable) {
+		Page<Donor> donors = ids == null || ids.isEmpty()
+				? donorRepository.search(SearchTerms.normalize(search), pageable)
+				: donorRepository.findByIdInOrderByNameAscIdAsc(ids, pageable);
+		return PageResponseDto.from(donors.map(this::toResponse));
+	}
+
+	@Override
+	public Map<Long, String> getNames(Collection<Long> donorIds) {
+		return donorRepository.findAllById(donorIds).stream().collect(Collectors.toMap(Donor::getId, Donor::getName));
 	}
 
 	private DonorResponseDto toResponse(Donor donor) {

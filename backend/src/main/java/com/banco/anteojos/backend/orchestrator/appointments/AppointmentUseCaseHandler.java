@@ -3,6 +3,7 @@ package com.banco.anteojos.backend.orchestrator.appointments;
 import java.time.LocalDate;
 import java.util.List;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -11,11 +12,13 @@ import com.banco.anteojos.backend.business.applicants.dto.response.ApplicantResp
 import com.banco.anteojos.backend.business.appointments.AppointmentService;
 import com.banco.anteojos.backend.business.appointments.dto.request.AppointmentCreationRequestDto;
 import com.banco.anteojos.backend.business.appointments.dto.request.AppointmentReceiptUploadRequestDto;
+import com.banco.anteojos.backend.business.appointments.dto.response.AppointmentListItemResponseDto;
 import com.banco.anteojos.backend.business.appointments.dto.response.AppointmentReceiptResponseDto;
 import com.banco.anteojos.backend.business.appointments.dto.response.AppointmentResponseDto;
 import com.banco.anteojos.backend.business.appointments.exception.AppointmentNotFoundException;
 import com.banco.anteojos.backend.business.assignments.AssignmentService;
 import com.banco.anteojos.backend.business.assignments.exception.AssignmentNotFoundException;
+import com.banco.anteojos.backend.business.common.dto.response.PageResponseDto;
 import com.banco.anteojos.backend.thirdPartyServiceComunication.notifications.NotificationClient;
 
 import lombok.RequiredArgsConstructor;
@@ -56,8 +59,12 @@ public class AppointmentUseCaseHandler implements AppointmentUseCaseOrchestrator
 	}
 
 	@Override
-	public List<AppointmentResponseDto> listAppointments(LocalDate date, LocalDate from) {
-		return appointmentService.listAppointments(date, from);
+	public PageResponseDto<AppointmentListItemResponseDto> listAppointments(LocalDate date, LocalDate from,
+			boolean excludeCancelled, Pageable pageable) {
+		PageResponseDto<AppointmentResponseDto> appointments = appointmentService.listAppointments(date, from,
+				excludeCancelled, pageable);
+		return appointmentService.buildListItems(appointments,
+				applicantService.getFullNames(appointments.distinctValues(AppointmentResponseDto::applicantId)));
 	}
 
 	@Override

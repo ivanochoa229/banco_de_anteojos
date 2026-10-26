@@ -1,8 +1,8 @@
 package com.banco.anteojos.backend.presentation.controllers.appointments;
 
 import java.time.LocalDate;
-import java.util.List;
 
+import org.springframework.data.domain.PageRequest;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -15,11 +15,16 @@ import org.springframework.web.bind.annotation.RestController;
 import com.banco.anteojos.backend.business.appointments.dto.request.AppointmentAttendanceRequestDto;
 import com.banco.anteojos.backend.business.appointments.dto.request.AppointmentCancellationRequestDto;
 import com.banco.anteojos.backend.business.appointments.dto.request.AppointmentRescheduleRequestDto;
+import com.banco.anteojos.backend.business.appointments.dto.response.AppointmentListItemResponseDto;
 import com.banco.anteojos.backend.business.appointments.dto.response.AppointmentReceiptResponseDto;
 import com.banco.anteojos.backend.business.appointments.dto.response.AppointmentResponseDto;
+import com.banco.anteojos.backend.business.common.dto.response.PageResponseDto;
 import com.banco.anteojos.backend.orchestrator.appointments.AppointmentUseCaseOrchestrator;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.PositiveOrZero;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -36,13 +41,17 @@ public class AppointmentController {
 
 	/**
 	 * Con {@code ?date=} devuelve la agenda de ese día; con {@code ?from=}, los turnos de ese día en
-	 * adelante. Ambos ordenados por hora.
+	 * adelante. Ambos ordenados por hora. Con {@code ?excludeCancelled=true}, solo lo que todavía hay
+	 * que atender. Cada fila trae el nombre del beneficiario.
 	 */
 	@GetMapping
-	public List<AppointmentResponseDto> list(
+	public PageResponseDto<AppointmentListItemResponseDto> list(
 			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
-			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from) {
-		return appointmentOrchestrator.listAppointments(date, from);
+			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+			@RequestParam(defaultValue = "false") boolean excludeCancelled,
+			@RequestParam(defaultValue = "0") @PositiveOrZero int page,
+			@RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
+		return appointmentOrchestrator.listAppointments(date, from, excludeCancelled, PageRequest.of(page, size));
 	}
 
 	@GetMapping("/{appointmentId}")

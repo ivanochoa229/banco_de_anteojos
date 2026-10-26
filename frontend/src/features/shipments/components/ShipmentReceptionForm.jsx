@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { donorsApi } from '../../../api/donorsApi'
 import { Alert } from '../../../components/Alert'
 import { Button } from '../../../components/Button'
-import { formatDateTime } from '../../../lib/dates'
-import { FRAME_MATERIAL_LABELS, FRAME_TYPE_LABELS } from '../../frames/labels'
+import { FramePicker } from '../../frames/components/FramePicker'
 
 /**
  * Cierre de una donación entrante: el operador abre el paquete, carga cada marco bajo el donante
@@ -12,24 +12,14 @@ import { FRAME_MATERIAL_LABELS, FRAME_TYPE_LABELS } from '../../frames/labels'
  *
  * Confirmar sin marcos también vale: el paquete pudo no traer nada aprovechable.
  */
-export function ShipmentReceptionForm({ donorId, frames, onSubmit, isPending, submitError }) {
-  const [selectedIds, setSelectedIds] = useState([])
-
-  const availableFrames = frames
-    .filter((frame) => frame.status === 'AVAILABLE')
-    .sort((a, b) => b.receivedAt.localeCompare(a.receivedAt))
-
-  function toggle(frameId) {
-    setSelectedIds((current) =>
-      current.includes(frameId) ? current.filter((id) => id !== frameId) : [...current, frameId],
-    )
-  }
+export function ShipmentReceptionForm({ donorId, onSubmit, isPending, submitError }) {
+  const [selectedFrames, setSelectedFrames] = useState([])
 
   return (
     <form
       onSubmit={(event) => {
         event.preventDefault()
-        onSubmit(selectedIds)
+        onSubmit(selectedFrames.map((frame) => frame.id))
       }}
       className="space-y-4"
     >
@@ -41,43 +31,26 @@ export function ShipmentReceptionForm({ donorId, frames, onSubmit, isPending, su
         y después marcá acá los que llegaron en esta donación.
       </p>
 
-      {availableFrames.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-slate-300 px-4 py-6 text-center text-sm text-slate-500">
-          El donante no tiene marcos disponibles cargados.
-        </p>
-      ) : (
-        <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200">
-          {availableFrames.map((frame) => (
-            <li key={frame.id}>
-              <label className="flex cursor-pointer items-center gap-3 px-4 py-2.5 hover:bg-slate-50">
-                <input
-                  type="checkbox"
-                  checked={selectedIds.includes(frame.id)}
-                  onChange={() => toggle(frame.id)}
-                  className="h-4 w-4 accent-sky-700"
-                />
-                <span className="text-sm text-slate-700">
-                  <span className="font-medium">{frame.sealCode}</span> ·{' '}
-                  {FRAME_TYPE_LABELS[frame.frameType] ?? frame.frameType} ·{' '}
-                  {FRAME_MATERIAL_LABELS[frame.material] ?? frame.material}
-                </span>
-                <span className="ml-auto text-xs text-slate-400">
-                  Cargado {formatDateTime(frame.receivedAt)}
-                </span>
-              </label>
-            </li>
-          ))}
-        </ul>
-      )}
+      <FramePicker
+        id="receivedFrames"
+        // Comparte el prefijo con la página de marcos del donante: cargar uno allá refresca acá.
+        queryKey={['donors', String(donorId), 'frames', 'AVAILABLE']}
+        fetchPage={({ page, size }) => donorsApi.listFrames(donorId, { status: 'AVAILABLE', page, size })}
+        selected={selectedFrames}
+        onChange={setSelectedFrames}
+        multiple
+        searchable={false}
+        emptyMessage="El donante no tiene marcos disponibles cargados."
+      />
 
       {submitError && <Alert>{submitError}</Alert>}
 
       <Button type="submit" disabled={isPending}>
         {isPending
           ? 'Registrando…'
-          : selectedIds.length === 0
+          : selectedFrames.length === 0
             ? 'Confirmar recepción sin marcos'
-            : `Confirmar recepción (${selectedIds.length} marco${selectedIds.length === 1 ? '' : 's'})`}
+            : `Confirmar recepción (${selectedFrames.length} marco${selectedFrames.length === 1 ? '' : 's'})`}
       </Button>
     </form>
   )

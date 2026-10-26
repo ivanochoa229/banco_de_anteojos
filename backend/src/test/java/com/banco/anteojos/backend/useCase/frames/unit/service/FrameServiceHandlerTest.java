@@ -12,7 +12,9 @@ import static org.mockito.Mockito.when;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -20,7 +22,12 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.test.util.ReflectionTestUtils;
 
+import com.banco.anteojos.backend.business.common.dto.response.PageResponseDto;
 import com.banco.anteojos.backend.business.frames.FrameServiceHandler;
 import com.banco.anteojos.backend.business.frames.dto.request.FrameCreationRequestDto;
 import com.banco.anteojos.backend.business.frames.dto.request.FrameImageUploadRequestDto;
@@ -51,6 +58,8 @@ class FrameServiceHandlerTest {
 
 	@InjectMocks
 	private FrameServiceHandler frameServiceHandler;
+
+	private static final Pageable PAGE = PageRequest.of(0, 20);
 
 	private Frame frame(String sealCode) {
 		return new Frame(1L, sealCode, FrameType.FULL_RIM, FrameMaterial.ACETATE, 52, 18, 140);
@@ -162,35 +171,44 @@ class FrameServiceHandlerTest {
 	}
 
 	@Test
-	void ListFrames_WithoutStatusReturnsWholeInventory() {
-		when(frameRepository.findAllByOrderByReceivedAtDesc())
-				.thenReturn(List.of(frame("A-1001"), frame("A-1002")));
+	void ListFrames_WithoutFiltersReturnsWholeInventory() {
+		when(frameRepository.search(null, false, "", PAGE))
+				.thenReturn(new PageImpl<>(List.of(frame("A-1001"), frame("A-1002")), PAGE, 2));
 
-		List<FrameResponseDto> response = frameServiceHandler.listFrames(null);
+		PageResponseDto<FrameResponseDto> response = frameServiceHandler.listFrames(null, null, false, PAGE);
 
-		assertThat(response).hasSize(2);
-		verify(frameRepository, never()).findByStatusOrderByReceivedAtDesc(any());
+		assertThat(response.content()).hasSize(2);
 	}
 
 	@Test
-	void ListFrames_FilteredByStatus() {
-		when(frameRepository.findByStatusOrderByReceivedAtDesc(FrameStatus.AVAILABLE))
-				.thenReturn(List.of(frame("A-1001")));
+	void ListFrames_PassesFiltersAndNormalizedSearch() {
+		when(frameRepository.search(FrameStatus.AVAILABLE, true, "a-10", PAGE))
+				.thenReturn(new PageImpl<>(List.of(frame("A-1001")), PAGE, 1));
 
-		List<FrameResponseDto> response = frameServiceHandler.listFrames(FrameStatus.AVAILABLE);
+		PageResponseDto<FrameResponseDto> response = frameServiceHandler.listFrames(FrameStatus.AVAILABLE, " A-10 ",
+				true, PAGE);
 
-		assertThat(response).hasSize(1);
-		verify(frameRepository, never()).findAllByOrderByReceivedAtDesc();
+		assertThat(response.content()).singleElement()
+				.satisfies(frame -> assertThat(frame.sealCode()).isEqualTo("A-1001"));
 	}
 
 	@Test
 	void ListFramesByDonor_Successful() {
-		when(frameRepository.findByDonorIdOrderByReceivedAtDesc(1L)).thenReturn(List.of(frame("A-1001")));
+		when(frameRepository.findByDonor(1L, null, PAGE)).thenReturn(new PageImpl<>(List.of(frame("A-1001")), PAGE, 1));
 
-		List<FrameResponseDto> response = frameServiceHandler.listFramesByDonor(1L);
+		PageResponseDto<FrameResponseDto> response = frameServiceHandler.listFramesByDonor(1L, null, PAGE);
 
-		assertThat(response).hasSize(1);
-		assertThat(response.get(0).sealCode()).isEqualTo("A-1001");
+		assertThat(response.content()).hasSize(1);
+		assertThat(response.content().get(0).sealCode()).isEqualTo("A-1001");
+	}
+
+	@Test
+	void GetSealCodes_Successful() {
+		Frame frame = frame("A-1001");
+		ReflectionTestUtils.setField(frame, "id", 7L);
+		when(frameRepository.findAllById(Set.of(7L))).thenReturn(List.of(frame));
+
+		assertThat(frameServiceHandler.getSealCodes(Set.of(7L))).containsExactly(Map.entry(7L, "A-1001"));
 	}
 
 	/** Deja el marco en el estado pedido recorriendo el circuito desde AVAILABLE. */

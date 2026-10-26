@@ -2,11 +2,16 @@ package com.banco.anteojos.backend.business.shipments;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
+import org.springframework.data.domain.Pageable;
+
+import com.banco.anteojos.backend.business.common.dto.response.PageResponseDto;
 import com.banco.anteojos.backend.business.frames.dto.response.FrameResponseDto;
 import com.banco.anteojos.backend.business.shipments.dto.request.InboundShipmentCreationRequestDto;
 import com.banco.anteojos.backend.business.shipments.dto.request.ShipmentCreationRequestDto;
 import com.banco.anteojos.backend.business.shipments.dto.response.ShipmentDetailResponseDto;
+import com.banco.anteojos.backend.business.shipments.dto.response.ShipmentListItemResponseDto;
 import com.banco.anteojos.backend.business.shipments.dto.response.ShipmentResponseDto;
 import com.banco.anteojos.backend.business.shipments.entities.ShipmentDirection;
 
@@ -20,7 +25,16 @@ public interface ShipmentService {
 
 	ShipmentResponseDto getShipment(Long shipmentId);
 
-	List<ShipmentResponseDto> listShipments(ShipmentDirection direction);
+	/** Con {@code onlyLive}, solo lo que todavía puede cambiar (ver CLOSED_STATUSES en el handler). */
+	PageResponseDto<ShipmentResponseDto> listShipments(ShipmentDirection direction, boolean onlyLive,
+			Pageable pageable);
+
+	/** Las donaciones que despachó un donante. */
+	PageResponseDto<ShipmentResponseDto> listShipmentsByDonor(Long donorId, Pageable pageable);
+
+	/** Arma las filas del listado con los nombres que el orchestrator resolvió en donors. */
+	PageResponseDto<ShipmentListItemResponseDto> buildListItems(PageResponseDto<ShipmentResponseDto> shipments,
+			Map<Long, String> donorNames);
 
 	/** Despacho físico: registra el número en 17TRACK antes de persistir el cambio (RF-23). */
 	ShipmentResponseDto dispatch(Long shipmentId, String trackingNumber);

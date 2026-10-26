@@ -110,12 +110,12 @@ class CatalogE2ETest {
 		mockMvc.perform(get("/v1/catalog/products").param("status", "ACTIVE")
 						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.length()").value(1));
+				.andExpect(jsonPath("$.content.length()").value(1));
 
 		mockMvc.perform(get("/v1/catalog/products")
 						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.length()").value(2));
+				.andExpect(jsonPath("$.content.length()").value(2));
 	}
 
 	@Test
@@ -175,7 +175,7 @@ class CatalogE2ETest {
 		mockMvc.perform(get("/v1/catalog/products/" + productId + "/sales")
 						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.length()").value(1));
+				.andExpect(jsonPath("$.content.length()").value(1));
 	}
 
 	@Test

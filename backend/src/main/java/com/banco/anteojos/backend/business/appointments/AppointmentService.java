@@ -3,12 +3,17 @@ package com.banco.anteojos.backend.business.appointments;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+
+import org.springframework.data.domain.Pageable;
 
 import com.banco.anteojos.backend.business.appointments.dto.request.AppointmentCreationRequestDto;
 import com.banco.anteojos.backend.business.appointments.dto.request.AppointmentReceiptUploadRequestDto;
+import com.banco.anteojos.backend.business.appointments.dto.response.AppointmentListItemResponseDto;
 import com.banco.anteojos.backend.business.appointments.dto.response.AppointmentReceiptResponseDto;
 import com.banco.anteojos.backend.business.appointments.dto.response.AppointmentResponseDto;
 import com.banco.anteojos.backend.business.appointments.entities.AppointmentStatus;
+import com.banco.anteojos.backend.business.common.dto.response.PageResponseDto;
 
 public interface AppointmentService {
 
@@ -25,7 +30,13 @@ public interface AppointmentService {
 	 * Con {@code date} devuelve la agenda de ese día; con {@code from}, los turnos de ese día en
 	 * adelante (lo que queda por atender); sin ninguno, todos los turnos.
 	 */
-	List<AppointmentResponseDto> listAppointments(LocalDate date, LocalDate from);
+	/** Con {@code excludeCancelled}, solo lo que todavía hay que atender. */
+	PageResponseDto<AppointmentResponseDto> listAppointments(LocalDate date, LocalDate from, boolean excludeCancelled,
+			Pageable pageable);
+
+	/** Arma las filas de la agenda con los nombres que el orchestrator resolvió en applicants. */
+	PageResponseDto<AppointmentListItemResponseDto> buildListItems(
+			PageResponseDto<AppointmentResponseDto> appointments, Map<Long, String> applicantNames);
 
 	List<AppointmentResponseDto> listAppointmentsByApplicant(Long applicantId);
 

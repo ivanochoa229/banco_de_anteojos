@@ -7,6 +7,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.LocalDate;
+
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -86,8 +88,8 @@ class ApplicantControllerE2ETest {
 		mockMvc.perform(get("/v1/applicants")
 						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.length()").value(1))
-				.andExpect(jsonPath("$[0].dni").value("30123456"));
+				.andExpect(jsonPath("$.content.length()").value(1))
+				.andExpect(jsonPath("$.content[0].dni").value("30123456"));
 	}
 
 	@Test
@@ -148,5 +150,65 @@ class ApplicantControllerE2ETest {
 				.andExpect(status().isUnauthorized())
 				.andExpect(jsonPath("$.status").value(401))
 				.andExpect(jsonPath("$.message").value("No autenticado"));
+	}
+
+	@Test
+	void ListApplicants_SearchesByNameWithoutAccents() throws Exception {
+		applicantRepository.save(new Applicant("José", "Muñoz", "27999888", LocalDate.of(1970, 1, 5), null, null));
+
+		mockMvc.perform(get("/v1/applicants").param("q", "jose munoz")
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.totalElements").value(1))
+				.andExpect(jsonPath("$.content[0].dni").value("27999888"));
+
+		// Apellido primero también, como lo anota el operador.
+		mockMvc.perform(get("/v1/applicants").param("q", "PEREZ")
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.totalElements").value(1))
+				.andExpect(jsonPath("$.content[0].dni").value("30123456"));
+	}
+
+	@Test
+	void ListApplicants_SearchesByDniPrefix() throws Exception {
+		applicantRepository.save(new Applicant("José", "Muñoz", "27999888", LocalDate.of(1970, 1, 5), null, null));
+
+		mockMvc.perform(get("/v1/applicants").param("q", "3012")
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.totalElements").value(1))
+				.andExpect(jsonPath("$.content[0].dni").value("30123456"));
+	}
+
+	@Test
+	void ListApplicants_PaginatesOrderedByLastName() throws Exception {
+		applicantRepository.save(new Applicant("José", "Muñoz", "27999888", LocalDate.of(1970, 1, 5), null, null));
+
+		mockMvc.perform(get("/v1/applicants").param("page", "1").param("size", "1")
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.page").value(1))
+				.andExpect(jsonPath("$.size").value(1))
+				.andExpect(jsonPath("$.totalElements").value(2))
+				.andExpect(jsonPath("$.totalPages").value(2))
+				.andExpect(jsonPath("$.content.length()").value(1))
+				.andExpect(jsonPath("$.content[0].lastName").value("Pérez"));
+	}
+
+	@Test
+	void ListApplicants_WhenSizeExceedsMaximum() throws Exception {
+		mockMvc.perform(get("/v1/applicants").param("size", "500")
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.message").value("Parámetro inválido: «size»"));
+	}
+
+	@Test
+	void ListApplicants_WhenPageIsNotANumber() throws Exception {
+		mockMvc.perform(get("/v1/applicants").param("page", "abc")
+						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.message").value("Parámetro inválido: «page»"));
 	}
 }

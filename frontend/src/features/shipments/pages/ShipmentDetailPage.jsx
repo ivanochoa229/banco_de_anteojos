@@ -64,12 +64,6 @@ export function ShipmentDetailPage() {
     enabled: donorId !== null,
   })
 
-  const donorFramesQuery = useQuery({
-    queryKey: ['donors', donorId, 'frames'],
-    queryFn: () => donorsApi.listFrames(donorId),
-    enabled: awaitsReception,
-  })
-
   if (detailQuery.isPending) {
     return (
       <Layout>
@@ -135,19 +129,12 @@ export function ShipmentDetailPage() {
               Registrar recepción
             </h3>
             <div className="mt-3">
-              {donorFramesQuery.isPending && (
-                <p className="text-sm text-slate-500">Cargando marcos del donante…</p>
-              )}
-              {donorFramesQuery.isError && <Alert>{donorFramesQuery.error.message}</Alert>}
-              {donorFramesQuery.isSuccess && (
-                <ShipmentReceptionForm
-                  donorId={shipment.donorId}
-                  frames={donorFramesQuery.data}
-                  onSubmit={(frameIds) => receiveMutation.mutate(frameIds)}
-                  isPending={receiveMutation.isPending}
-                  submitError={receiveMutation.error?.message}
-                />
-              )}
+              <ShipmentReceptionForm
+                donorId={shipment.donorId}
+                onSubmit={(frameIds) => receiveMutation.mutate(frameIds)}
+                isPending={receiveMutation.isPending}
+                submitError={receiveMutation.error?.message}
+              />
             </div>
           </div>
         )

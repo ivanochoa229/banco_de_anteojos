@@ -1,6 +1,10 @@
 package com.banco.anteojos.backend.business.applicants;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+
+import org.springframework.data.domain.Pageable;
 
 import com.banco.anteojos.backend.business.applicants.dto.request.AnsesCertificateUploadRequestDto;
 import com.banco.anteojos.backend.business.applicants.dto.request.ApplicantCreationRequestDto;
@@ -13,6 +17,7 @@ import com.banco.anteojos.backend.business.applicants.dto.response.ApplicantResp
 import com.banco.anteojos.backend.business.applicants.dto.response.EligibilityResponseDto;
 import com.banco.anteojos.backend.business.applicants.dto.response.PrescriptionFileResponseDto;
 import com.banco.anteojos.backend.business.applicants.dto.response.PrescriptionResponseDto;
+import com.banco.anteojos.backend.business.common.dto.response.PageResponseDto;
 
 public interface ApplicantService {
 
@@ -20,7 +25,11 @@ public interface ApplicantService {
 
 	ApplicantResponseDto getApplicant(Long applicantId);
 
-	List<ApplicantResponseDto> listApplicants();
+	/** {@code search} filtra por apellido y nombre o por DNI; null o en blanco no filtra. */
+	PageResponseDto<ApplicantResponseDto> listApplicants(String search, Pageable pageable);
+
+	/** "Apellido, Nombre" por id, para mostrar en listados de otros dominios. Los ids inexistentes no vienen. */
+	Map<Long, String> getFullNames(Collection<Long> applicantIds);
 
 	ApplicantResponseDto updateApplicant(Long applicantId, ApplicantUpdateRequestDto request);
 

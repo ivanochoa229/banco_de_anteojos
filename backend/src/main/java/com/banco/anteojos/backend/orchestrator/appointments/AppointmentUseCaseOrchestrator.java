@@ -3,10 +3,14 @@ package com.banco.anteojos.backend.orchestrator.appointments;
 import java.time.LocalDate;
 import java.util.List;
 
+import org.springframework.data.domain.Pageable;
+
 import com.banco.anteojos.backend.business.appointments.dto.request.AppointmentCreationRequestDto;
 import com.banco.anteojos.backend.business.appointments.dto.request.AppointmentReceiptUploadRequestDto;
+import com.banco.anteojos.backend.business.appointments.dto.response.AppointmentListItemResponseDto;
 import com.banco.anteojos.backend.business.appointments.dto.response.AppointmentReceiptResponseDto;
 import com.banco.anteojos.backend.business.appointments.dto.response.AppointmentResponseDto;
+import com.banco.anteojos.backend.business.common.dto.response.PageResponseDto;
 
 public interface AppointmentUseCaseOrchestrator {
 
@@ -14,7 +18,8 @@ public interface AppointmentUseCaseOrchestrator {
 
 	List<AppointmentResponseDto> listAppointmentsByApplicant(Long applicantId);
 
-	List<AppointmentResponseDto> listAppointments(LocalDate date, LocalDate from);
+	PageResponseDto<AppointmentListItemResponseDto> listAppointments(LocalDate date, LocalDate from,
+			boolean excludeCancelled, Pageable pageable);
 
 	AppointmentResponseDto getAppointment(Long appointmentId);
 

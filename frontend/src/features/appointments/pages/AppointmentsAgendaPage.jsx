@@ -1,14 +1,14 @@
-import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { applicantsApi } from '../../../api/applicantsApi'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { appointmentsApi } from '../../../api/appointmentsApi'
 import { Alert } from '../../../components/Alert'
 import { Input } from '../../../components/Input'
 import { Layout } from '../../../components/Layout'
+import { Pagination } from '../../../components/Pagination'
 import { Select } from '../../../components/Select'
 import { useAuth } from '../../../context/useAuth'
 import { formatDateTime, todayIsoDate } from '../../../lib/dates'
+import { useListParams } from '../../../lib/useListParams'
 import { AppointmentActions } from '../components/AppointmentActions'
 import { AppointmentReceiptLink } from '../components/AppointmentReceiptLink'
 import { AppointmentStatusBadge } from '../components/AppointmentStatusBadge'
@@ -23,29 +23,27 @@ const SCOPE_OPTIONS = [
 // Hoy entero (no desde ahora) para poder registrar la asistencia de los turnos de la mañana.
 function queryFor(scope, date) {
   if (scope === 'day') return { date }
-  if (scope === 'upcoming') return { from: todayIsoDate() }
+  if (scope === 'upcoming') return { from: todayIsoDate(), excludeCancelled: true }
   return {}
 }
 
 export function AppointmentsAgendaPage() {
-  const [scope, setScope] = useState('upcoming')
-  const [date, setDate] = useState(todayIsoDate())
+  const { scope, date, page, setFilters, setPage } = useListParams({
+    scope: 'upcoming',
+    date: todayIsoDate(),
+  })
   const queryClient = useQueryClient()
   const { role } = useAuth()
   const portalPrefix = role === 'ADMIN' ? '/admin' : '/operador'
 
   const filters = queryFor(scope, date)
 
+  // Cada fila ya trae el nombre del beneficiario: no hace falta cruzar con la lista de solicitantes.
   const appointmentsQuery = useQuery({
-    queryKey: ['appointments', scope, filters],
-    queryFn: () => appointmentsApi.list(filters),
+    queryKey: ['appointments', { ...filters, page }],
+    queryFn: () => appointmentsApi.list({ ...filters, page }),
+    placeholderData: keepPreviousData,
   })
-
-  // El turno solo trae ids; el nombre del beneficiario sale de esta lista, chica y cacheada.
-  const applicantsQuery = useQuery({ queryKey: ['applicants'], queryFn: applicantsApi.list })
-  const applicantById = Object.fromEntries(
-    (applicantsQuery.data ?? []).map((applicant) => [applicant.id, applicant]),
-  )
 
   // Para reprogramar: solo los días que todavía tienen lugar.
   const daysQuery = useQuery({ queryKey: ['appointment-days'], queryFn: appointmentsApi.listDays })
@@ -85,9 +83,7 @@ export function AppointmentsAgendaPage() {
     )
   }
 
-  const appointments = (appointmentsQuery.data ?? []).filter(
-    (appointment) => scope !== 'upcoming' || appointment.status !== 'CANCELLED',
-  )
+  const items = appointmentsQuery.data?.content ?? []
   const actionError =
     rescheduleMutation.error?.message ??
     cancelMutation.error?.message ??
@@ -117,7 +113,7 @@ export function AppointmentsAgendaPage() {
               label="Mostrar"
               options={SCOPE_OPTIONS}
               value={scope}
-              onChange={(event) => setScope(event.target.value)}
+              onChange={(event) => setFilters({ scope: event.target.value })}
             />
           </div>
           {scope === 'day' && (
@@ -127,7 +123,7 @@ export function AppointmentsAgendaPage() {
                 label="Día"
                 type="date"
                 value={date}
-                onChange={(event) => setDate(event.target.value)}
+                onChange={(event) => setFilters({ date: event.target.value })}
               />
             </div>
           )}
@@ -143,7 +139,7 @@ export function AppointmentsAgendaPage() {
       <div className="mt-6">
         {appointmentsQuery.isPending && <p className="text-slate-500">Cargando turnos…</p>}
         {appointmentsQuery.isError && <Alert>{appointmentsQuery.error.message}</Alert>}
-        {appointmentsQuery.isSuccess && appointments.length === 0 && (
+        {appointmentsQuery.data?.totalElements === 0 && (
           <p className="rounded-lg border border-dashed border-slate-300 bg-white px-6 py-10 text-center text-slate-500">
             {scope === 'day'
               ? 'No hay turnos para este día.'
@@ -152,7 +148,7 @@ export function AppointmentsAgendaPage() {
                 : 'Todavía no se agendó ningún turno. Se agendan desde la ficha del solicitante.'}
           </p>
         )}
-        {appointments.length > 0 && (
+        {items.length > 0 && (
           <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
             <table className="w-full text-left text-sm">
               <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase text-slate-500">
@@ -165,70 +161,66 @@ export function AppointmentsAgendaPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {appointments.map((appointment) => {
-                  const applicant = applicantById[appointment.applicantId]
-                  return (
-                    <tr key={appointment.id} className="hover:bg-slate-50">
-                      <td className="px-4 py-3 font-medium text-slate-900">
-                        {formatDateTime(appointment.scheduledAt)}
-                      </td>
-                      <td className="px-4 py-3 text-slate-600">
-                        {applicant
-                          ? `${applicant.lastName}, ${applicant.firstName}`
-                          : `Beneficiario #${appointment.applicantId}`}
-                        {appointment.notes && (
-                          <p className="mt-0.5 max-w-52 truncate text-xs text-slate-400" title={appointment.notes}>
-                            {appointment.notes}
-                          </p>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-slate-600">
-                        {appointment.assignmentId ? (
-                          <Link
-                            to={`/assignments/${appointment.assignmentId}`}
-                            className="font-medium text-sky-700 hover:underline"
-                          >
-                            Retiro de anteojos
-                          </Link>
-                        ) : (
-                          'Atención general'
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <AppointmentStatusBadge status={appointment.status} />
-                        {appointment.receiptOriginalName && (
-                          <div className="mt-1">
-                            <AppointmentReceiptLink
-                              appointmentId={appointment.id}
-                              fileName={appointment.receiptOriginalName}
-                            />
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <AppointmentActions
-                          appointment={appointment}
-                          days={bookableDays}
-                          isPending={isRowPending(appointment.id)}
-                          onReschedule={(appointmentDayId) =>
-                            rescheduleMutation.mutate({ appointmentId: appointment.id, appointmentDayId })
-                          }
-                          onCancel={(reason) =>
-                            cancelMutation.mutate({ appointmentId: appointment.id, reason })
-                          }
-                          onAttendance={(attended) =>
-                            attendanceMutation.mutate({ appointmentId: appointment.id, attended })
-                          }
-                          onApprove={() => approveMutation.mutate({ appointmentId: appointment.id })}
-                        />
-                      </td>
-                    </tr>
-                  )
-                })}
+                {items.map(({ appointment, applicantName }) => (
+                  <tr key={appointment.id} className="hover:bg-slate-50">
+                    <td className="px-4 py-3 font-medium text-slate-900">
+                      {formatDateTime(appointment.scheduledAt)}
+                    </td>
+                    <td className="px-4 py-3 text-slate-600">
+                      {applicantName ?? `Beneficiario #${appointment.applicantId}`}
+                      {appointment.notes && (
+                        <p className="mt-0.5 max-w-52 truncate text-xs text-slate-400" title={appointment.notes}>
+                          {appointment.notes}
+                        </p>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-slate-600">
+                      {appointment.assignmentId ? (
+                        <Link
+                          to={`/assignments/${appointment.assignmentId}`}
+                          className="font-medium text-sky-700 hover:underline"
+                        >
+                          Retiro de anteojos
+                        </Link>
+                      ) : (
+                        'Atención general'
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <AppointmentStatusBadge status={appointment.status} />
+                      {appointment.receiptOriginalName && (
+                        <div className="mt-1">
+                          <AppointmentReceiptLink
+                            appointmentId={appointment.id}
+                            fileName={appointment.receiptOriginalName}
+                          />
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <AppointmentActions
+                        appointment={appointment}
+                        days={bookableDays}
+                        isPending={isRowPending(appointment.id)}
+                        onReschedule={(appointmentDayId) =>
+                          rescheduleMutation.mutate({ appointmentId: appointment.id, appointmentDayId })
+                        }
+                        onCancel={(reason) =>
+                          cancelMutation.mutate({ appointmentId: appointment.id, reason })
+                        }
+                        onAttendance={(attended) =>
+                          attendanceMutation.mutate({ appointmentId: appointment.id, attended })
+                        }
+                        onApprove={() => approveMutation.mutate({ appointmentId: appointment.id })}
+                      />
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
         )}
+        <Pagination pageData={appointmentsQuery.data} onPageChange={setPage} />
       </div>
     </Layout>
   )
