@@ -8,6 +8,7 @@ import { AnsesCertificateFileLink } from '../components/AnsesCertificateFileLink
 import { AnsesCertificateUpload } from '../components/AnsesCertificateUpload'
 import { AnsesValidityNote } from '../components/AnsesValidityNote'
 import { ApplicantForm } from '../components/ApplicantForm'
+import { MyPrescriptionsSection } from '../components/MyPrescriptionsSection'
 import { joinFields, missingProfileFields } from '../profileCompleteness'
 
 function Field({ label, children }) {
@@ -150,6 +151,8 @@ export function MyProfilePage() {
                 />
               </div>
             </section>
+
+            <MyPrescriptionsSection />
           </div>
 
           <aside className="h-fit rounded-lg border border-slate-200 bg-white p-6">

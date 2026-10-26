@@ -121,6 +121,22 @@ public class ApplicantServiceHandler implements ApplicantService {
 	}
 
 	@Override
+	public PrescriptionResponseDto addPrescriptionFromFile(Long applicantId,
+			PrescriptionFileUploadRequestDto request) {
+		findApplicant(applicantId);
+		String extension = validateFile(request);
+
+		String key = "prescriptions/%d/%s.%s".formatted(applicantId, UUID.randomUUID(), extension);
+		String contentType = normalizeContentType(request.contentType());
+		r2StorageClient.upload(key, request.content(), contentType);
+
+		// La graduación queda en null: figura en el archivo y el operador la completa si hace falta.
+		Prescription prescription = new Prescription(applicantId, null, null, null, null, null, null);
+		prescription.attachFile(key, contentType, request.originalName());
+		return toResponse(prescriptionRepository.save(prescription));
+	}
+
+	@Override
 	public List<PrescriptionResponseDto> listPrescriptions(Long applicantId) {
 		findApplicant(applicantId);
 		return prescriptionRepository.findByApplicantId(applicantId).stream().map(this::toResponse).toList();

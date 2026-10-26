@@ -1,12 +1,14 @@
 import { useState } from 'react'
-import { applicantsApi } from '../../../api/applicantsApi'
 
 /**
  * La URL firmada vence, así que se pide recién al hacer clic y no se guarda en ningún lado.
  * La pestaña se abre antes del await: si se abriera después, el navegador la bloquearía por
  * no venir de una interacción directa del usuario.
+ *
+ * fetchFile la recibe de afuera porque la pide el operador (por solicitante) o el propio
+ * beneficiario (/v1/me), igual que AnsesCertificateFileLink.
  */
-export function PrescriptionFileLink({ applicantId, prescriptionId, fileName }) {
+export function PrescriptionFileLink({ fetchFile, fileName }) {
   const [isOpening, setIsOpening] = useState(false)
   const [error, setError] = useState(null)
 
@@ -16,7 +18,7 @@ export function PrescriptionFileLink({ applicantId, prescriptionId, fileName }) 
     const tab = window.open('', '_blank')
     if (tab) tab.opener = null
     try {
-      const { url } = await applicantsApi.getPrescriptionFile(applicantId, prescriptionId)
+      const { url } = await fetchFile()
       if (tab) tab.location = url
       else window.location.assign(url)
     } catch (caught) {

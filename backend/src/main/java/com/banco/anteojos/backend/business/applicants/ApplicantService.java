@@ -38,6 +38,12 @@ public interface ApplicantService {
 
 	PrescriptionResponseDto addPrescription(Long applicantId, PrescriptionCreationRequestDto request);
 
+	/**
+	 * Receta cargada por el propio beneficiario: solo el archivo (PDF o foto), sin graduación.
+	 * Se valida y se sube antes de guardar, así un archivo rechazado no deja una receta vacía.
+	 */
+	PrescriptionResponseDto addPrescriptionFromFile(Long applicantId, PrescriptionFileUploadRequestDto request);
+
 	List<PrescriptionResponseDto> listPrescriptions(Long applicantId);
 
 	/** Falla si la receta no existe o no es del solicitante: valida pertenencia. */

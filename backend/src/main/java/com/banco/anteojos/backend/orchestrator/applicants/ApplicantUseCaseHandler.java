@@ -59,6 +59,12 @@ public class ApplicantUseCaseHandler implements ApplicantUseCaseOrchestrator {
 	}
 
 	@Override
+	public PrescriptionResponseDto addPrescriptionFromFile(Long applicantId,
+			PrescriptionFileUploadRequestDto request) {
+		return applicantService.addPrescriptionFromFile(applicantId, request);
+	}
+
+	@Override
 	public List<PrescriptionResponseDto> listPrescriptions(Long applicantId) {
 		return applicantService.listPrescriptions(applicantId);
 	}

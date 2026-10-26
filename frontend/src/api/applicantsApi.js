@@ -10,6 +10,14 @@ export const applicantsApi = {
   getMine: () => apiFetch('/v1/me'),
   updateMine: (data) => apiFetch('/v1/me', { method: 'PUT', body: data }),
   getMyAnsesCertificate: () => apiFetch('/v1/me/anses-certificate'),
+  // El beneficiario sube la receta del médico tal cual (PDF o foto), sin tipear la graduación.
+  listMyPrescriptions: () => apiFetch('/v1/me/prescriptions'),
+  uploadMyPrescription: (file) => {
+    const body = new FormData()
+    body.append('file', file)
+    return apiFetch('/v1/me/prescriptions', { method: 'POST', body })
+  },
+  getMyPrescriptionFile: (prescriptionId) => apiFetch(`/v1/me/prescriptions/${prescriptionId}/file`),
   uploadMyAnsesCertificate: (file) => {
     const body = new FormData()
     body.append('file', file)
