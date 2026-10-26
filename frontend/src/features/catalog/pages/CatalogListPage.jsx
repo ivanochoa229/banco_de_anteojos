@@ -21,6 +21,8 @@ const SCOPE_OPTIONS = [
 
 export function CatalogListPage() {
   const { role } = useAuth()
+  // El solicitante solo mira el catálogo: registrar ventas es del personal de la fundación.
+  const canSell = role === 'ADMIN' || role === 'OPERATOR'
   const { scope, page, setFilters, setPage } = useListParams({ scope: 'active' })
   const [sellingProductId, setSellingProductId] = useState(null)
   const queryClient = useQueryClient()
@@ -120,7 +122,7 @@ export function CatalogListPage() {
                         />
                       ) : (
                         <div className="flex items-center gap-3">
-                          {isActive(product) && product.stockQuantity > 0 && (
+                          {canSell && isActive(product) && product.stockQuantity > 0 && (
                             <Button
                               onClick={() => setSellingProductId(product.id)}
                               className="px-3 py-2 text-sm"

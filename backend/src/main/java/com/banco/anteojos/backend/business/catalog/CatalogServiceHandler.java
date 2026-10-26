@@ -117,7 +117,7 @@ public class CatalogServiceHandler implements CatalogService {
 
 	@Override
 	public SaleResponseDto sellProduct(Long productId, SaleCreationRequestDto request) {
-		Product product = findProduct(productId);
+		Product product = productRepository.findByIdForUpdate(productId).orElseThrow(ProductNotFoundException::new);
 		product.sell(request.quantity());
 		productRepository.save(product);
 

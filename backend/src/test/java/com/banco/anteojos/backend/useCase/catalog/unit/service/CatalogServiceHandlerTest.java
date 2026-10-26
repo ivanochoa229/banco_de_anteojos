@@ -133,7 +133,8 @@ class CatalogServiceHandlerTest {
 
 	@Test
 	void SellProduct_Successful() {
-		mockFind(product());
+		when(productRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(product()));
+		when(productRepository.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
 		when(saleRepository.save(any(Sale.class))).thenAnswer(inv -> inv.getArgument(0));
 
 		SaleResponseDto response = catalogServiceHandler.sellProduct(1L,
@@ -147,7 +148,7 @@ class CatalogServiceHandlerTest {
 
 	@Test
 	void SellProduct_WhenInsufficientStock() {
-		when(productRepository.findById(1L)).thenReturn(Optional.of(product()));
+		when(productRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(product()));
 
 		assertThatThrownBy(() -> catalogServiceHandler.sellProduct(1L,
 				new SaleCreationRequestDto(11, null, null)))

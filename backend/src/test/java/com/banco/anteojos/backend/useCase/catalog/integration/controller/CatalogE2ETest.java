@@ -57,6 +57,11 @@ class CatalogE2ETest {
 				new User("Operador Test", "operator.test@bancoanteojos.org", "hash", Role.OPERATOR));
 	}
 
+	private String applicantBearerToken() {
+		return "Bearer " + jwtService.generateToken(
+				new User("Beneficiario Test", "beneficiario.test@mail.com", "hash", Role.APPLICANT, 200000L));
+	}
+
 	private String creationBody() {
 		return """
 				{"name": "Ray-Ban Aviator", "description": "clásico", "price": 25000.00, "stockQuantity": 10}
@@ -230,6 +235,31 @@ class CatalogE2ETest {
 		mockMvc.perform(get("/v1/catalog/products/" + productId + "/image")
 						.header(HttpHeaders.AUTHORIZATION, bearerToken()))
 				.andExpect(status().isNotFound());
+	}
+
+	// El solicitante puede ver la foto: un 404 (no tiene) y no un 403 (no puede).
+	@Test
+	void GetProductImage_WhenApplicant() throws Exception {
+		Long productId = createProduct();
+
+		mockMvc.perform(get("/v1/catalog/products/" + productId + "/image")
+						.header(HttpHeaders.AUTHORIZATION, applicantBearerToken()))
+				.andExpect(status().isNotFound());
+	}
+
+	@Test
+	void SellProduct_WhenApplicant() throws Exception {
+		Long productId = createProduct();
+
+		mockMvc.perform(post("/v1/catalog/products/" + productId + "/sales")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{"quantity": 1}
+								""")
+						.header(HttpHeaders.AUTHORIZATION, applicantBearerToken()))
+				.andExpect(status().isForbidden());
+
+		assertThat(productInDb(productId).getStockQuantity()).isEqualTo(10);
 	}
 
 	@Test
