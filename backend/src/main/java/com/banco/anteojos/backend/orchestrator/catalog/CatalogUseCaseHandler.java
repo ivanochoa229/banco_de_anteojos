@@ -2,6 +2,7 @@ package com.banco.anteojos.backend.orchestrator.catalog;
 
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.banco.anteojos.backend.business.catalog.CatalogService;
 import com.banco.anteojos.backend.business.catalog.dto.request.ProductCreationRequestDto;
@@ -58,13 +59,16 @@ public class CatalogUseCaseHandler implements CatalogUseCaseOrchestrator {
 		return catalogService.getProductImage(productId);
 	}
 
+	// Transaccional por el lock del producto y porque marcarlo vendido y registrar la venta van
+	// juntos: si falla el registro, el anteojo no puede quedar vendido sin su venta.
 	@Override
+	@Transactional
 	public SaleResponseDto sellProduct(Long productId, SaleCreationRequestDto request) {
 		return catalogService.sellProduct(productId, request);
 	}
 
 	@Override
-	public PageResponseDto<SaleResponseDto> listSales(Long productId, Pageable pageable) {
-		return catalogService.listSales(productId, pageable);
+	public SaleResponseDto getSale(Long productId) {
+		return catalogService.getSale(productId);
 	}
 }

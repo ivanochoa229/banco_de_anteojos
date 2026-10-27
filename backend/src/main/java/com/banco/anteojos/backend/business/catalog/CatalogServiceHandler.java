@@ -20,6 +20,7 @@ import com.banco.anteojos.backend.business.catalog.entities.Sale;
 import com.banco.anteojos.backend.business.catalog.exception.InvalidProductImageException;
 import com.banco.anteojos.backend.business.catalog.exception.ProductImageNotFoundException;
 import com.banco.anteojos.backend.business.catalog.exception.ProductNotFoundException;
+import com.banco.anteojos.backend.business.catalog.exception.SaleNotFoundException;
 import com.banco.anteojos.backend.business.common.dto.response.PageResponseDto;
 import com.banco.anteojos.backend.persistence.catalog.ProductPostgresSqlRepository;
 import com.banco.anteojos.backend.persistence.catalog.SalePostgresSqlRepository;
@@ -50,7 +51,7 @@ public class CatalogServiceHandler implements CatalogService {
 	@Override
 	public ProductResponseDto createProduct(ProductCreationRequestDto request) {
 		Product product = productRepository.save(new Product(request.name(), request.description(),
-				request.price(), request.stockQuantity()));
+				request.price()));
 		return toResponse(product);
 	}
 
@@ -70,7 +71,7 @@ public class CatalogServiceHandler implements CatalogService {
 	@Override
 	public ProductResponseDto updateProduct(Long productId, ProductUpdateRequestDto request) {
 		Product product = findProduct(productId);
-		product.update(request.name(), request.description(), request.price(), request.stockQuantity());
+		product.update(request.name(), request.description(), request.price());
 		return toResponse(productRepository.save(product));
 	}
 
@@ -117,19 +118,19 @@ public class CatalogServiceHandler implements CatalogService {
 
 	@Override
 	public SaleResponseDto sellProduct(Long productId, SaleCreationRequestDto request) {
-		Product product = findProduct(productId);
-		product.sell(request.quantity());
+		Product product = productRepository.findByIdForUpdate(productId).orElseThrow(ProductNotFoundException::new);
+		product.sell();
 		productRepository.save(product);
 
-		Sale sale = saleRepository.save(new Sale(productId, request.quantity(), product.getPrice(),
-				request.buyerName(), request.notes()));
+		Sale sale = saleRepository.save(new Sale(productId, product.getPrice(), request.buyerName(),
+				request.notes()));
 		return toResponse(sale);
 	}
 
 	@Override
-	public PageResponseDto<SaleResponseDto> listSales(Long productId, Pageable pageable) {
-		return PageResponseDto.from(
-				saleRepository.findByProductIdOrderBySoldAtDescIdDesc(productId, pageable).map(this::toResponse));
+	public SaleResponseDto getSale(Long productId) {
+		findProduct(productId);
+		return toResponse(saleRepository.findByProductId(productId).orElseThrow(SaleNotFoundException::new));
 	}
 
 	/** Devuelve la extensión que corresponde al content type, ya validado. */
@@ -148,15 +149,16 @@ public class CatalogServiceHandler implements CatalogService {
 		return productRepository.findById(productId).orElseThrow(ProductNotFoundException::new);
 	}
 
+	/** Firmar la URL es local (no le pega a R2), así que el listado puede traer todas las fotos. */
 	private ProductResponseDto toResponse(Product product) {
+		String imageUrl = product.hasImage() ? r2StorageClient.presignedGetUrl(product.getImageKey()).url() : null;
 		return new ProductResponseDto(product.getId(), product.getName(), product.getDescription(),
-				product.getPrice(), product.getStockQuantity(), product.getStatus(),
-				product.getImageOriginalName(), product.getCreatedAt());
+				product.getPrice(), product.getStatus(), product.getImageOriginalName(), imageUrl,
+				product.getCreatedAt());
 	}
 
 	private SaleResponseDto toResponse(Sale sale) {
-		return new SaleResponseDto(sale.getId(), sale.getProductId(), sale.getQuantity(),
-				sale.getUnitPrice(), sale.getTotalAmount(), sale.getBuyerName(), sale.getNotes(),
-				sale.getSoldAt());
+		return new SaleResponseDto(sale.getId(), sale.getProductId(), sale.getPrice(), sale.getBuyerName(),
+				sale.getNotes(), sale.getSoldAt());
 	}
 }

@@ -10,7 +10,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.Getter;
 
-/** Registro inmutable de una venta (RF-29): no tiene transiciones ni se edita. */
+/** Registro inmutable de la venta de un anteojo (RF-29): uno por producto, no se edita. */
 @Entity
 @Table(name = "product_sales")
 @Getter
@@ -22,13 +22,8 @@ public class Sale {
 
 	private Long productId;
 
-	private Integer quantity;
-
-	// Copia del precio al momento de vender: si el precio del producto cambia después, no debe
-	// reescribir ventas ya cerradas.
-	private BigDecimal unitPrice;
-
-	private BigDecimal totalAmount;
+	// Copia del precio al momento de vender: la venta cerrada no depende del producto.
+	private BigDecimal price;
 
 	private String buyerName;
 
@@ -39,11 +34,9 @@ public class Sale {
 	protected Sale() {
 	}
 
-	public Sale(Long productId, Integer quantity, BigDecimal unitPrice, String buyerName, String notes) {
+	public Sale(Long productId, BigDecimal price, String buyerName, String notes) {
 		this.productId = productId;
-		this.quantity = quantity;
-		this.unitPrice = unitPrice;
-		this.totalAmount = unitPrice.multiply(BigDecimal.valueOf(quantity));
+		this.price = price;
 		this.buyerName = buyerName == null || buyerName.isBlank() ? null : buyerName.trim();
 		this.notes = notes == null || notes.isBlank() ? null : notes.trim();
 		this.soldAt = LocalDateTime.now();

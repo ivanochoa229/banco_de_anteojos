@@ -10,14 +10,13 @@ import org.junit.jupiter.api.Test;
 
 import com.banco.anteojos.backend.business.catalog.entities.Product;
 import com.banco.anteojos.backend.business.catalog.entities.ProductStatus;
-import com.banco.anteojos.backend.business.catalog.exception.InsufficientStockException;
 import com.banco.anteojos.backend.business.catalog.exception.InvalidProductTransitionException;
 
 @Tag("unit")
 class ProductTest {
 
 	private Product product() {
-		return new Product("  Ray-Ban Aviator  ", "  clásico  ", new BigDecimal("25000.00"), 10);
+		return new Product("  Ray-Ban Aviator  ", "  clásico  ", new BigDecimal("25000.00"));
 	}
 
 	@Test
@@ -27,14 +26,13 @@ class ProductTest {
 		assertThat(product.getName()).isEqualTo("Ray-Ban Aviator");
 		assertThat(product.getDescription()).isEqualTo("clásico");
 		assertThat(product.getPrice()).isEqualByComparingTo("25000.00");
-		assertThat(product.getStockQuantity()).isEqualTo(10);
 		assertThat(product.getStatus()).isEqualTo(ProductStatus.ACTIVE);
 		assertThat(product.getCreatedAt()).isNotNull();
 	}
 
 	@Test
 	void Create_WithoutDescription() {
-		Product product = new Product("Wayfarer", "  ", new BigDecimal("18000.00"), 5);
+		Product product = new Product("Wayfarer", "  ", new BigDecimal("18000.00"));
 
 		assertThat(product.getDescription()).isNull();
 	}
@@ -43,32 +41,42 @@ class ProductTest {
 	void Update_Successful() {
 		Product product = product();
 
-		product.update("  Ray-Ban Aviator Classic  ", "  edición limitada  ", new BigDecimal("27000.00"), 15);
+		product.update("  Ray-Ban Aviator Classic  ", "  edición limitada  ", new BigDecimal("27000.00"));
 
 		assertThat(product.getName()).isEqualTo("Ray-Ban Aviator Classic");
 		assertThat(product.getDescription()).isEqualTo("edición limitada");
 		assertThat(product.getPrice()).isEqualByComparingTo("27000.00");
-		assertThat(product.getStockQuantity()).isEqualTo(15);
+	}
+
+	@Test
+	void Update_WhenSold() {
+		Product product = product();
+		product.sell();
+
+		assertThatThrownBy(() -> product.update("Otro", null, new BigDecimal("1.00")))
+				.isInstanceOf(InvalidProductTransitionException.class)
+				.hasMessageContaining("ya se vendió");
+		// El vendido sigue mostrando lo que se vendió.
+		assertThat(product.getName()).isEqualTo("Ray-Ban Aviator");
 	}
 
 	@Test
 	void Sell_Successful() {
 		Product product = product();
 
-		product.sell(4);
+		product.sell();
 
-		assertThat(product.getStockQuantity()).isEqualTo(6);
+		assertThat(product.getStatus()).isEqualTo(ProductStatus.SOLD);
 	}
 
 	@Test
-	void Sell_WhenInsufficientStock() {
+	void Sell_WhenAlreadySold() {
 		Product product = product();
+		product.sell();
 
-		assertThatThrownBy(() -> product.sell(11))
-				.isInstanceOf(InsufficientStockException.class)
-				.hasMessageContaining("Stock insuficiente");
-		// La venta rechazada no toca el stock.
-		assertThat(product.getStockQuantity()).isEqualTo(10);
+		assertThatThrownBy(product::sell)
+				.isInstanceOf(InvalidProductTransitionException.class)
+				.hasMessageContaining("ya se vendió");
 	}
 
 	@Test
@@ -76,7 +84,7 @@ class ProductTest {
 		Product product = product();
 		product.discontinue();
 
-		assertThatThrownBy(() -> product.sell(1))
+		assertThatThrownBy(product::sell)
 				.isInstanceOf(InvalidProductTransitionException.class)
 				.hasMessageContaining("de baja");
 	}
@@ -97,7 +105,18 @@ class ProductTest {
 
 		assertThatThrownBy(product::discontinue)
 				.isInstanceOf(InvalidProductTransitionException.class)
-				.hasMessageContaining("ya está de baja");
+				.hasMessageContaining("está de baja");
+	}
+
+	@Test
+	void Discontinue_WhenSold() {
+		Product product = product();
+		product.sell();
+
+		assertThatThrownBy(product::discontinue)
+				.isInstanceOf(InvalidProductTransitionException.class)
+				.hasMessageContaining("ya se vendió");
+		assertThat(product.getStatus()).isEqualTo(ProductStatus.SOLD);
 	}
 
 	@Test

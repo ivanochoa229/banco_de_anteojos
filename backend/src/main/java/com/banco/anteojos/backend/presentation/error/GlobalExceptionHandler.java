@@ -32,11 +32,11 @@ import com.banco.anteojos.backend.business.assignments.exception.FrameReservatio
 import com.banco.anteojos.backend.business.assignments.exception.FrameReservationNotFoundException;
 import com.banco.anteojos.backend.business.assignments.exception.InvalidDeliveryPhotoException;
 import com.banco.anteojos.backend.business.assignments.exception.InvalidAssignmentTransitionException;
-import com.banco.anteojos.backend.business.catalog.exception.InsufficientStockException;
 import com.banco.anteojos.backend.business.catalog.exception.InvalidProductImageException;
 import com.banco.anteojos.backend.business.catalog.exception.InvalidProductTransitionException;
 import com.banco.anteojos.backend.business.catalog.exception.ProductImageNotFoundException;
 import com.banco.anteojos.backend.business.catalog.exception.ProductNotFoundException;
+import com.banco.anteojos.backend.business.catalog.exception.SaleNotFoundException;
 import com.banco.anteojos.backend.business.donors.exception.DonorNotFoundException;
 import com.banco.anteojos.backend.business.frames.exception.FrameImageNotFoundException;
 import com.banco.anteojos.backend.business.frames.exception.InvalidFrameImageException;
@@ -169,7 +169,7 @@ public class GlobalExceptionHandler {
 	@ExceptionHandler({ InvalidAssignmentTransitionException.class, InvalidFrameTransitionException.class,
 			FrameReservationNotAllowedException.class,
 			InvalidAppointmentTransitionException.class, InvalidShipmentTransitionException.class,
-			InvalidProductTransitionException.class, InsufficientStockException.class,
+			InvalidProductTransitionException.class,
 			InvalidAppointmentDayException.class, AppointmentDayUnavailableException.class })
 	@ResponseStatus(HttpStatus.CONFLICT)
 	public ErrorResponseDto invalidTransition(RuntimeException e, HttpServletRequest request) {
@@ -179,6 +179,12 @@ public class GlobalExceptionHandler {
 	@ExceptionHandler(ProductNotFoundException.class)
 	@ResponseStatus(HttpStatus.NOT_FOUND)
 	public ErrorResponseDto productNotFound(ProductNotFoundException e, HttpServletRequest request) {
+		return ErrorResponseDto.of(HttpStatus.NOT_FOUND, e.getMessage(), request.getRequestURI());
+	}
+
+	@ExceptionHandler(SaleNotFoundException.class)
+	@ResponseStatus(HttpStatus.NOT_FOUND)
+	public ErrorResponseDto saleNotFound(SaleNotFoundException e, HttpServletRequest request) {
 		return ErrorResponseDto.of(HttpStatus.NOT_FOUND, e.getMessage(), request.getRequestURI());
 	}
 
