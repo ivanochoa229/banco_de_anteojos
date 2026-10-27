@@ -59,8 +59,8 @@ public class CatalogUseCaseHandler implements CatalogUseCaseOrchestrator {
 		return catalogService.getProductImage(productId);
 	}
 
-	// Transaccional por el lock del producto y porque descontar el stock y registrar la venta van
-	// juntos: si falla el registro, el stock no puede quedar descontado.
+	// Transaccional por el lock del producto y porque marcarlo vendido y registrar la venta van
+	// juntos: si falla el registro, el anteojo no puede quedar vendido sin su venta.
 	@Override
 	@Transactional
 	public SaleResponseDto sellProduct(Long productId, SaleCreationRequestDto request) {
@@ -68,7 +68,7 @@ public class CatalogUseCaseHandler implements CatalogUseCaseOrchestrator {
 	}
 
 	@Override
-	public PageResponseDto<SaleResponseDto> listSales(Long productId, Pageable pageable) {
-		return catalogService.listSales(productId, pageable);
+	public SaleResponseDto getSale(Long productId) {
+		return catalogService.getSale(productId);
 	}
 }

@@ -29,8 +29,8 @@ public interface CatalogService {
 
 	ProductImageResponseDto getProductImage(Long productId);
 
-	/** Descuenta stock y registra la venta (RF-29) en una sola operación atómica del dominio. */
+	/** Marca el anteojo como vendido y registra la venta (RF-29). */
 	SaleResponseDto sellProduct(Long productId, SaleCreationRequestDto request);
 
-	PageResponseDto<SaleResponseDto> listSales(Long productId, Pageable pageable);
+	SaleResponseDto getSale(Long productId);
 }

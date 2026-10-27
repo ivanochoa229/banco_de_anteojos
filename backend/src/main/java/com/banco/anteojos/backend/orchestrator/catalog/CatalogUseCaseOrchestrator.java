@@ -30,5 +30,5 @@ public interface CatalogUseCaseOrchestrator {
 
 	SaleResponseDto sellProduct(Long productId, SaleCreationRequestDto request);
 
-	PageResponseDto<SaleResponseDto> listSales(Long productId, Pageable pageable);
+	SaleResponseDto getSale(Long productId);
 }

@@ -10,9 +10,10 @@ public record ProductResponseDto(
 		String name,
 		String description,
 		BigDecimal price,
-		Integer stockQuantity,
 		ProductStatus status,
-		// null si el producto no tiene foto cargada.
+		// Los dos en null si el producto no tiene foto cargada. imageUrl es una presigned URL que
+		// vence: sirve para mostrar la foto, no para guardarla.
 		String imageOriginalName,
+		String imageUrl,
 		LocalDateTime createdAt) {
 }

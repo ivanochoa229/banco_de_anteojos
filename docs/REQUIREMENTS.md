@@ -81,9 +81,9 @@
 
 | ID | Requisito |
 |---|---|
-| RF-28 | El sistema muestra un catálogo digital de anteojos de sol disponibles con su precio. |
-| RF-29 | El sistema permite registrar una venta de anteojos de sol con descuento automático del stock disponible. |
-| RF-30 | El sistema permite gestionar el stock del catálogo: carga, actualización y baja de productos. |
+| RF-28 | El sistema muestra un catálogo digital de anteojos de sol disponibles con su foto y su precio. |
+| RF-29 | El sistema permite registrar la venta de un anteojo de sol. Cada anteojo es una unidad única: al venderse queda marcado como vendido y sale del catálogo disponible. |
+| RF-30 | El sistema permite gestionar el catálogo: carga (con foto), actualización y baja de anteojos. |
 
 ---
 

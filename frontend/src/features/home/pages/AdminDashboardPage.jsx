@@ -92,7 +92,7 @@ const ADMIN_SHORTCUTS = [
   {
     to: '/admin/catalogo',
     title: 'Catálogo de Sol (Financiamiento)',
-    description: 'Administración de productos, precios y stock de la línea comercial de sol.',
+    description: 'Carga de anteojos de sol únicos con foto y precio, y registro de sus ventas.',
     iconKey: 'catalog',
   },
   {

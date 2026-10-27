@@ -13,13 +13,11 @@ import com.banco.anteojos.backend.business.catalog.entities.Sale;
 class SaleTest {
 
 	@Test
-	void Create_ComputesTotalAmount() {
-		Sale sale = new Sale(1L, 3, new BigDecimal("25000.00"), "  Juana Pérez  ", "  retira mañana  ");
+	void Create_Successful() {
+		Sale sale = new Sale(1L, new BigDecimal("25000.00"), "  Juana Pérez  ", "  retira mañana  ");
 
 		assertThat(sale.getProductId()).isEqualTo(1L);
-		assertThat(sale.getQuantity()).isEqualTo(3);
-		assertThat(sale.getUnitPrice()).isEqualByComparingTo("25000.00");
-		assertThat(sale.getTotalAmount()).isEqualByComparingTo("75000.00");
+		assertThat(sale.getPrice()).isEqualByComparingTo("25000.00");
 		assertThat(sale.getBuyerName()).isEqualTo("Juana Pérez");
 		assertThat(sale.getNotes()).isEqualTo("retira mañana");
 		assertThat(sale.getSoldAt()).isNotNull();
@@ -27,7 +25,7 @@ class SaleTest {
 
 	@Test
 	void Create_WithoutBuyerName() {
-		Sale sale = new Sale(1L, 1, new BigDecimal("18000.00"), "  ", null);
+		Sale sale = new Sale(1L, new BigDecimal("18000.00"), "  ", null);
 
 		assertThat(sale.getBuyerName()).isNull();
 		assertThat(sale.getNotes()).isNull();

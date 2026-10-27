@@ -15,21 +15,33 @@ import { SaleForm } from '../components/SaleForm'
 import { isActive } from '../labels'
 
 const SCOPE_OPTIONS = [
-  { value: 'active', label: 'Activos' },
+  { value: 'active', label: 'A la venta' },
+  { value: 'sold', label: 'Vendidos' },
   { value: 'all', label: 'Todos' },
 ]
 
+const SCOPE_STATUS = { active: 'ACTIVE', sold: 'SOLD', all: undefined }
+
+const EMPTY_MESSAGES = {
+  active: 'No hay anteojos a la venta.',
+  sold: 'Todavía no se vendió ningún anteojo.',
+  all: 'Todavía no se cargó ningún anteojo.',
+}
+
 export function CatalogListPage() {
   const { role } = useAuth()
-  // El solicitante solo mira el catálogo: registrar ventas es del personal de la fundación.
-  const canSell = role === 'ADMIN' || role === 'OPERATOR'
-  const { scope, page, setFilters, setPage } = useListParams({ scope: 'active' })
+  // El solicitante solo mira lo que está a la venta: registrar ventas y ver lo vendido es del
+  // personal de la fundación.
+  const isStaff = role === 'ADMIN' || role === 'OPERATOR'
+  const listParams = useListParams({ scope: 'active' })
+  const { page, setFilters, setPage } = listParams
+  const scope = isStaff && listParams.scope in SCOPE_STATUS ? listParams.scope : 'active'
   const [sellingProductId, setSellingProductId] = useState(null)
   const queryClient = useQueryClient()
 
   const productsQuery = useQuery({
     queryKey: ['catalog', 'products', { scope, page }],
-    queryFn: () => catalogApi.listProducts({ status: scope === 'active' ? 'ACTIVE' : undefined, page }),
+    queryFn: () => catalogApi.listProducts({ status: SCOPE_STATUS[scope], page }),
     placeholderData: keepPreviousData,
   })
 
@@ -47,24 +59,26 @@ export function CatalogListPage() {
     <Layout>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-semibold text-slate-900">Catálogo de venta</h2>
+          <h2 className="text-xl font-semibold text-slate-900">Catálogo de anteojos de sol</h2>
           <p className="mt-1 text-sm text-slate-500">
-            Anteojos de sol disponibles para la venta al público.
+            Cada anteojo es único: lo que se recauda financia los anteojos recetados de la fundación.
           </p>
         </div>
         <div className="flex items-end gap-3">
-          <div className="w-40">
-            <Select
-              id="scope"
-              label="Mostrar"
-              options={SCOPE_OPTIONS}
-              value={scope}
-              onChange={(event) => setFilters({ scope: event.target.value })}
-            />
-          </div>
+          {isStaff && (
+            <div className="w-40">
+              <Select
+                id="scope"
+                label="Mostrar"
+                options={SCOPE_OPTIONS}
+                value={scope}
+                onChange={(event) => setFilters({ scope: event.target.value })}
+              />
+            </div>
+          )}
           {role === 'ADMIN' && (
             <Link to="/catalog/new">
-              <Button className="px-3 py-2.5 text-sm">Nuevo producto</Button>
+              <Button className="px-3 py-2.5 text-sm">Nuevo anteojo</Button>
             </Link>
           )}
         </div>
@@ -75,76 +89,76 @@ export function CatalogListPage() {
         {productsQuery.isError && <Alert>{productsQuery.error.message}</Alert>}
         {productsQuery.data?.totalElements === 0 && (
           <p className="rounded-lg border border-dashed border-slate-300 bg-white px-6 py-10 text-center text-slate-500">
-            {scope === 'active' ? 'No hay productos activos.' : 'Todavía no se cargó ningún producto.'}
+            {EMPTY_MESSAGES[scope]}
           </p>
         )}
         {products.length > 0 && (
-          <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase text-slate-500">
-                <tr>
-                  <th className="px-4 py-3">Producto</th>
-                  <th className="px-4 py-3">Precio</th>
-                  <th className="px-4 py-3">Stock</th>
-                  <th className="px-4 py-3">Estado</th>
-                  <th className="px-4 py-3">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {products.map((product) => (
-                  <tr key={product.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {products.map((product) => (
+              <article
+                key={product.id}
+                className="flex flex-col overflow-hidden rounded-lg border border-slate-200 bg-white"
+              >
+                {product.imageUrl ? (
+                  <img
+                    src={product.imageUrl}
+                    alt={product.name}
+                    className="aspect-square w-full bg-slate-50 object-cover"
+                  />
+                ) : (
+                  <div className="flex aspect-square w-full items-center justify-center bg-slate-50 text-sm text-slate-400">
+                    Sin foto
+                  </div>
+                )}
+                <div className="flex flex-1 flex-col gap-3 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
                       <p className="font-medium text-slate-900">{product.name}</p>
                       {product.description && (
-                        <p className="text-xs text-slate-500">{product.description}</p>
+                        <p className="mt-0.5 text-xs text-slate-500">{product.description}</p>
                       )}
-                    </td>
-                    <td className="px-4 py-3 text-slate-600">{formatCurrency(product.price)}</td>
-                    <td className="px-4 py-3 text-slate-600">{product.stockQuantity}</td>
-                    <td className="px-4 py-3">
-                      <ProductStatusBadge status={product.status} />
-                    </td>
-                    <td className="px-4 py-3">
-                      {sellingProductId === product.id ? (
-                        <SaleForm
-                          productId={product.id}
-                          maxQuantity={product.stockQuantity}
-                          isPending={sellMutation.isPending}
-                          submitError={
-                            sellMutation.variables?.productId === product.id
-                              ? sellMutation.error?.message
-                              : null
-                          }
-                          onSell={(data) =>
-                            sellMutation.mutate({ productId: product.id, data })
-                          }
-                          onCancel={() => setSellingProductId(null)}
-                        />
-                      ) : (
-                        <div className="flex items-center gap-3">
-                          {canSell && isActive(product) && product.stockQuantity > 0 && (
-                            <Button
-                              onClick={() => setSellingProductId(product.id)}
-                              className="px-3 py-2 text-sm"
-                            >
-                              Vender
-                            </Button>
-                          )}
-                          {role === 'ADMIN' && (
-                            <Link
-                              to={`/catalog/${product.id}/edit`}
-                              className="text-sm font-medium text-sky-700 hover:underline"
-                            >
-                              Editar
-                            </Link>
-                          )}
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </div>
+                    <ProductStatusBadge status={product.status} />
+                  </div>
+                  <p className="text-lg font-semibold text-slate-900">{formatCurrency(product.price)}</p>
+
+                  <div className="mt-auto">
+                    {sellingProductId === product.id ? (
+                      <SaleForm
+                        productId={product.id}
+                        isPending={sellMutation.isPending}
+                        submitError={
+                          sellMutation.variables?.productId === product.id
+                            ? sellMutation.error?.message
+                            : null
+                        }
+                        onSell={(data) => sellMutation.mutate({ productId: product.id, data })}
+                        onCancel={() => setSellingProductId(null)}
+                      />
+                    ) : (
+                      <div className="flex items-center gap-3">
+                        {isStaff && isActive(product) && (
+                          <Button
+                            onClick={() => setSellingProductId(product.id)}
+                            className="px-3 py-2 text-sm"
+                          >
+                            Vender
+                          </Button>
+                        )}
+                        {role === 'ADMIN' && (
+                          <Link
+                            to={`/catalog/${product.id}/edit`}
+                            className="text-sm font-medium text-sky-700 hover:underline"
+                          >
+                            {isActive(product) ? 'Editar' : 'Ver detalle'}
+                          </Link>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </article>
+            ))}
           </div>
         )}
         <Pagination pageData={productsQuery.data} onPageChange={setPage} />

@@ -1,14 +1,6 @@
 import { useRef, useState } from 'react'
 import { Alert } from '../../../components/Alert'
-
-const MAX_FILE_BYTES = 5 * 1024 * 1024
-const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
-
-function validateFile(file) {
-  if (!ACCEPTED_TYPES.includes(file.type)) return 'La imagen debe ser JPG, PNG o WEBP'
-  if (file.size > MAX_FILE_BYTES) return 'La imagen supera los 5 MB'
-  return null
-}
+import { ACCEPTED_IMAGE_TYPES, validateImageFile } from '../imageFile'
 
 export function ProductImageUpload({ hasImage, onUpload, isPending, uploadError }) {
   const inputRef = useRef(null)
@@ -20,7 +12,7 @@ export function ProductImageUpload({ hasImage, onUpload, isPending, uploadError 
     event.target.value = ''
     if (!file) return
 
-    const error = validateFile(file)
+    const error = validateImageFile(file)
     setValidationError(error)
     if (!error) onUpload(file)
   }
@@ -32,7 +24,7 @@ export function ProductImageUpload({ hasImage, onUpload, isPending, uploadError 
       <input
         ref={inputRef}
         type="file"
-        accept={ACCEPTED_TYPES.join(',')}
+        accept={ACCEPTED_IMAGE_TYPES.join(',')}
         onChange={handleChange}
         className="hidden"
       />

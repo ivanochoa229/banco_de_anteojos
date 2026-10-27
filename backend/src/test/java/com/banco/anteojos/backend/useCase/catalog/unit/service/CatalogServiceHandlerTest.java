@@ -3,6 +3,7 @@ package com.banco.anteojos.backend.useCase.catalog.unit.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.startsWith;
 import static org.mockito.Mockito.never;
@@ -33,10 +34,11 @@ import com.banco.anteojos.backend.business.catalog.dto.response.SaleResponseDto;
 import com.banco.anteojos.backend.business.catalog.entities.Product;
 import com.banco.anteojos.backend.business.catalog.entities.ProductStatus;
 import com.banco.anteojos.backend.business.catalog.entities.Sale;
-import com.banco.anteojos.backend.business.catalog.exception.InsufficientStockException;
+import com.banco.anteojos.backend.business.catalog.exception.InvalidProductTransitionException;
 import com.banco.anteojos.backend.business.catalog.exception.InvalidProductImageException;
 import com.banco.anteojos.backend.business.catalog.exception.ProductImageNotFoundException;
 import com.banco.anteojos.backend.business.catalog.exception.ProductNotFoundException;
+import com.banco.anteojos.backend.business.catalog.exception.SaleNotFoundException;
 import com.banco.anteojos.backend.business.common.dto.response.PageResponseDto;
 import com.banco.anteojos.backend.persistence.catalog.ProductPostgresSqlRepository;
 import com.banco.anteojos.backend.persistence.catalog.SalePostgresSqlRepository;
@@ -62,7 +64,7 @@ class CatalogServiceHandlerTest {
 	private static final Pageable PAGE = PageRequest.of(0, 20);
 
 	private Product product() {
-		return new Product("Ray-Ban Aviator", "clásico", new BigDecimal("25000.00"), 10);
+		return new Product("Ray-Ban Aviator", "clásico", new BigDecimal("25000.00"));
 	}
 
 	private void mockFind(Product product) {
@@ -75,11 +77,11 @@ class CatalogServiceHandlerTest {
 		when(productRepository.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
 
 		ProductResponseDto response = catalogServiceHandler.createProduct(
-				new ProductCreationRequestDto("Ray-Ban Aviator", "clásico", new BigDecimal("25000.00"), 10));
+				new ProductCreationRequestDto("Ray-Ban Aviator", "clásico", new BigDecimal("25000.00")));
 
 		assertThat(response.name()).isEqualTo("Ray-Ban Aviator");
-		assertThat(response.stockQuantity()).isEqualTo(10);
 		assertThat(response.status()).isEqualTo(ProductStatus.ACTIVE);
+		assertThat(response.imageUrl()).isNull();
 	}
 
 	@Test
@@ -112,14 +114,27 @@ class CatalogServiceHandlerTest {
 	}
 
 	@Test
+	void ListProducts_IncludesImageUrl() {
+		Product product = product();
+		product.attachImage("products/1/foto.png", "image/png", "foto.png");
+		when(productRepository.findAllByOrderByNameAscIdAsc(PAGE)).thenReturn(new PageImpl<>(List.of(product), PAGE, 1));
+		when(r2StorageClient.presignedGetUrl("products/1/foto.png"))
+				.thenReturn(new PresignedUrl("https://r2/firmada", null));
+
+		PageResponseDto<ProductResponseDto> response = catalogServiceHandler.listProducts(null, PAGE);
+
+		assertThat(response.content().get(0).imageUrl()).isEqualTo("https://r2/firmada");
+	}
+
+	@Test
 	void UpdateProduct_Successful() {
 		mockFind(product());
 
 		ProductResponseDto response = catalogServiceHandler.updateProduct(1L,
-				new ProductUpdateRequestDto("Aviator Classic", "edición limitada", new BigDecimal("27000.00"), 15));
+				new ProductUpdateRequestDto("Aviator Classic", "edición limitada", new BigDecimal("27000.00")));
 
 		assertThat(response.name()).isEqualTo("Aviator Classic");
-		assertThat(response.stockQuantity()).isEqualTo(15);
+		assertThat(response.price()).isEqualByComparingTo("27000.00");
 	}
 
 	@Test
@@ -138,31 +153,41 @@ class CatalogServiceHandlerTest {
 		when(saleRepository.save(any(Sale.class))).thenAnswer(inv -> inv.getArgument(0));
 
 		SaleResponseDto response = catalogServiceHandler.sellProduct(1L,
-				new SaleCreationRequestDto(3, "Juana Pérez", "retira mañana"));
+				new SaleCreationRequestDto("Juana Pérez", "retira mañana"));
 
-		assertThat(response.quantity()).isEqualTo(3);
-		assertThat(response.unitPrice()).isEqualByComparingTo("25000.00");
-		assertThat(response.totalAmount()).isEqualByComparingTo("75000.00");
-		verify(productRepository).save(any(Product.class));
+		assertThat(response.price()).isEqualByComparingTo("25000.00");
+		assertThat(response.buyerName()).isEqualTo("Juana Pérez");
+		verify(productRepository).save(argThat(product -> product.getStatus() == ProductStatus.SOLD));
 	}
 
 	@Test
-	void SellProduct_WhenInsufficientStock() {
-		when(productRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(product()));
+	void SellProduct_WhenAlreadySold() {
+		Product product = product();
+		product.sell();
+		when(productRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(product));
 
-		assertThatThrownBy(() -> catalogServiceHandler.sellProduct(1L,
-				new SaleCreationRequestDto(11, null, null)))
-				.isInstanceOf(InsufficientStockException.class);
+		assertThatThrownBy(() -> catalogServiceHandler.sellProduct(1L, new SaleCreationRequestDto(null, null)))
+				.isInstanceOf(InvalidProductTransitionException.class);
 		verify(productRepository, never()).save(any());
 		verify(saleRepository, never()).save(any());
 	}
 
 	@Test
-	void ListSales_Successful() {
-		when(saleRepository.findByProductIdOrderBySoldAtDescIdDesc(1L, PAGE))
-				.thenReturn(new PageImpl<>(List.of(new Sale(1L, 1, new BigDecimal("25000.00"), null, null)), PAGE, 1));
+	void GetSale_Successful() {
+		when(productRepository.findById(1L)).thenReturn(Optional.of(product()));
+		when(saleRepository.findByProductId(1L))
+				.thenReturn(Optional.of(new Sale(1L, new BigDecimal("25000.00"), "Juana Pérez", null)));
 
-		assertThat(catalogServiceHandler.listSales(1L, PAGE).content()).hasSize(1);
+		assertThat(catalogServiceHandler.getSale(1L).buyerName()).isEqualTo("Juana Pérez");
+	}
+
+	@Test
+	void GetSale_WhenNotSold() {
+		when(productRepository.findById(1L)).thenReturn(Optional.of(product()));
+		when(saleRepository.findByProductId(1L)).thenReturn(Optional.empty());
+
+		assertThatThrownBy(() -> catalogServiceHandler.getSale(1L))
+				.isInstanceOf(SaleNotFoundException.class);
 	}
 
 	// --- Foto del producto ---
@@ -174,10 +199,13 @@ class CatalogServiceHandlerTest {
 	@Test
 	void UploadProductImage_Successful() {
 		mockFind(product());
+		when(r2StorageClient.presignedGetUrl(startsWith("products/1/")))
+				.thenReturn(new PresignedUrl("https://r2/firmada", null));
 
 		ProductResponseDto response = catalogServiceHandler.uploadProductImage(1L, imageRequest("image/png"));
 
 		assertThat(response.imageOriginalName()).isEqualTo("aviator.png");
+		assertThat(response.imageUrl()).isEqualTo("https://r2/firmada");
 		verify(r2StorageClient).upload(startsWith("products/1/"), any(), eq("image/png"));
 	}
 
@@ -196,6 +224,8 @@ class CatalogServiceHandlerTest {
 		Product product = product();
 		product.attachImage("products/1/vieja.png", "image/png", "vieja.png");
 		mockFind(product);
+		when(r2StorageClient.presignedGetUrl(startsWith("products/1/")))
+				.thenReturn(new PresignedUrl("https://r2/firmada", null));
 
 		catalogServiceHandler.uploadProductImage(1L, imageRequest("image/png"));
 

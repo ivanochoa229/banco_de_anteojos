@@ -21,9 +21,9 @@ public interface ProductPostgresSqlRepository extends JpaRepository<Product, Lon
 	Page<Product> findByStatusOrderByNameAscIdAsc(ProductStatus status, Pageable pageable);
 
 	/**
-	 * Serializa las ventas sobre un mismo producto: dos operadores vendiendo a la vez leerían el
-	 * mismo stock y una de las dos escrituras pisaría a la otra. Con el producto bloqueado, el
-	 * segundo espera y ve el stock ya descontado.
+	 * Serializa las ventas sobre un mismo producto: dos operadores vendiendo a la vez el mismo
+	 * anteojo lo leerían los dos a la venta. Con el producto bloqueado, el segundo espera y lo ve
+	 * ya vendido.
 	 */
 	@Lock(LockModeType.PESSIMISTIC_WRITE)
 	@Query("SELECT p FROM Product p WHERE p.id = :id")

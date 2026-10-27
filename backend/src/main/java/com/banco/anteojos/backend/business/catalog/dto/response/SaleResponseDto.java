@@ -6,9 +6,7 @@ import java.time.LocalDateTime;
 public record SaleResponseDto(
 		Long id,
 		Long productId,
-		Integer quantity,
-		BigDecimal unitPrice,
-		BigDecimal totalAmount,
+		BigDecimal price,
 		String buyerName,
 		String notes,
 		LocalDateTime soldAt) {
