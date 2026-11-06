@@ -92,9 +92,12 @@ public class Appointment {
 		this.scheduledAt = newScheduledAt;
 	}
 
-	/** Un turno se cancela ya agendado, o desde la revisión si el comprobante tiene un problema. */
+	/**
+	 * Un turno se cancela ya agendado, desde la revisión si el comprobante tiene un problema, o
+	 * mientras espera el pago: si no, un turno que nunca paga retiene la franja para siempre.
+	 */
 	public void cancel(String reason) {
-		requireScheduledOrPendingReview();
+		requireCancellable();
 		this.status = AppointmentStatus.CANCELLED;
 		this.cancellationReason = reason == null || reason.isBlank() ? null : reason.trim();
 	}
@@ -119,8 +122,8 @@ public class Appointment {
 		}
 	}
 
-	private void requireScheduledOrPendingReview() {
-		if (status == AppointmentStatus.PENDING_REVIEW) {
+	private void requireCancellable() {
+		if (status == AppointmentStatus.PENDING_PAYMENT || status == AppointmentStatus.PENDING_REVIEW) {
 			return;
 		}
 		requireScheduled();

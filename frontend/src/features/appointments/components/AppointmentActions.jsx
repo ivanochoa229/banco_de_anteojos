@@ -5,7 +5,8 @@ import { Select } from '../../../components/Select'
 import { appointmentDayLabel } from '../labels'
 
 /**
- * Acciones de un turno. En PENDING_REVIEW el administrativo revisó el comprobante: aprueba (queda
+ * Acciones de un turno. En PENDING_PAYMENT solo se espera el comprobante (o se cancela para liberar
+ * la franja). En PENDING_REVIEW el administrativo revisó el comprobante: aprueba (queda
  * SCHEDULED / aceptado) o cancela si tiene un problema. Ya SCHEDULED, registra la asistencia del
  * día (asistió/faltó), reprograma a otro día de atención (`days`, ya filtrado a los que tienen
  * lugar) o cancela. Reprogramar y cancelar despliegan su mini-formulario
@@ -26,7 +27,8 @@ export function AppointmentActions({
   const [newDayId, setNewDayId] = useState('')
   const [reason, setReason] = useState('')
 
-  if (appointment.status !== 'SCHEDULED' && appointment.status !== 'PENDING_REVIEW') {
+  const isActionable = ['SCHEDULED', 'PENDING_REVIEW', 'PENDING_PAYMENT'].includes(appointment.status)
+  if (!isActionable) {
     return <span className="text-sm text-slate-400">—</span>
   }
 
@@ -104,6 +106,22 @@ export function AppointmentActions({
           Volver
         </button>
       </form>
+    )
+  }
+
+  if (appointment.status === 'PENDING_PAYMENT') {
+    return (
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="text-sm text-slate-500">Esperando el comprobante</span>
+        <button
+          type="button"
+          onClick={() => setMode('cancelling')}
+          disabled={isPending}
+          className="text-sm font-medium text-red-700 hover:underline disabled:opacity-60"
+        >
+          Cancelar
+        </button>
+      </div>
     )
   }
 
