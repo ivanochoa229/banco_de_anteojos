@@ -92,12 +92,13 @@ export function AppointmentCreatePage() {
       <section className="mt-8">
         {created ? (
           <div className="rounded-lg border border-slate-200 bg-white p-6">
-            <h3 className="font-semibold text-slate-900">Turno agendado</h3>
+            <h3 className="font-semibold text-slate-900">Turno reservado</h3>
             <p className="mt-2 text-sm text-slate-500">
-              {formatDateTime(created.scheduledAt)}
-              {applicant?.email
-                ? ` · Se le envió la confirmación por email a ${applicant.email}.`
-                : ' · El beneficiario no tiene email cargado: avisale por teléfono.'}
+              {formatDateTime(created.scheduledAt)} · Queda pendiente de pago: todavía no está
+              confirmado ni se envió ningún email. El beneficiario tiene que subir el comprobante del
+              bono contribución desde su portal; la confirmación le llega por email
+              {applicant?.email ? ` (${applicant.email})` : ''} cuando se apruebe.
+              {!applicant?.email && ' No tiene email cargado: avisale por teléfono.'}
             </p>
             <div className="mt-4 flex gap-4 text-sm font-medium">
               <Link to="/appointments" className="text-sky-700 hover:underline">
