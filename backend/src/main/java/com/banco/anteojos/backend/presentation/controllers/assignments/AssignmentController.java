@@ -20,6 +20,7 @@ import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentRe
 import com.banco.anteojos.backend.business.assignments.dto.response.DeliveryPhotoResponseDto;
 import com.banco.anteojos.backend.business.assignments.exception.InvalidDeliveryPhotoException;
 import com.banco.anteojos.backend.business.common.dto.response.PageResponseDto;
+import com.banco.anteojos.backend.business.security.CurrentUserService;
 import com.banco.anteojos.backend.orchestrator.assignments.AssignmentUseCaseOrchestrator;
 
 import jakarta.validation.Valid;
@@ -38,6 +39,7 @@ import lombok.RequiredArgsConstructor;
 public class AssignmentController {
 
 	private final AssignmentUseCaseOrchestrator assignmentOrchestrator;
+	private final CurrentUserService currentUserService;
 
 	/**
 	 * Con {@code ?live=true} devuelve solo las que están en curso: la cola de trabajo del día. Cada
@@ -58,12 +60,12 @@ public class AssignmentController {
 
 	@PutMapping("/{assignmentId}/optician-dispatch")
 	public AssignmentResponseDto sendToOptician(@PathVariable Long assignmentId) {
-		return assignmentOrchestrator.sendToOptician(assignmentId);
+		return assignmentOrchestrator.sendToOptician(assignmentId, currentUserService.getUserId());
 	}
 
 	@PutMapping("/{assignmentId}/optician-return")
 	public AssignmentResponseDto returnFromOptician(@PathVariable Long assignmentId) {
-		return assignmentOrchestrator.returnFromOptician(assignmentId);
+		return assignmentOrchestrator.returnFromOptician(assignmentId, currentUserService.getUserId());
 	}
 
 	/**
@@ -75,7 +77,8 @@ public class AssignmentController {
 	public AssignmentResponseDto deliver(@PathVariable Long assignmentId,
 			@RequestParam(value = "photo", required = false) MultipartFile photo,
 			@RequestParam(defaultValue = "false") boolean photoConsent) {
-		return assignmentOrchestrator.deliver(assignmentId, toUploadRequest(photo), photoConsent);
+		return assignmentOrchestrator.deliver(assignmentId, toUploadRequest(photo), photoConsent,
+				currentUserService.getUserId());
 	}
 
 	/** Devuelve la presigned URL, no el binario: el backend no proxea archivos de R2. */
@@ -88,7 +91,7 @@ public class AssignmentController {
 	@PutMapping("/{assignmentId}/cancellation")
 	public AssignmentResponseDto cancel(@PathVariable Long assignmentId,
 			@Valid @RequestBody AssignmentCancellationRequestDto request) {
-		return assignmentOrchestrator.cancel(assignmentId, request.reason());
+		return assignmentOrchestrator.cancel(assignmentId, request.reason(), currentUserService.getUserId());
 	}
 
 	private DeliveryPhotoUploadRequestDto toUploadRequest(MultipartFile photo) {

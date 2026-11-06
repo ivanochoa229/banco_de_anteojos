@@ -8,6 +8,15 @@ import org.springframework.stereotype.Component;
 @Component
 public class CurrentUserService {
 
+	/** Usuario (staff) que hace el request, para registrar al responsable de cada acción. */
+	public Long getUserId() {
+		var authentication = SecurityContextHolder.getContext().getAuthentication();
+		if (authentication != null && authentication.getPrincipal() instanceof AuthenticatedPrincipal principal) {
+			return principal.userId();
+		}
+		return null;
+	}
+
 	public Long getApplicantId() {
 		var authentication = SecurityContextHolder.getContext().getAuthentication();
 		if (authentication != null && authentication.getPrincipal() instanceof AuthenticatedPrincipal principal) {

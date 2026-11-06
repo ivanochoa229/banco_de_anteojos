@@ -38,6 +38,10 @@ public class JwtService {
 				.claim("role", user.getRole().name())
 				.issuedAt(now)
 				.expiration(new Date(now.getTime() + expirationMs));
+		// Para auditar quién hizo cada cosa (RNF-09) sin volver a la base en cada request.
+		if (user.getId() != null) {
+			builder.claim("userId", user.getId());
+		}
 		if (user.getApplicantId() != null) {
 			builder.claim("applicantId", user.getApplicantId());
 		}
@@ -52,12 +56,12 @@ public class JwtService {
 					.parseSignedClaims(token)
 					.getPayload();
 			return Optional.of(new TokenData(claims.getSubject(), claims.get("role", String.class),
-					claims.get("applicantId", Long.class)));
+					claims.get("applicantId", Long.class), claims.get("userId", Long.class)));
 		} catch (JwtException | IllegalArgumentException e) {
 			return Optional.empty();
 		}
 	}
 
-	public record TokenData(String email, String role, Long applicantId) {
+	public record TokenData(String email, String role, Long applicantId, Long userId) {
 	}
 }

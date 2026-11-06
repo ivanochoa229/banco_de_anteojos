@@ -12,5 +12,6 @@ public record AssignmentDetailResponseDto(
 		AssignmentResponseDto assignment,
 		ApplicantResponseDto applicant,
 		FrameResponseDto frame,
-		DonorResponseDto donor) {
+		DonorResponseDto donor,
+		AssignmentResponsiblesDto responsibles) {
 }

@@ -15,7 +15,7 @@ import com.banco.anteojos.backend.business.common.dto.response.PageResponseDto;
 
 public interface AssignmentUseCaseOrchestrator {
 
-	AssignmentCreationResponseDto createAssignment(Long applicantId, AssignmentCreationRequestDto request);
+	AssignmentCreationResponseDto createAssignment(Long applicantId, AssignmentCreationRequestDto request, Long userId);
 
 	AssignmentDetailResponseDto getAssignment(Long assignmentId);
 
@@ -23,13 +23,13 @@ public interface AssignmentUseCaseOrchestrator {
 
 	List<AssignmentResponseDto> listAssignmentsByApplicant(Long applicantId);
 
-	AssignmentResponseDto sendToOptician(Long assignmentId);
+	AssignmentResponseDto sendToOptician(Long assignmentId, Long userId);
 
-	AssignmentResponseDto returnFromOptician(Long assignmentId);
+	AssignmentResponseDto returnFromOptician(Long assignmentId, Long userId);
 
-	AssignmentResponseDto deliver(Long assignmentId, DeliveryPhotoUploadRequestDto photo, boolean photoConsent);
+	AssignmentResponseDto deliver(Long assignmentId, DeliveryPhotoUploadRequestDto photo, boolean photoConsent, Long userId);
 
 	DeliveryPhotoResponseDto getDeliveryPhoto(Long assignmentId);
 
-	AssignmentResponseDto cancel(Long assignmentId, String reason);
+	AssignmentResponseDto cancel(Long assignmentId, String reason, Long userId);
 }

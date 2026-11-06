@@ -48,6 +48,8 @@ import com.banco.anteojos.backend.thirdPartyServiceComunication.storage.R2Storag
 @ExtendWith(MockitoExtension.class)
 class AssignmentServiceHandlerTest {
 
+	private static final Long USER_ID = 5L;
+
 	@Mock
 	private AssignmentPostgresSqlRepository assignmentRepository;
 
@@ -60,7 +62,7 @@ class AssignmentServiceHandlerTest {
 	private static final Pageable PAGE = PageRequest.of(0, 20);
 
 	private Assignment assignment() {
-		return new Assignment(1L, 7L, 3L, null);
+		return new Assignment(1L, 7L, 3L, null, USER_ID);
 	}
 
 	private void mockFind(Assignment assignment) {
@@ -73,7 +75,7 @@ class AssignmentServiceHandlerTest {
 		when(assignmentRepository.save(any(Assignment.class))).thenAnswer(inv -> inv.getArgument(0));
 
 		AssignmentCreationResponseDto response = assignmentServiceHandler.createAssignment(1L,
-				new AssignmentCreationRequestDto(7L, 3L, "retira el jueves"), null);
+				new AssignmentCreationRequestDto(7L, 3L, "retira el jueves"), null, USER_ID);
 
 		assertThat(response.assignment().applicantId()).isEqualTo(1L);
 		assertThat(response.assignment().frameId()).isEqualTo(7L);
@@ -89,9 +91,9 @@ class AssignmentServiceHandlerTest {
 
 		// La advertencia no frena la asignación: solo viaja en la respuesta para el operador.
 		AssignmentCreationResponseDto response = assignmentServiceHandler.createAssignment(1L,
-				new AssignmentCreationRequestDto(7L, 3L, null), "Falta la negativa de ANSES");
+				new AssignmentCreationRequestDto(7L, 3L, null), "Falta la negativa de ANSES", USER_ID);
 
-		assertThat(response.eligibilityWarning()).isEqualTo("Falta la negativa de ANSES");
+		assertThat(response.eligibilityWarning()).isEqualTo("Falta la negativa de ANSES", USER_ID);
 	}
 
 	@Test
@@ -106,7 +108,7 @@ class AssignmentServiceHandlerTest {
 	void SendToOptician_Successful() {
 		mockFind(assignment());
 
-		AssignmentResponseDto response = assignmentServiceHandler.sendToOptician(10L);
+		AssignmentResponseDto response = assignmentServiceHandler.sendToOptician(10L, USER_ID);
 
 		assertThat(response.sentToOpticianAt()).isNotNull();
 		assertThat(response.returnedAt()).isNull();
@@ -115,20 +117,20 @@ class AssignmentServiceHandlerTest {
 	@Test
 	void ReturnFromOptician_Successful() {
 		Assignment assignment = assignment();
-		assignment.sendToOptician();
+		assignment.sendToOptician(USER_ID);
 		mockFind(assignment);
 
-		assertThat(assignmentServiceHandler.returnFromOptician(10L).returnedAt()).isNotNull();
+		assertThat(assignmentServiceHandler.returnFromOptician(10L, USER_ID).returnedAt()).isNotNull();
 	}
 
 	@Test
 	void Deliver_Successful() {
 		Assignment assignment = assignment();
-		assignment.sendToOptician();
-		assignment.returnFromOptician();
+		assignment.sendToOptician(USER_ID);
+		assignment.returnFromOptician(USER_ID);
 		mockFind(assignment);
 
-		AssignmentDeliveryResponseDto response = assignmentServiceHandler.deliver(10L, null, false);
+		AssignmentDeliveryResponseDto response = assignmentServiceHandler.deliver(10L, null, false, USER_ID);
 
 		assertThat(response.assignment().deliveredAt()).isNotNull();
 		assertThat(response.assignment().deliveryPhotoOriginalName()).isNull();
@@ -138,8 +140,8 @@ class AssignmentServiceHandlerTest {
 
 	private Assignment returned() {
 		Assignment assignment = assignment();
-		assignment.sendToOptician();
-		assignment.returnFromOptician();
+		assignment.sendToOptician(USER_ID);
+		assignment.returnFromOptician(USER_ID);
 		return assignment;
 	}
 
@@ -152,7 +154,7 @@ class AssignmentServiceHandlerTest {
 		mockFind(returned());
 
 		AssignmentDeliveryResponseDto response = assignmentServiceHandler.deliver(10L,
-				photo("image/jpeg; charset=binary"), true);
+				photo("image/jpeg; charset=binary"), true, USER_ID);
 
 		verify(r2StorageClient).upload(startsWith("deliveries/10/"), eq(new byte[] { 1, 2, 3 }), eq("image/jpeg"));
 		assertThat(response.assignment().deliveryPhotoOriginalName()).isEqualTo("entrega.jpg");
@@ -167,7 +169,7 @@ class AssignmentServiceHandlerTest {
 	void Deliver_WithPhotoWithoutConsent() {
 		mockFind(returned());
 
-		AssignmentDeliveryResponseDto response = assignmentServiceHandler.deliver(10L, photo("image/png"), false);
+		AssignmentDeliveryResponseDto response = assignmentServiceHandler.deliver(10L, photo("image/png"), false, USER_ID);
 
 		// Sin permiso, la foto queda en el registro pero no se le manda al donante.
 		verify(r2StorageClient).upload(startsWith("deliveries/10/"), any(), eq("image/png"));
@@ -180,7 +182,7 @@ class AssignmentServiceHandlerTest {
 	void Deliver_WhenPhotoIsNotAnImage() {
 		when(assignmentRepository.findById(10L)).thenReturn(Optional.of(returned()));
 
-		assertThatThrownBy(() -> assignmentServiceHandler.deliver(10L, photo("application/pdf"), true))
+		assertThatThrownBy(() -> assignmentServiceHandler.deliver(10L, photo("application/pdf"), true, USER_ID))
 				.isInstanceOf(InvalidDeliveryPhotoException.class);
 		verify(r2StorageClient, never()).upload(any(), any(), any());
 		verify(assignmentRepository, never()).save(any());
@@ -191,7 +193,7 @@ class AssignmentServiceHandlerTest {
 		when(assignmentRepository.findById(10L)).thenReturn(Optional.of(assignment()));
 
 		// Una entrega fuera de orden no puede dejar una foto huérfana en R2.
-		assertThatThrownBy(() -> assignmentServiceHandler.deliver(10L, photo("image/jpeg"), true))
+		assertThatThrownBy(() -> assignmentServiceHandler.deliver(10L, photo("image/jpeg"), true, USER_ID))
 				.isInstanceOf(InvalidAssignmentTransitionException.class);
 		verify(r2StorageClient, never()).upload(any(), any(), any());
 	}
@@ -199,7 +201,7 @@ class AssignmentServiceHandlerTest {
 	@Test
 	void GetDeliveryPhoto_WhenThereIsNone() {
 		Assignment assignment = returned();
-		assignment.deliver();
+		assignment.deliver(USER_ID);
 		when(assignmentRepository.findById(10L)).thenReturn(Optional.of(assignment));
 
 		assertThatThrownBy(() -> assignmentServiceHandler.getDeliveryPhoto(10L))
@@ -210,7 +212,7 @@ class AssignmentServiceHandlerTest {
 	void Cancel_Successful() {
 		mockFind(assignment());
 
-		AssignmentResponseDto response = assignmentServiceHandler.cancel(10L, "no se presentó");
+		AssignmentResponseDto response = assignmentServiceHandler.cancel(10L, "no se presentó", USER_ID);
 
 		assertThat(response.cancelledAt()).isNotNull();
 		assertThat(response.cancellationReason()).isEqualTo("no se presentó");

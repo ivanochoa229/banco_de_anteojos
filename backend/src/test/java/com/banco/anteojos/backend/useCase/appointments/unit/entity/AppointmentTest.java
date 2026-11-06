@@ -100,6 +100,15 @@ class AppointmentTest {
 	}
 
 	@Test
+	void Cancel_WhenPendingPayment() {
+		Appointment appointment = appointment();
+
+		appointment.cancel("nunca subió el comprobante");
+
+		assertThat(appointment.getStatus()).isEqualTo(AppointmentStatus.CANCELLED);
+	}
+
+	@Test
 	void Cancel_WhenPendingReview() {
 		Appointment appointment = pendingReviewAppointment();
 

@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.banco.anteojos.backend.business.assignments.dto.request.AssignmentCreationRequestDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentCreationResponseDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentResponseDto;
+import com.banco.anteojos.backend.business.security.CurrentUserService;
 import com.banco.anteojos.backend.orchestrator.assignments.AssignmentUseCaseOrchestrator;
 
 import jakarta.validation.Valid;
@@ -26,12 +27,13 @@ import lombok.RequiredArgsConstructor;
 public class ApplicantAssignmentController {
 
 	private final AssignmentUseCaseOrchestrator assignmentOrchestrator;
+	private final CurrentUserService currentUserService;
 
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
 	public AssignmentCreationResponseDto create(@PathVariable Long applicantId,
 			@Valid @RequestBody AssignmentCreationRequestDto request) {
-		return assignmentOrchestrator.createAssignment(applicantId, request);
+		return assignmentOrchestrator.createAssignment(applicantId, request, currentUserService.getUserId());
 	}
 
 	@GetMapping
