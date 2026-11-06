@@ -37,8 +37,8 @@ export const NEXT_MILESTONE = {
 
 // Línea de tiempo de la trazabilidad (RF-16), en el orden del circuito.
 export const ASSIGNMENT_MILESTONES = [
-  { field: 'assignedAt', label: 'Marco asignado' },
-  { field: 'sentToOpticianAt', label: 'Enviado a la óptica con la receta' },
-  { field: 'returnedAt', label: 'Volvió de la óptica con los cristales' },
-  { field: 'deliveredAt', label: 'Entregado al beneficiario' },
+  { field: 'assignedAt', by: 'assignedBy', label: 'Marco asignado' },
+  { field: 'sentToOpticianAt', by: 'sentToOpticianBy', label: 'Enviado a la óptica con la receta' },
+  { field: 'returnedAt', by: 'returnedBy', label: 'Volvió de la óptica con los cristales' },
+  { field: 'deliveredAt', by: 'deliveredBy', label: 'Entregado al beneficiario' },
 ]

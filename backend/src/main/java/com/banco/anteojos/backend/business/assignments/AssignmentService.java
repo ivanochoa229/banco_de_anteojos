@@ -14,6 +14,7 @@ import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentDe
 import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentDetailResponseDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentListItemResponseDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentResponseDto;
+import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentResponsibleIdsDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.DeliveryPhotoResponseDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.MonthlyDeliveryResponseDto;
 import com.banco.anteojos.backend.business.common.dto.response.PageResponseDto;
@@ -27,7 +28,7 @@ public interface AssignmentService {
 	 *        Lo resuelve el orchestrator consultando al dominio applicants: acá solo se adjunta.
 	 */
 	AssignmentCreationResponseDto createAssignment(Long applicantId, AssignmentCreationRequestDto request,
-			String eligibilityWarning);
+			String eligibilityWarning, Long userId);
 
 	AssignmentResponseDto getAssignment(Long assignmentId);
 
@@ -42,24 +43,28 @@ public interface AssignmentService {
 
 	List<AssignmentResponseDto> listAssignmentsByApplicant(Long applicantId);
 
-	AssignmentResponseDto sendToOptician(Long assignmentId);
+	AssignmentResponseDto sendToOptician(Long assignmentId, Long userId);
 
-	AssignmentResponseDto returnFromOptician(Long assignmentId);
+	AssignmentResponseDto returnFromOptician(Long assignmentId, Long userId);
 
 	/**
 	 * @param photo foto del beneficiario con sus anteojos, o null si no la sacaron.
 	 * @param photoConsent si el beneficiario autorizó mandarle la foto al donante.
 	 */
 	AssignmentDeliveryResponseDto deliver(Long assignmentId, DeliveryPhotoUploadRequestDto photo,
-			boolean photoConsent);
+			boolean photoConsent, Long userId);
 
 	DeliveryPhotoResponseDto getDeliveryPhoto(Long assignmentId);
 
-	AssignmentResponseDto cancel(Long assignmentId, String reason);
+	AssignmentResponseDto cancel(Long assignmentId, String reason, Long userId);
 
 	/** Arma la trazabilidad con los datos que el orchestrator ya resolvió en cada dominio. */
 	AssignmentDetailResponseDto buildDetail(AssignmentResponseDto assignment, ApplicantResponseDto applicant,
-			FrameResponseDto frame, DonorResponseDto donor);
+			FrameResponseDto frame, DonorResponseDto donor, AssignmentResponsibleIdsDto responsibleIds,
+			Map<Long, String> userNames);
+
+	/** Quién registró cada hito; los nombres los resuelve el orchestrator en el dominio security. */
+	AssignmentResponsibleIdsDto getResponsibleIds(Long assignmentId);
 
 	// Para el panel de indicadores (RF-26/27).
 

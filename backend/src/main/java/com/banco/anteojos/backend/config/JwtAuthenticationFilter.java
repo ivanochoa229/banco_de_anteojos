@@ -37,7 +37,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 					.ifPresent(tokenData -> {
 						SecurityContextHolder.getContext().setAuthentication(
 								new UsernamePasswordAuthenticationToken(
-										new AuthenticatedPrincipal(tokenData.email(), tokenData.role(), tokenData.applicantId()),
+										new AuthenticatedPrincipal(tokenData.email(), tokenData.role(), tokenData.applicantId(),
+												tokenData.userId()),
 										null,
 										List.of(new SimpleGrantedAuthority("ROLE_" + tokenData.role()))));
 						MDC.put("username", tokenData.email());

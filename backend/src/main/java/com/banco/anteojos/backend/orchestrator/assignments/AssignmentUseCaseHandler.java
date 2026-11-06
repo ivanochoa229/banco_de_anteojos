@@ -23,6 +23,8 @@ import com.banco.anteojos.backend.business.common.dto.response.PageResponseDto;
 import com.banco.anteojos.backend.business.donors.DonorService;
 import com.banco.anteojos.backend.business.donors.dto.response.DonorResponseDto;
 import com.banco.anteojos.backend.business.frames.FrameService;
+import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentResponsibleIdsDto;
+import com.banco.anteojos.backend.business.security.SecurityService;
 import com.banco.anteojos.backend.business.frames.dto.response.FrameResponseDto;
 import com.banco.anteojos.backend.thirdPartyServiceComunication.notifications.NotificationClient;
 
@@ -42,11 +44,13 @@ public class AssignmentUseCaseHandler implements AssignmentUseCaseOrchestrator {
 	private final ApplicantService applicantService;
 	private final FrameService frameService;
 	private final DonorService donorService;
+	private final SecurityService securityService;
 	private final NotificationClient notificationClient;
 
 	@Override
 	@Transactional
-	public AssignmentCreationResponseDto createAssignment(Long applicantId, AssignmentCreationRequestDto request) {
+	public AssignmentCreationResponseDto createAssignment(Long applicantId, AssignmentCreationRequestDto request,
+			Long userId) {
 		// Pertenencia primero: que la receta sea de este solicitante y no de otro.
 		applicantService.getPrescription(applicantId, request.prescriptionId());
 		// La reserva del beneficiario se cierra al asignarle un marco: se concreta si es el que
@@ -56,7 +60,7 @@ public class AssignmentUseCaseHandler implements AssignmentUseCaseOrchestrator {
 		// asignado, reservado por otro) y así no queda una asignación colgada.
 		frameService.markAsAssigned(request.frameId(), reservedFrameId);
 		EligibilityResponseDto eligibility = applicantService.checkEligibility(applicantId);
-		return assignmentService.createAssignment(applicantId, request, eligibility.warning());
+		return assignmentService.createAssignment(applicantId, request, eligibility.warning(), userId);
 	}
 
 	@Override
@@ -64,8 +68,9 @@ public class AssignmentUseCaseHandler implements AssignmentUseCaseOrchestrator {
 		AssignmentResponseDto assignment = assignmentService.getAssignment(assignmentId);
 		ApplicantResponseDto applicant = applicantService.getApplicant(assignment.applicantId());
 		FrameResponseDto frame = frameService.getFrame(assignment.frameId());
-		return assignmentService.buildDetail(assignment, applicant, frame,
-				donorService.getDonor(frame.donorId()));
+		AssignmentResponsibleIdsDto responsibleIds = assignmentService.getResponsibleIds(assignmentId);
+		return assignmentService.buildDetail(assignment, applicant, frame, donorService.getDonor(frame.donorId()),
+				responsibleIds, securityService.getUserNames(responsibleIds.distinctValues()));
 	}
 
 	@Override
@@ -84,16 +89,16 @@ public class AssignmentUseCaseHandler implements AssignmentUseCaseOrchestrator {
 
 	@Override
 	@Transactional
-	public AssignmentResponseDto sendToOptician(Long assignmentId) {
-		AssignmentResponseDto assignment = assignmentService.sendToOptician(assignmentId);
+	public AssignmentResponseDto sendToOptician(Long assignmentId, Long userId) {
+		AssignmentResponseDto assignment = assignmentService.sendToOptician(assignmentId, userId);
 		frameService.markAsAtOptician(assignment.frameId());
 		return assignment;
 	}
 
 	@Override
 	@Transactional
-	public AssignmentResponseDto returnFromOptician(Long assignmentId) {
-		AssignmentResponseDto assignment = assignmentService.returnFromOptician(assignmentId);
+	public AssignmentResponseDto returnFromOptician(Long assignmentId, Long userId) {
+		AssignmentResponseDto assignment = assignmentService.returnFromOptician(assignmentId, userId);
 		frameService.markAsReady(assignment.frameId());
 		return assignment;
 	}
@@ -103,8 +108,8 @@ public class AssignmentUseCaseHandler implements AssignmentUseCaseOrchestrator {
 	@Override
 	@Transactional
 	public AssignmentResponseDto deliver(Long assignmentId, DeliveryPhotoUploadRequestDto photo,
-			boolean photoConsent) {
-		AssignmentDeliveryResponseDto delivery = assignmentService.deliver(assignmentId, photo, photoConsent);
+			boolean photoConsent, Long userId) {
+		AssignmentDeliveryResponseDto delivery = assignmentService.deliver(assignmentId, photo, photoConsent, userId);
 		FrameResponseDto frame = frameService.markAsDelivered(delivery.assignment().frameId());
 		DonorResponseDto donor = donorService.getDonor(frame.donorId());
 		notificationClient.sendFrameDelivered(donor.email(), donor.name(), frame.sealCode(),
@@ -119,8 +124,8 @@ public class AssignmentUseCaseHandler implements AssignmentUseCaseOrchestrator {
 
 	@Override
 	@Transactional
-	public AssignmentResponseDto cancel(Long assignmentId, String reason) {
-		AssignmentResponseDto assignment = assignmentService.cancel(assignmentId, reason);
+	public AssignmentResponseDto cancel(Long assignmentId, String reason, Long userId) {
+		AssignmentResponseDto assignment = assignmentService.cancel(assignmentId, reason, userId);
 		frameService.returnToInventory(assignment.frameId());
 		return assignment;
 	}

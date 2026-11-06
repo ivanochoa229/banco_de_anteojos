@@ -1,5 +1,9 @@
 package com.banco.anteojos.backend.business.security;
 
+import java.util.Collection;
+import java.util.Map;
+import java.util.stream.Collectors;
+
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -65,5 +69,11 @@ public class SecurityServiceHandler implements SecurityService {
 		User user = userRepository.save(new User(name, normalizedEmail, passwordEncoder.encode(rawPassword),
 				Role.APPLICANT, applicantId));
 		return new LoginResponseDto(jwtService.generateToken(user));
+	}
+
+	@Override
+	public Map<Long, String> getUserNames(Collection<Long> userIds) {
+		return userRepository.findAllById(userIds).stream()
+				.collect(Collectors.toMap(User::getId, User::getName));
 	}
 }

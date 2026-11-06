@@ -70,7 +70,7 @@ export function AssignmentDetailPage() {
     )
   }
 
-  const { assignment, applicant, frame, donor } = detailQuery.data
+  const { assignment, applicant, frame, donor, responsibles } = detailQuery.data
   const actionError = milestoneMutation.error?.message ?? cancelMutation.error?.message
   const isPending = milestoneMutation.isPending || cancelMutation.isPending
 
@@ -112,7 +112,7 @@ export function AssignmentDetailPage() {
             Recorrido
           </h3>
           <div className="mt-4">
-            <AssignmentTimeline assignment={assignment} />
+            <AssignmentTimeline assignment={assignment} responsibles={responsibles} />
           </div>
           {assignment.deliveryPhotoOriginalName && (
             <dl className="mt-2 space-y-2 border-t border-slate-100 pt-3 text-sm">
