@@ -45,6 +45,7 @@ import com.banco.anteojos.backend.persistence.applicants.AnsesCertificatePostgre
 import com.banco.anteojos.backend.persistence.applicants.PrescriptionPostgresSqlRepository;
 import com.banco.anteojos.backend.persistence.assignments.AssignmentPostgresSqlRepository;
 import com.banco.anteojos.backend.persistence.frames.FramePostgresSqlRepository;
+import com.banco.anteojos.backend.persistence.security.UserPostgresSqlRepository;
 import com.banco.anteojos.backend.thirdPartyServiceComunication.notifications.EmailAttachment;
 import com.banco.anteojos.backend.thirdPartyServiceComunication.notifications.NotificationClient;
 import com.banco.anteojos.backend.thirdPartyServiceComunication.storage.PresignedUrl;
@@ -89,6 +90,9 @@ class AssignmentE2ETest {
 
 	@Autowired
 	private AssignmentPostgresSqlRepository assignmentRepository;
+
+	@Autowired
+	private UserPostgresSqlRepository userRepository;
 
 	@MockitoBean
 	private R2StorageClient r2StorageClient;
@@ -450,5 +454,36 @@ class AssignmentE2ETest {
 				.andExpect(jsonPath("$.content[0].assignment.frameId").value(AVAILABLE_FRAME_ID))
 				.andExpect(jsonPath("$.content[0].applicantName").value("Pérez, Juana"))
 				.andExpect(jsonPath("$.content[0].frameSealCode").value("A-1001"));
+	}
+
+	@Test
+	void Milestones_RecordResponsibleUser() throws Exception {
+		givenValidAnsesCertificate();
+		User creator = userRepository.save(new User("Ana Operadora", "ana@bancoanteojos.org", "hash", Role.OPERATOR));
+		User sender = userRepository.save(new User("Beto Operador", "beto@bancoanteojos.org", "hash", Role.OPERATOR));
+		String creatorToken = "Bearer " + jwtService.generateToken(creator);
+		String senderToken = "Bearer " + jwtService.generateToken(sender);
+
+		String response = mockMvc.perform(post("/v1/applicants/" + APPLICANT_ID + "/assignments")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(creationBody(AVAILABLE_FRAME_ID))
+						.header(HttpHeaders.AUTHORIZATION, creatorToken))
+				.andExpect(status().isCreated())
+				.andReturn().getResponse().getContentAsString();
+		Long assignmentId = ((Number) JsonPath.read(response, "$.assignment.id")).longValue();
+		mockMvc.perform(put("/v1/assignments/" + assignmentId + "/optician-dispatch")
+						.header(HttpHeaders.AUTHORIZATION, senderToken))
+				.andExpect(status().isOk());
+
+		Assignment saved = assignmentRepository.findById(assignmentId).orElseThrow();
+		assertThat(saved.getAssignedByUserId()).isEqualTo(creator.getId());
+		assertThat(saved.getSentToOpticianByUserId()).isEqualTo(sender.getId());
+
+		mockMvc.perform(get("/v1/assignments/" + assignmentId)
+						.header(HttpHeaders.AUTHORIZATION, creatorToken))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.responsibles.assignedBy").value("Ana Operadora"))
+				.andExpect(jsonPath("$.responsibles.sentToOpticianBy").value("Beto Operador"))
+				.andExpect(jsonPath("$.responsibles.returnedBy").doesNotExist());
 	}
 }

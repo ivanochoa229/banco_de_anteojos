@@ -19,6 +19,8 @@ import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentDe
 import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentDetailResponseDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentListItemResponseDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentResponseDto;
+import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentResponsibleIdsDto;
+import com.banco.anteojos.backend.business.assignments.dto.response.AssignmentResponsiblesDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.DeliveryPhotoResponseDto;
 import com.banco.anteojos.backend.business.assignments.dto.response.MonthlyDeliveryResponseDto;
 import com.banco.anteojos.backend.business.assignments.entities.Assignment;
@@ -50,9 +52,9 @@ public class AssignmentServiceHandler implements AssignmentService {
 
 	@Override
 	public AssignmentCreationResponseDto createAssignment(Long applicantId,
-			AssignmentCreationRequestDto request, String eligibilityWarning) {
+			AssignmentCreationRequestDto request, String eligibilityWarning, Long userId) {
 		Assignment assignment = assignmentRepository.save(new Assignment(applicantId, request.frameId(),
-				request.prescriptionId(), request.notes()));
+				request.prescriptionId(), request.notes(), userId));
 		return new AssignmentCreationResponseDto(toResponse(assignment), eligibilityWarning);
 	}
 
@@ -84,23 +86,23 @@ public class AssignmentServiceHandler implements AssignmentService {
 	}
 
 	@Override
-	public AssignmentResponseDto sendToOptician(Long assignmentId) {
-		return transition(assignmentId, Assignment::sendToOptician);
+	public AssignmentResponseDto sendToOptician(Long assignmentId, Long userId) {
+		return transition(assignmentId, assignment -> assignment.sendToOptician(userId));
 	}
 
 	@Override
-	public AssignmentResponseDto returnFromOptician(Long assignmentId) {
-		return transition(assignmentId, Assignment::returnFromOptician);
+	public AssignmentResponseDto returnFromOptician(Long assignmentId, Long userId) {
+		return transition(assignmentId, assignment -> assignment.returnFromOptician(userId));
 	}
 
 	@Override
 	public AssignmentDeliveryResponseDto deliver(Long assignmentId, DeliveryPhotoUploadRequestDto photo,
-			boolean photoConsent) {
+			boolean photoConsent, Long userId) {
 		Assignment assignment = findAssignment(assignmentId);
 		// La foto se valida antes de tocar nada, y la transición antes de subirla: ni un
 		// archivo inválido ni una entrega fuera de orden dejan un huérfano en R2.
 		String extension = photo == null ? null : validatePhoto(photo);
-		assignment.deliver();
+		assignment.deliver(userId);
 		if (photo == null) {
 			return new AssignmentDeliveryResponseDto(toResponse(assignmentRepository.save(assignment)), null);
 		}
@@ -157,16 +159,28 @@ public class AssignmentServiceHandler implements AssignmentService {
 	}
 
 	@Override
-	public AssignmentResponseDto cancel(Long assignmentId, String reason) {
+	public AssignmentResponseDto cancel(Long assignmentId, String reason, Long userId) {
 		Assignment assignment = findAssignment(assignmentId);
-		assignment.cancel(reason);
+		assignment.cancel(reason, userId);
 		return toResponse(assignmentRepository.save(assignment));
 	}
 
 	@Override
 	public AssignmentDetailResponseDto buildDetail(AssignmentResponseDto assignment,
-			ApplicantResponseDto applicant, FrameResponseDto frame, DonorResponseDto donor) {
-		return new AssignmentDetailResponseDto(assignment, applicant, frame, donor);
+			ApplicantResponseDto applicant, FrameResponseDto frame, DonorResponseDto donor,
+			AssignmentResponsibleIdsDto ids, Map<Long, String> userNames) {
+		AssignmentResponsiblesDto responsibles = new AssignmentResponsiblesDto(userNames.get(ids.assignedBy()),
+				userNames.get(ids.sentToOpticianBy()), userNames.get(ids.returnedBy()),
+				userNames.get(ids.deliveredBy()), userNames.get(ids.cancelledBy()));
+		return new AssignmentDetailResponseDto(assignment, applicant, frame, donor, responsibles);
+	}
+
+	@Override
+	public AssignmentResponsibleIdsDto getResponsibleIds(Long assignmentId) {
+		Assignment assignment = findAssignment(assignmentId);
+		return new AssignmentResponsibleIdsDto(assignment.getAssignedByUserId(),
+				assignment.getSentToOpticianByUserId(), assignment.getReturnedByUserId(),
+				assignment.getDeliveredByUserId(), assignment.getCancelledByUserId());
 	}
 
 	@Override

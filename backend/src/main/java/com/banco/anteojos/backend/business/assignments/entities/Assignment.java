@@ -35,6 +35,18 @@ public class Assignment {
 
 	private LocalDateTime assignedAt;
 
+	// Responsable de cada hito (RF-16 / RNF-09): el usuario que lo registró. Nulos solo en las
+	// filas anteriores a la auditoría.
+	private Long assignedByUserId;
+
+	private Long sentToOpticianByUserId;
+
+	private Long returnedByUserId;
+
+	private Long deliveredByUserId;
+
+	private Long cancelledByUserId;
+
 	private LocalDateTime sentToOpticianAt;
 
 	private LocalDateTime returnedAt;
@@ -59,23 +71,25 @@ public class Assignment {
 	protected Assignment() {
 	}
 
-	public Assignment(Long applicantId, Long frameId, Long prescriptionId, String notes) {
+	public Assignment(Long applicantId, Long frameId, Long prescriptionId, String notes, Long userId) {
 		this.applicantId = applicantId;
 		this.frameId = frameId;
 		this.prescriptionId = prescriptionId;
 		this.notes = notes == null || notes.isBlank() ? null : notes.trim();
 		this.assignedAt = LocalDateTime.now();
+		this.assignedByUserId = userId;
 	}
 
-	public void sendToOptician() {
+	public void sendToOptician(Long userId) {
 		requireOpen();
 		if (sentToOpticianAt != null) {
 			throw new InvalidAssignmentTransitionException("El marco ya fue enviado a la óptica");
 		}
 		this.sentToOpticianAt = LocalDateTime.now();
+		this.sentToOpticianByUserId = userId;
 	}
 
-	public void returnFromOptician() {
+	public void returnFromOptician(Long userId) {
 		requireOpen();
 		if (sentToOpticianAt == null) {
 			throw new InvalidAssignmentTransitionException("El marco todavía no fue enviado a la óptica");
@@ -84,9 +98,10 @@ public class Assignment {
 			throw new InvalidAssignmentTransitionException("El marco ya volvió de la óptica");
 		}
 		this.returnedAt = LocalDateTime.now();
+		this.returnedByUserId = userId;
 	}
 
-	public void deliver() {
+	public void deliver(Long userId) {
 		requireOpen();
 		// Se entrega el lente terminado, así que tiene que haber vuelto de la óptica con
 		// los cristales puestos: el marco solo no le sirve al beneficiario.
@@ -95,6 +110,7 @@ public class Assignment {
 					"No se puede entregar: el marco todavía no volvió de la óptica con los cristales");
 		}
 		this.deliveredAt = LocalDateTime.now();
+		this.deliveredByUserId = userId;
 	}
 
 	/**
@@ -116,9 +132,10 @@ public class Assignment {
 		return deliveryPhotoKey != null;
 	}
 
-	public void cancel(String reason) {
+	public void cancel(String reason, Long userId) {
 		requireOpen();
 		this.cancelledAt = LocalDateTime.now();
+		this.cancelledByUserId = userId;
 		this.cancellationReason = reason == null || reason.isBlank() ? null : reason.trim();
 	}
 

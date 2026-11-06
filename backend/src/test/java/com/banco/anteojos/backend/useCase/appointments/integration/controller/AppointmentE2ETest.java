@@ -323,7 +323,7 @@ class AppointmentE2ETest {
 				.save(new Prescription(APPLICANT_ID, new BigDecimal("-1.25"), null, null, null, null, null))
 				.getId();
 		Long assignmentId = assignmentRepository
-				.save(new Assignment(APPLICANT_ID, 400000L, prescriptionId, null)).getId();
+				.save(new Assignment(APPLICANT_ID, 400000L, prescriptionId, null, null)).getId();
 
 		mockMvc.perform(post("/v1/applicants/" + APPLICANT_ID + "/appointments")
 						.contentType(MediaType.APPLICATION_JSON)
@@ -343,7 +343,7 @@ class AppointmentE2ETest {
 				.save(new Prescription(otherApplicantId, new BigDecimal("-2.00"), null, null, null, null, null))
 				.getId();
 		Long foreignAssignmentId = assignmentRepository
-				.save(new Assignment(otherApplicantId, 400001L, prescriptionId, null)).getId();
+				.save(new Assignment(otherApplicantId, 400001L, prescriptionId, null, null)).getId();
 
 		mockMvc.perform(post("/v1/applicants/" + APPLICANT_ID + "/appointments")
 						.contentType(MediaType.APPLICATION_JSON)
